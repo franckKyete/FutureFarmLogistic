@@ -83,6 +83,26 @@ export class SeedService implements OnApplicationBootstrap {
       });
       await this.roleRepository.save(inspectorRoleToCreate);
 
+      const driverRoleToCreate = this.roleRepository.create({
+        name: 'Driver',
+        description: 'Fleet driver role',
+        permissions: [
+          Permission.DELIVERY_RUN_READ,
+          Permission.DELIVERY_STOP_UPDATE,
+          Permission.DRIVER_LOCATION_PUSH,
+          Permission.DRIVER_LOCATION_READ,
+          Permission.VEHICLE_READ,
+          Permission.INSPECTION_CREATE,
+          Permission.INSPECTION_READ,
+          Permission.ORDER_READ,
+          Permission.PROFILE_UPDATE,
+          Permission.SESSION_MANAGE,
+          Permission.NOTIFICATION_READ,
+          Permission.NOTIFICATION_DELETE_OWN,
+        ],
+      });
+      await this.roleRepository.save(driverRoleToCreate);
+
       this.logger.log('Default roles seeded successfully.');
     } else {
       adminRole = await this.roleRepository.findOne({
@@ -90,7 +110,7 @@ export class SeedService implements OnApplicationBootstrap {
       });
       userRole = await this.roleRepository.findOne({ where: { name: 'User' } });
 
-      // Ensure Farmer, Buyer, Inspector exist even if some roles are already seeded
+      // Ensure Farmer, Buyer, Inspector, Driver exist even if some roles are already seeded
       const farmerExists = await this.roleRepository.existsBy({
         name: 'Farmer',
       });
@@ -132,6 +152,30 @@ export class SeedService implements OnApplicationBootstrap {
           permissions: [
             Permission.USER_READ,
             Permission.PARCEL_VERIFY,
+            Permission.SESSION_MANAGE,
+            Permission.NOTIFICATION_READ,
+            Permission.NOTIFICATION_DELETE_OWN,
+          ],
+        });
+        await this.roleRepository.save(r);
+      }
+      const driverExists = await this.roleRepository.existsBy({
+        name: 'Driver',
+      });
+      if (!driverExists) {
+        const r = this.roleRepository.create({
+          name: 'Driver',
+          description: 'Fleet driver role',
+          permissions: [
+            Permission.DELIVERY_RUN_READ,
+            Permission.DELIVERY_STOP_UPDATE,
+            Permission.DRIVER_LOCATION_PUSH,
+            Permission.DRIVER_LOCATION_READ,
+            Permission.VEHICLE_READ,
+            Permission.INSPECTION_CREATE,
+            Permission.INSPECTION_READ,
+            Permission.ORDER_READ,
+            Permission.PROFILE_UPDATE,
             Permission.SESSION_MANAGE,
             Permission.NOTIFICATION_READ,
             Permission.NOTIFICATION_DELETE_OWN,

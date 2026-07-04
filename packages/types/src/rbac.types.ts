@@ -98,6 +98,20 @@ export enum Permission {
   ORDER_CANCEL_FORCE = 'order:cancel:force',
   ORDER_REFUND = 'order:refund',
   ORDER_FEE_OVERRIDE = 'order:fee:override',
+
+  // --- Logistics ---
+  DELIVERY_RUN_CREATE   = 'delivery:run:create',
+  DELIVERY_RUN_READ     = 'delivery:run:read',
+  DELIVERY_RUN_READ_ALL = 'delivery:run:read:all',
+  DELIVERY_RUN_UPDATE   = 'delivery:run:update',
+  DELIVERY_RUN_CANCEL   = 'delivery:run:cancel',
+  DELIVERY_STOP_UPDATE  = 'delivery:stop:update',
+  VEHICLE_CREATE        = 'vehicle:create',
+  VEHICLE_READ          = 'vehicle:read',
+  VEHICLE_UPDATE        = 'vehicle:update',
+  VEHICLE_DELETE        = 'vehicle:delete',
+  DRIVER_LOCATION_PUSH  = 'driver:location:push',
+  DRIVER_LOCATION_READ  = 'driver:location:read',
 }
 
 /** A role is a named bundle of permissions */
