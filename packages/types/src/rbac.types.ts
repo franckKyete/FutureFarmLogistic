@@ -43,6 +43,21 @@ export enum Permission {
   PARCEL_VERIFY = 'parcel:verify',
   PROFILE_UPDATE = 'profile:update',
   SESSION_MANAGE = 'session:manage',
+
+  // --- Product Crop Templates ---
+  PRODUCT_CREATE = 'product:create',
+  PRODUCT_READ = 'product:read',
+  PRODUCT_UPDATE = 'product:update',
+  PRODUCT_DELETE = 'product:delete',
+  PRODUCT_VERIFY = 'product:verify',
+
+  // --- Physical Harvest Batches ---
+  HARVEST_CREATE = 'harvest:create',
+  HARVEST_READ = 'harvest:read',
+  HARVEST_READ_ALL = 'harvest:read:all',
+  HARVEST_UPDATE = 'harvest:update',
+  HARVEST_DELETE = 'harvest:delete',
+  HARVEST_VERIFY = 'harvest:verify',
 }
 
 /** A role is a named bundle of permissions */
