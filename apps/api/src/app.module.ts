@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
@@ -14,6 +15,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProductsModule } from './modules/products/products.module';
 import { InspectionsModule } from './modules/inspections/inspections.module';
+import { AuctionsModule } from './modules/auctions/auctions.module';
 
 @Module({
   imports: [
@@ -25,6 +27,9 @@ import { InspectionsModule } from './modules/inspections/inspections.module';
       validate: validateEnv,
       cache: true,
     }),
+
+    // --- Task Scheduling (global) ---
+    ScheduleModule.forRoot(),
 
     // --- Bull Queue Queueing (Redis connection) ---
     BullModule.forRootAsync({
@@ -46,6 +51,7 @@ import { InspectionsModule } from './modules/inspections/inspections.module';
     NotificationsModule,
     ProductsModule,
     InspectionsModule,
+    AuctionsModule,
   ],
 })
 export class AppModule {}

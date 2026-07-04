@@ -1,0 +1,139 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
+import { Permission, AuthUser, AuctionStatus } from '@futurefarm/types';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { AuctionsService } from './auctions.service';
+import { CreateAuctionDto } from './dto/create-auction.dto';
+import { UpdateAuctionDto } from './dto/update-auction.dto';
+
+@ApiTags('Auctions & Bidding')
+@Controller('auctions')
+export class AuctionsController {
+  constructor(private readonly auctionsService: AuctionsService) {}
+
+  // =============================================================================
+  // Gated Read Endpoints (Must be evaluated before parameterized routes)
+  // =============================================================================
+
+  @Get('my-bids')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.BID_READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get caller's own bid history (Buyer)" })
+  @ApiOkResponse({ description: 'List of bids placed by caller' })
+  async getMyBids(@CurrentUser() user: AuthUser) {
+    return this.auctionsService.listMyBids(user.id);
+  }
+
+  // =============================================================================
+  // Public Browse Endpoints (No Auth Required)
+  // =============================================================================
+
+  @Get()
+  @ApiOperation({ summary: 'List all auctions (Public)' })
+  @ApiOkResponse({ description: 'Paginated list of auctions' })
+  async findAll(
+    @Query('status') status?: AuctionStatus,
+    @Query('harvestId') harvestId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.auctionsService.listAuctions({
+      status,
+      harvestId,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get single auction details (Public)' })
+  @ApiOkResponse({ description: 'Detailed auction object' })
+  async findOne(@Param('id') id: string) {
+    return this.auctionsService.getAuction(id);
+  }
+
+  // =============================================================================
+  // Gated Actions (JWT & RBAC Required)
+  // =============================================================================
+
+  @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AUCTION_CREATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new auction on a harvest (Farmer)' })
+  @ApiCreatedResponse({ description: 'Auction created successfully' })
+  async create(@CurrentUser() user: AuthUser, @Body() dto: CreateAuctionDto) {
+    return this.auctionsService.createAuction(user.id, dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AUCTION_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update auction scheduling details (SCHEDULED only)',
+  })
+  @ApiOkResponse({ description: 'Auction updated successfully' })
+  async update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateAuctionDto,
+  ) {
+    return this.auctionsService.updateAuction(user.id, id, dto);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AUCTION_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel an auction (Farmer/Admin)' })
+  @ApiOkResponse({ description: 'Auction cancelled successfully' })
+  async cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const isAdmin = user.permissions.includes(Permission.AUCTION_MANAGE);
+    return this.auctionsService.cancelAuction(user.id, id, isAdmin);
+  }
+
+  @Post(':id/bids')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.BID_CREATE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Place a bid to buy the entire lot at current price (Buyer)',
+  })
+  @ApiCreatedResponse({ description: 'Bid placed and won successfully' })
+  async placeBid(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auctionsService.placeBid(user.id, id);
+  }
+
+  @Get(':id/bids')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.BID_READ_ALL)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all bids for a specific auction (Admin)' })
+  @ApiOkResponse({ description: 'List of bids' })
+  async findBidsForAuction(@Param('id') id: string) {
+    return this.auctionsService.listAllBidsForAdmin(id);
+  }
+}

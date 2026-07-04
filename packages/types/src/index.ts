@@ -9,5 +9,4 @@ export * from './notification.types';
 export * from './user.types';
 export * from './product.types';
 export * from './inspection.types';
-
-
+export * from './auction.types';

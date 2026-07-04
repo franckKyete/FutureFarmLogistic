@@ -17,6 +17,7 @@ Welcome to the Future Farm Logistic platform documentation. This monorepo contai
 - [Notifications](./backend/notifications.md) — Multi-channel notification architecture
 - [Harvest Catalogue](./backend/harvest-catalogue.md) — Crop template catalog and harvest batches management
 - [Quality Inspection](./backend/inspection.md) — On-site checklists, photo GPS metadata, and AI vision classification
+- [Auction & Bidding](./backend/auction.md) — Real-time Dutch auctions, price decrement cron engine, and WebSocket gateway
 - [Modules](./backend/modules.md) — How to create a new NestJS module
 - [Auth](./backend/auth.md) — JWT flow, token refresh, guard usage
 

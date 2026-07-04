@@ -69,6 +69,18 @@ export enum Permission {
   // --- Inspector Profile ---
   INSPECTOR_PROFILE_READ = 'inspector:profile:read',
   INSPECTOR_PROFILE_UPDATE = 'inspector:profile:update',
+
+  // --- Auctions ---
+  AUCTION_CREATE = 'auction:create',
+  AUCTION_UPDATE = 'auction:update',
+  AUCTION_MANAGE = 'auction:manage',
+  AUCTION_READ = 'auction:read',
+
+  // --- Bids ---
+  BID_CREATE = 'bid:create',
+  BID_READ = 'bid:read',
+  BID_READ_ALL = 'bid:read:all',
+  BID_CANCEL = 'bid:cancel',
 }
 
 /** A role is a named bundle of permissions */
