@@ -16,6 +16,7 @@ Welcome to the Future Farm Logistic platform documentation. This monorepo contai
 - [API Conventions](./backend/api-conventions.md) — URL structure, versioning, response shapes
 - [Notifications](./backend/notifications.md) — Multi-channel notification architecture
 - [Harvest Catalogue](./backend/harvest-catalogue.md) — Crop template catalog and harvest batches management
+- [Quality Inspection](./backend/inspection.md) — On-site checklists, photo GPS metadata, and AI vision classification
 - [Modules](./backend/modules.md) — How to create a new NestJS module
 - [Auth](./backend/auth.md) — JWT flow, token refresh, guard usage
 

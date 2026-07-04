@@ -58,6 +58,17 @@ export enum Permission {
   HARVEST_UPDATE = 'harvest:update',
   HARVEST_DELETE = 'harvest:delete',
   HARVEST_VERIFY = 'harvest:verify',
+
+  // --- Quality Inspection ---
+  INSPECTION_CREATE = 'inspection:create',
+  INSPECTION_READ = 'inspection:read',
+  INSPECTION_READ_ALL = 'inspection:read:all',
+  INSPECTION_UPDATE = 'inspection:update',
+  INSPECTION_DELETE = 'inspection:delete',
+
+  // --- Inspector Profile ---
+  INSPECTOR_PROFILE_READ = 'inspector:profile:read',
+  INSPECTOR_PROFILE_UPDATE = 'inspector:profile:update',
 }
 
 /** A role is a named bundle of permissions */

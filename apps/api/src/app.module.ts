@@ -13,6 +13,7 @@ import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProductsModule } from './modules/products/products.module';
+import { InspectionsModule } from './modules/inspections/inspections.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ProductsModule } from './modules/products/products.module';
     RolesModule,
     NotificationsModule,
     ProductsModule,
+    InspectionsModule,
   ],
 })
 export class AppModule {}
