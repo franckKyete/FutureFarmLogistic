@@ -20,6 +20,7 @@ import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { HarvestStatus } from '@futurefarm/types';
 import { AuctionsGateway } from './auctions.gateway';
+import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class AuctionsService {
@@ -34,6 +35,7 @@ export class AuctionsService {
     private readonly farmerProfileRepository: Repository<FarmerProfileEntity>,
     private readonly dataSource: DataSource,
     private readonly auctionsGateway: AuctionsGateway,
+    private readonly ordersService: OrdersService,
   ) {}
 
   async createAuction(
@@ -173,6 +175,15 @@ export class AuctionsService {
         bid.quantityWon = auction.quantityOnOffer;
         bid.status = BidStatus.ACCEPTED;
         const savedBid = await transactionalEntityManager.save(bid);
+
+        // Generate Order from won auction bid
+        const order = await this.ordersService.createFromBid(
+          savedBid,
+          auction,
+          transactionalEntityManager,
+        );
+        savedBid.orderId = order.id;
+        await transactionalEntityManager.save(savedBid);
 
         // Update auction status
         auction.status = AuctionStatus.SOLD;

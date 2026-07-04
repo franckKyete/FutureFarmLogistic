@@ -81,6 +81,23 @@ export enum Permission {
   BID_READ = 'bid:read',
   BID_READ_ALL = 'bid:read:all',
   BID_CANCEL = 'bid:cancel',
+
+  // --- Basket ---
+  BASKET_MANAGE = 'basket:manage',
+
+  // --- Orders ---
+  ORDER_CREATE = 'order:create',
+  ORDER_READ = 'order:read',
+  ORDER_READ_ALL = 'order:read:all',
+  ORDER_READ_SELLER = 'order:read:seller',
+  ORDER_CONFIRM = 'order:confirm',
+  ORDER_REJECT = 'order:reject',
+  ORDER_SHIP = 'order:ship',
+  ORDER_DELIVER = 'order:deliver',
+  ORDER_CANCEL = 'order:cancel',
+  ORDER_CANCEL_FORCE = 'order:cancel:force',
+  ORDER_REFUND = 'order:refund',
+  ORDER_FEE_OVERRIDE = 'order:fee:override',
 }
 
 /** A role is a named bundle of permissions */

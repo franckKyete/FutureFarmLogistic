@@ -57,6 +57,10 @@ export class BidEntity {
   })
   status: BidStatus;
 
+  @Index()
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
+  orderId: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

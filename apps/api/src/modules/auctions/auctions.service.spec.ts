@@ -15,6 +15,7 @@ import { BidEntity } from './entities/bid.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { AuctionsGateway } from './auctions.gateway';
+import { OrdersService } from '../orders/orders.service';
 
 describe('AuctionsService', () => {
   let service: AuctionsService;
@@ -92,6 +93,12 @@ describe('AuctionsService', () => {
         {
           provide: AuctionsGateway,
           useValue: mockAuctionsGateway,
+        },
+        {
+          provide: OrdersService,
+          useValue: {
+            createFromBid: jest.fn(() => Promise.resolve({ id: 'order-123' })),
+          },
         },
       ],
     }).compile();
