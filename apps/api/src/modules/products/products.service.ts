@@ -81,9 +81,11 @@ export class ProductsService {
   async createHarvest(
     userId: string,
     dto: CreateHarvestDto,
+    options?: { onBehalfOfUserId?: string },
   ): Promise<HarvestEntity> {
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     const farmerProfile = await this.farmerProfileRepository.findOne({
-      where: { userId },
+      where: { userId: targetUserId },
     });
     if (!farmerProfile) {
       throw new ForbiddenException(
@@ -105,7 +107,7 @@ export class ProductsService {
       }
       if (parcel.farmerProfileId !== farmerProfile.id) {
         throw new ForbiddenException(
-          'The specified land parcel does not belong to your profile.',
+          'The specified land parcel does not belong to the farmer profile.',
         );
       }
     }
@@ -123,14 +125,16 @@ export class ProductsService {
     id: string,
     userId: string,
     dto: UpdateHarvestDto,
+    options?: { onBehalfOfUserId?: string },
   ): Promise<HarvestEntity> {
     const harvest = await this.harvestRepository.findOne({ where: { id } });
     if (!harvest) {
       throw new NotFoundException(`Harvest batch with ID "${id}" not found.`);
     }
 
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     const farmerProfile = await this.farmerProfileRepository.findOne({
-      where: { userId },
+      where: { userId: targetUserId },
     });
     if (!farmerProfile || harvest.farmerProfileId !== farmerProfile.id) {
       throw new ForbiddenException('You do not own this harvest batch.');
@@ -160,14 +164,19 @@ export class ProductsService {
     return harvest;
   }
 
-  async deleteHarvest(id: string, userId: string): Promise<void> {
+  async deleteHarvest(
+    id: string,
+    userId: string,
+    options?: { onBehalfOfUserId?: string },
+  ): Promise<void> {
     const harvest = await this.harvestRepository.findOne({ where: { id } });
     if (!harvest) {
       throw new NotFoundException(`Harvest batch with ID "${id}" not found.`);
     }
 
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     const farmerProfile = await this.farmerProfileRepository.findOne({
-      where: { userId },
+      where: { userId: targetUserId },
     });
     if (!farmerProfile || harvest.farmerProfileId !== farmerProfile.id) {
       throw new ForbiddenException('You do not own this harvest batch.');

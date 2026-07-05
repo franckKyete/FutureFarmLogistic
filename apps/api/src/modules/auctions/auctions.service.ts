@@ -41,9 +41,11 @@ export class AuctionsService {
   async createAuction(
     userId: string,
     dto: CreateAuctionDto,
+    options?: { onBehalfOfUserId?: string },
   ): Promise<AuctionEntity> {
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     const farmerProfile = await this.farmerProfileRepository.findOne({
-      where: { userId },
+      where: { userId: targetUserId },
     });
     if (!farmerProfile) {
       throw new ForbiddenException('User does not have a farmer profile');
@@ -56,10 +58,10 @@ export class AuctionsService {
       throw new NotFoundException('Harvest not found');
     }
 
-    // Ownership check
+    // Ownership check (bypassed if onBehalfOfUserId matches harvest.farmerProfileId owner user ID)
     if (harvest.farmerProfileId !== farmerProfile.id) {
       throw new ForbiddenException(
-        'You can only create auctions for your own harvests',
+        'You can only create auctions for the farmer\'s harvests',
       );
     }
 
@@ -204,6 +206,7 @@ export class AuctionsService {
     userId: string,
     auctionId: string,
     isAdmin: boolean,
+    options?: { onBehalfOfUserId?: string },
   ): Promise<AuctionEntity> {
     const auction = await this.auctionRepository.findOne({
       where: { id: auctionId },
@@ -221,10 +224,11 @@ export class AuctionsService {
       );
     }
 
-    // Check ownership unless admin
+    // Check ownership unless admin or proxy request
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     if (!isAdmin) {
       const farmerProfile = await this.farmerProfileRepository.findOne({
-        where: { userId },
+        where: { userId: targetUserId },
       });
       if (!farmerProfile || auction.farmerProfileId !== farmerProfile.id) {
         throw new ForbiddenException(
@@ -255,6 +259,7 @@ export class AuctionsService {
     userId: string,
     auctionId: string,
     dto: UpdateAuctionDto,
+    options?: { onBehalfOfUserId?: string },
   ): Promise<AuctionEntity> {
     const auction = await this.auctionRepository.findOne({
       where: { id: auctionId },
@@ -268,8 +273,9 @@ export class AuctionsService {
       throw new ConflictException('Only scheduled auctions can be updated');
     }
 
+    const targetUserId = options?.onBehalfOfUserId ?? userId;
     const farmerProfile = await this.farmerProfileRepository.findOne({
-      where: { userId },
+      where: { userId: targetUserId },
     });
     if (!farmerProfile || auction.farmerProfileId !== farmerProfile.id) {
       throw new ForbiddenException(

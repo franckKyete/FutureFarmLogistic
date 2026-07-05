@@ -33,6 +33,7 @@ import {
   UpdateBuyerProfileDto,
 } from './dto/profile.dto';
 import { CreateParcelDto, VerifyParcelDto } from './dto/parcel.dto';
+import { RegisterFarmerProxyDto } from './dto/register-farmer-proxy.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -47,6 +48,48 @@ export class UsersController {
   })
   registerFarmer(@Body() dto: RegisterFarmerDto) {
     return this.usersService.registerFarmer(dto);
+  }
+
+  @Post('register/farmer/proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_CREATE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new Farmer account on their behalf (Inspector/Admin)' })
+  @ApiCreatedResponse({
+    description: 'The farmer user has been registered successfully.',
+  })
+  registerFarmerProxy(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RegisterFarmerProxyDto,
+  ) {
+    return this.usersService.registerFarmerProxy(user.id, dto);
+  }
+
+  @Put('profile/farmer/:farmerId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update farmer profile details as proxy' })
+  updateFarmerProfileProxy(
+    @Param('farmerId') farmerId: string,
+    @Body() dto: UpdateFarmerProfileDto,
+  ) {
+    return this.usersService.updateFarmerProfileProxy(farmerId, dto);
+  }
+
+  @Post(':farmerId/parcels')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Submit an agricultural parcel for a farmer as proxy',
+  })
+  createParcelProxy(
+    @Param('farmerId') farmerId: string,
+    @Body() dto: CreateParcelDto,
+  ) {
+    return this.usersService.createParcelProxy(farmerId, dto);
   }
 
   @Post('register/buyer')

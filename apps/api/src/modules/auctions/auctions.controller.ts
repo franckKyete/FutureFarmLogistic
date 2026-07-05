@@ -87,6 +87,22 @@ export class AuctionsController {
     return this.auctionsService.createAuction(user.id, dto);
   }
 
+  @Post('proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_AUCTION_MANAGE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new auction on a harvest on behalf of a Farmer' })
+  @ApiCreatedResponse({ description: 'Auction created successfully' })
+  async createProxy(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateAuctionDto & { farmerUserId: string },
+  ) {
+    const { farmerUserId, ...dto } = body;
+    return this.auctionsService.createAuction(user.id, dto, {
+      onBehalfOfUserId: farmerUserId,
+    });
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.AUCTION_UPDATE)
@@ -103,6 +119,25 @@ export class AuctionsController {
     return this.auctionsService.updateAuction(user.id, id, dto);
   }
 
+  @Patch(':id/proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_AUCTION_MANAGE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update auction scheduling details on behalf of a Farmer',
+  })
+  @ApiOkResponse({ description: 'Auction updated successfully' })
+  async updateProxy(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateAuctionDto & { farmerUserId: string },
+  ) {
+    const { farmerUserId, ...dto } = body;
+    return this.auctionsService.updateAuction(user.id, id, dto, {
+      onBehalfOfUserId: farmerUserId,
+    });
+  }
+
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -113,6 +148,23 @@ export class AuctionsController {
   async cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const isAdmin = user.permissions.includes(Permission.AUCTION_MANAGE);
     return this.auctionsService.cancelAuction(user.id, id, isAdmin);
+  }
+
+  @Post(':id/cancel/proxy')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_AUCTION_MANAGE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel an auction on behalf of a Farmer' })
+  @ApiOkResponse({ description: 'Auction cancelled successfully' })
+  async cancelProxy(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { farmerUserId: string },
+  ) {
+    return this.auctionsService.cancelAuction(user.id, id, false, {
+      onBehalfOfUserId: body.farmerUserId,
+    });
   }
 
   @Post(':id/bids')

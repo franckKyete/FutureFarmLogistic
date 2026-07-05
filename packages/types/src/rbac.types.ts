@@ -112,7 +112,19 @@ export enum Permission {
   VEHICLE_DELETE        = 'vehicle:delete',
   DRIVER_LOCATION_PUSH  = 'driver:location:push',
   DRIVER_LOCATION_READ  = 'driver:location:read',
+
+  // --- Assisted Farmer & Inspection Center Permissions ---
+  FARMER_PROXY_CREATE           = 'farmer:proxy:create',
+  FARMER_PROXY_UPDATE           = 'farmer:proxy:update',
+  FARMER_PROXY_HARVEST_MANAGE   = 'farmer:proxy:harvest:manage',
+  FARMER_PROXY_AUCTION_MANAGE   = 'farmer:proxy:auction:manage',
+  INSPECTION_CENTER_CREATE      = 'inspection:center:create',
+  INSPECTION_CENTER_READ        = 'inspection:center:read',
+  INSPECTION_CENTER_UPDATE      = 'inspection:center:update',
+  INSPECTION_CENTER_DELETE      = 'inspection:center:delete',
+  INSPECTION_CENTER_ASSIGN      = 'inspection:center:assign',
 }
+
 
 /** A role is a named bundle of permissions */
 export interface Role {

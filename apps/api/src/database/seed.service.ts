@@ -79,6 +79,12 @@ export class SeedService implements OnApplicationBootstrap {
           Permission.SESSION_MANAGE,
           Permission.NOTIFICATION_READ,
           Permission.NOTIFICATION_DELETE_OWN,
+          Permission.FARMER_PROXY_CREATE,
+          Permission.FARMER_PROXY_UPDATE,
+          Permission.FARMER_PROXY_HARVEST_MANAGE,
+          Permission.FARMER_PROXY_AUCTION_MANAGE,
+          Permission.INSPECTION_CENTER_READ,
+          Permission.INSPECTION_CENTER_ASSIGN,
         ],
       });
       await this.roleRepository.save(inspectorRoleToCreate);
@@ -155,6 +161,12 @@ export class SeedService implements OnApplicationBootstrap {
             Permission.SESSION_MANAGE,
             Permission.NOTIFICATION_READ,
             Permission.NOTIFICATION_DELETE_OWN,
+            Permission.FARMER_PROXY_CREATE,
+            Permission.FARMER_PROXY_UPDATE,
+            Permission.FARMER_PROXY_HARVEST_MANAGE,
+            Permission.FARMER_PROXY_AUCTION_MANAGE,
+            Permission.INSPECTION_CENTER_READ,
+            Permission.INSPECTION_CENTER_ASSIGN,
           ],
         });
         await this.roleRepository.save(r);

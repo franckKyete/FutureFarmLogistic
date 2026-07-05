@@ -88,6 +88,24 @@ export class ProductsController {
     return this.productsService.createHarvest(user.id, dto);
   }
 
+  @Post('harvests/proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_HARVEST_MANAGE)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Record a new physical harvest batch on behalf of a Farmer',
+  })
+  createHarvestProxy(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateHarvestDto & { farmerUserId: string },
+  ) {
+    const { farmerUserId, ...dto } = body;
+    return this.productsService.createHarvest(user.id, dto, {
+      onBehalfOfUserId: farmerUserId,
+    });
+  }
+
   @Get('harvests')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.HARVEST_READ)
@@ -170,6 +188,24 @@ export class ProductsController {
     return this.productsService.updateHarvest(id, user.id, dto);
   }
 
+  @Patch('harvests/:id/proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_HARVEST_MANAGE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update harvest batch details on behalf of a Farmer',
+  })
+  updateHarvestProxy(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpdateHarvestDto & { farmerUserId: string },
+  ) {
+    const { farmerUserId, ...dto } = body;
+    return this.productsService.updateHarvest(id, user.id, dto, {
+      onBehalfOfUserId: farmerUserId,
+    });
+  }
+
   @Delete('harvests/:id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.HARVEST_DELETE)
@@ -178,6 +214,22 @@ export class ProductsController {
   @ApiOkResponse({ description: 'The harvest batch has been archived.' })
   deleteHarvest(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.productsService.deleteHarvest(id, user.id);
+  }
+
+  @Delete('harvests/:id/proxy')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.FARMER_PROXY_HARVEST_MANAGE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Archive a harvest batch on behalf of a Farmer' })
+  @ApiOkResponse({ description: 'The harvest batch has been archived.' })
+  deleteHarvestProxy(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: { farmerUserId: string },
+  ) {
+    return this.productsService.deleteHarvest(id, user.id, {
+      onBehalfOfUserId: body.farmerUserId,
+    });
   }
 
   @Patch('harvests/:id/verify')

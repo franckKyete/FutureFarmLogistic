@@ -79,6 +79,9 @@ export class UserEntity {
   })
   roles: RoleEntity[];
 
+  @Column({ name: 'created_by_actor_id', type: 'uuid', nullable: true })
+  createdByActorId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

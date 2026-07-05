@@ -18,6 +18,7 @@ import { BuyerProfileEntity } from './entities/buyer-profile.entity';
 import { ParcelEntity } from './entities/parcel.entity';
 
 import { RegisterFarmerDto } from './dto/register-farmer.dto';
+import { RegisterFarmerProxyDto } from './dto/register-farmer-proxy.dto';
 import { RegisterBuyerDto } from './dto/register-buyer.dto';
 import {
   UpdateFarmerProfileDto,
@@ -246,6 +247,69 @@ export class UsersService {
     parcel.verifiedAt = new Date();
 
     return this.parcelRepository.save(parcel);
+  }
+
+  async registerFarmerProxy(actorId: string, dto: RegisterFarmerProxyDto): Promise<UserEntity> {
+    const existing = await this.usersRepository.findOneBy({ email: dto.email });
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const farmerRole = await this.rolesRepository.findOneBy({ name: 'Farmer' });
+    if (!farmerRole) {
+      throw new InternalServerErrorException(
+        'Farmer role not configured in system',
+      );
+    }
+
+    // Generate a temporary 12-character alphanumeric password for offline farmers
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let generatedPassword = '';
+    for (let i = 0; i < 12; i++) {
+      generatedPassword += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+
+    const user = this.usersRepository.create({
+      email: dto.email,
+      password: generatedPassword,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      phoneNumber: dto.phoneNumber ?? null,
+      roles: [farmerRole],
+      status: UserStatus.PENDING_VALIDATION,
+      isActive: true,
+      createdByActorId: actorId,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+
+    const profile = this.farmerProfileRepository.create({
+      userId: savedUser.id,
+      companyName: dto.companyName,
+      address: dto.address,
+      bio: dto.bio ?? null,
+    });
+
+    await this.farmerProfileRepository.save(profile);
+
+    // Attach temporary plain password dynamically to entity output (non-persisted) for inspector feedback
+    (savedUser as any).temporaryPassword = generatedPassword;
+
+    return savedUser;
+  }
+
+  async updateFarmerProfileProxy(
+    targetFarmerId: string,
+    dto: UpdateFarmerProfileDto,
+  ): Promise<FarmerProfileEntity> {
+    return this.updateFarmerProfile(targetFarmerId, dto);
+  }
+
+  async createParcelProxy(
+    targetFarmerId: string,
+    dto: CreateParcelDto,
+  ): Promise<ParcelEntity> {
+    return this.createParcel(targetFarmerId, dto);
   }
 
   async updateUserStatus(

@@ -20,6 +20,7 @@ Welcome to the Future Farm Logistic platform documentation. This monorepo contai
 - [Auction & Bidding](./backend/auction.md) — Real-time Dutch auctions, price decrement cron engine, and WebSocket gateway
 - [Purchase & Order](./backend/order.md) — Shopping basket, payment gateways, multi-farmer line confirmations, and cancellation fee rules
 - [Logistics & Transport](./backend/logistics.md) — Fleet management, OSRM route optimisation, stop lifecycle, and real-time WebSocket driver tracking
+- [Assisted Farming & Inspection Centers](./backend/assisted-farming.md) — Proxy actions for offline farmers and inspector dispatch centers
 - [Modules](./backend/modules.md) — How to create a new NestJS module
 - [Auth](./backend/auth.md) — JWT flow, token refresh, guard usage
 
