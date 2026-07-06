@@ -400,5 +400,47 @@ describe('ProductsService', () => {
       expect(result.suggestedName).toBe('Premium Medjool Dates');
       expect(result.category).toBe(ProductCategory.DATES);
     });
+
+    it('should throw InternalServerErrorException if Gemini API returns non-JSON or error response', async () => {
+      configService.get.mockReturnValue('valid-api-key');
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+      global.fetch = mockFetch;
+
+      await expect(service.aiSuggest('organic sweet dates')).rejects.toThrow();
+    });
+  });
+
+  describe('findAllHarvests and findFarmerOwnHarvests', () => {
+    it('should list all harvests query build successfully', async () => {
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      const result = await service.findAllHarvests({ isPublicView: true });
+      expect(result).toEqual([]);
+    });
+
+    it('should list farmer own harvests successfully', async () => {
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      const result = await service.findFarmerOwnHarvests('farmer-user-1');
+      expect(result).toEqual([]);
+    });
   });
 });

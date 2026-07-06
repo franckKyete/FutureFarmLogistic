@@ -22,6 +22,7 @@ import { OrderEntity } from './entities/order.entity';
 import { OrderLineEntity } from './entities/order-line.entity';
 import { PaymentRecordEntity } from './entities/payment-record.entity';
 import { BasketEntity } from './entities/basket.entity';
+import { BasketStatus } from './entities/basket-status.enum';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { BidEntity } from '../auctions/entities/bid.entity';
@@ -49,7 +50,7 @@ export class OrdersService {
   async checkout(buyerId: string, dto: CheckoutDto): Promise<OrderEntity> {
     return this.dataSource.transaction('SERIALIZABLE', async (manager) => {
       const basket = await manager.findOne(BasketEntity, {
-        where: { buyerId, status: 'ACTIVE' },
+        where: { buyerId, status: BasketStatus.ACTIVE },
         relations: ['lines', 'lines.harvest'],
       });
 
@@ -117,7 +118,7 @@ export class OrdersService {
       const finalOrder = await manager.save(OrderEntity, savedOrder);
 
       // Archive/Abandoned active basket
-      basket.status = 'ABANDONED';
+      basket.status = BasketStatus.ABANDONED;
       await manager.save(BasketEntity, basket);
 
       // Call payment gateway

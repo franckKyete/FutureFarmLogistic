@@ -25,6 +25,7 @@ import {
   UpdateBuyerProfileDto,
 } from './dto/profile.dto';
 import { CreateParcelDto } from './dto/parcel.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -318,6 +319,28 @@ export class UsersService {
   ): Promise<UserEntity> {
     const user = await this.findOne(userId);
     user.status = status;
+    return this.usersRepository.save(user);
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto): Promise<UserEntity> {
+    const user = await this.findOne(id);
+    if (dto.email !== undefined) {
+      const existing = await this.usersRepository.findOneBy({ email: dto.email });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('Email already registered');
+      }
+      user.email = dto.email;
+    }
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName !== undefined) user.lastName = dto.lastName;
+    if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber || null;
+    return this.usersRepository.save(user);
+  }
+
+  async softDeleteUser(id: string): Promise<UserEntity> {
+    const user = await this.findOne(id);
+    user.isActive = false;
+    user.status = UserStatus.BANNED;
     return this.usersRepository.save(user);
   }
 }

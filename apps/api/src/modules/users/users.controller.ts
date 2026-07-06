@@ -34,6 +34,7 @@ import {
 } from './dto/profile.dto';
 import { CreateParcelDto, VerifyParcelDto } from './dto/parcel.dto';
 import { RegisterFarmerProxyDto } from './dto/register-farmer-proxy.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -164,7 +165,7 @@ export class UsersController {
 
   @Get('parcels/me')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.PROFILE_UPDATE)
+  @RequirePermissions(Permission.PARCEL_CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Farmer: View own land parcels' })
   getMyParcels(@CurrentUser() user: AuthUser) {
@@ -206,5 +207,24 @@ export class UsersController {
   @ApiOperation({ summary: 'Get a user by ID' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.USER_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: Update user details' })
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.updateUser(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.USER_DELETE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Admin: Soft-delete a user' })
+  remove(@Param('id') id: string) {
+    return this.usersService.softDeleteUser(id);
   }
 }

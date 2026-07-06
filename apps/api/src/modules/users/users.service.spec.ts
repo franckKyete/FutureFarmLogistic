@@ -410,4 +410,70 @@ describe('UsersService', () => {
       expect(result.status).toBe(UserStatus.APPROVED);
     });
   });
+
+  describe('proxy actions', () => {
+    it('should register offline farmer with auto-generated temp password', async () => {
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-id', name: 'Farmer' });
+      usersRepository.create.mockReturnValue({ id: 'user-id' });
+      usersRepository.save.mockResolvedValue({ id: 'user-id' });
+      farmerProfileRepository.create.mockReturnValue({ id: 'profile-id' });
+
+      const result = await service.registerFarmerProxy('actor-1', {
+        email: 'offline@farm.com',
+        firstName: 'Offline',
+        lastName: 'Farmer',
+        companyName: 'Offline Farm',
+        address: '123 Remote Road',
+        bio: 'No internet access',
+      });
+
+      expect(result).toBeDefined();
+      expect((result as any).temporaryPassword).toBeDefined();
+      expect((result as any).temporaryPassword.length).toBe(12);
+    });
+
+    it('should update offline farmer profile via proxy', async () => {
+      farmerProfileRepository.findOne.mockResolvedValue({ id: 'profile-id' });
+      farmerProfileRepository.save.mockImplementation((x: any) => Promise.resolve(x));
+
+      const result = await service.updateFarmerProfileProxy('farmer-1', { companyName: 'Updated Farm Co', address: '123 Remote Road' });
+      expect(result.companyName).toBe('Updated Farm Co');
+    });
+
+    it('should create parcel for offline farmer via proxy', async () => {
+      farmerProfileRepository.findOneBy.mockResolvedValue({ id: 'profile-id' });
+      parcelRepository.create.mockReturnValue({ id: 'parcel-1' });
+      parcelRepository.save.mockResolvedValue({ id: 'parcel-1' });
+
+      const result = await service.createParcelProxy('farmer-1', {
+        cadastralNumber: 'CAD456',
+        sizeHectares: 10,
+        locationCoordinates: '0,0',
+        cropTypes: ['Potatoes'],
+      });
+      expect(result.id).toBe('parcel-1');
+    });
+  });
+
+  describe('soft delete and update', () => {
+    it('should update user details validating email uniqueness', async () => {
+      usersRepository.findOne.mockResolvedValue({ id: 'user-1', email: 'old@farm.com' });
+      usersRepository.findOneBy.mockResolvedValue(null); // No other user has 'new@farm.com'
+      usersRepository.save.mockImplementation((x: any) => Promise.resolve(x));
+
+      const result = await service.updateUser('user-1', { email: 'new@farm.com', firstName: 'New' });
+      expect(result.email).toBe('new@farm.com');
+      expect(result.firstName).toBe('New');
+    });
+
+    it('should soft delete/ban user', async () => {
+      const mockUser = { id: 'user-1', status: UserStatus.APPROVED };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+      usersRepository.save.mockImplementation((x: any) => Promise.resolve(x));
+
+      const result = await service.softDeleteUser('user-1');
+      expect(result.status).toBe(UserStatus.BANNED);
+    });
+  });
 });

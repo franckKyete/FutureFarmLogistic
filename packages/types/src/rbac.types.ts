@@ -24,12 +24,6 @@ export enum Permission {
   ROLE_DELETE = 'role:delete',
   ROLE_ASSIGN = 'role:assign',
 
-  // --- Example resource (remove when adding real business modules) ---
-  EXAMPLE_READ = 'example:read',
-  EXAMPLE_CREATE = 'example:create',
-  EXAMPLE_UPDATE = 'example:update',
-  EXAMPLE_DELETE = 'example:delete',
-
   // --- Notifications ---
   NOTIFICATION_READ = 'notification:read',
   NOTIFICATION_SEND = 'notification:send',
@@ -49,7 +43,6 @@ export enum Permission {
   PRODUCT_READ = 'product:read',
   PRODUCT_UPDATE = 'product:update',
   PRODUCT_DELETE = 'product:delete',
-  PRODUCT_VERIFY = 'product:verify',
 
   // --- Physical Harvest Batches ---
   HARVEST_CREATE = 'harvest:create',
@@ -64,7 +57,6 @@ export enum Permission {
   INSPECTION_READ = 'inspection:read',
   INSPECTION_READ_ALL = 'inspection:read:all',
   INSPECTION_UPDATE = 'inspection:update',
-  INSPECTION_DELETE = 'inspection:delete',
 
   // --- Inspector Profile ---
   INSPECTOR_PROFILE_READ = 'inspector:profile:read',
@@ -74,13 +66,11 @@ export enum Permission {
   AUCTION_CREATE = 'auction:create',
   AUCTION_UPDATE = 'auction:update',
   AUCTION_MANAGE = 'auction:manage',
-  AUCTION_READ = 'auction:read',
 
   // --- Bids ---
   BID_CREATE = 'bid:create',
   BID_READ = 'bid:read',
   BID_READ_ALL = 'bid:read:all',
-  BID_CANCEL = 'bid:cancel',
 
   // --- Basket ---
   BASKET_MANAGE = 'basket:manage',
@@ -123,6 +113,11 @@ export enum Permission {
   INSPECTION_CENTER_UPDATE      = 'inspection:center:update',
   INSPECTION_CENTER_DELETE      = 'inspection:center:delete',
   INSPECTION_CENTER_ASSIGN      = 'inspection:center:assign',
+
+  // --- Driver Profile ---
+  DRIVER_PROFILE_READ           = 'driver:profile:read',
+  DRIVER_PROFILE_UPDATE         = 'driver:profile:update',
+  DRIVER_PROFILE_DELETE         = 'driver:profile:delete',
 }
 
 

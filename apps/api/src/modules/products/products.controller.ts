@@ -32,6 +32,7 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
@@ -57,6 +58,25 @@ export class ProductsController {
   })
   createProduct(@Body() dto: CreateProductDto) {
     return this.productsService.createProduct(dto);
+  }
+
+  @Patch('products/:id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.PRODUCT_UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a static product crop template' })
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productsService.updateProduct(id, dto);
+  }
+
+  @Delete('products/:id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.PRODUCT_DELETE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a static product crop template' })
+  deleteProduct(@Param('id') id: string) {
+    return this.productsService.deleteProduct(id);
   }
 
   @Get('products')
@@ -136,17 +156,7 @@ export class ProductsController {
   @ApiOperation({ summary: 'Get caller farmer own harvest batches' })
   @ApiOkResponse({ description: 'List of farmer own harvest batches' })
   async findFarmerHarvests(@CurrentUser() user: AuthUser) {
-    // Find all harvests matching the farmer's profile, including pending/rejected (not public view)
-    return this.productsService
-      .findAllHarvests({
-        isPublicView: false,
-      })
-      .then((harvests) => {
-        // Filter harvests that belong to this user
-        // Note: we can filter programmatically or query by farmer profile ID
-        // Let's filter programmatically to keep the service API clean
-        return harvests.filter((h) => h.farmerProfile.userId === user.id);
-      });
+    return this.productsService.findFarmerOwnHarvests(user.id);
   }
 
   @Get('harvests/:id')

@@ -42,6 +42,17 @@ class UpdateRolePermissionsDto {
   permissions: Permission[];
 }
 
+class AssignRolesDto {
+  @ApiProperty()
+  @IsString()
+  userId: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  roleIds: string[];
+}
+
 @ApiTags('Roles')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -85,5 +96,12 @@ export class RolesController {
   @ApiOperation({ summary: 'Delete a role' })
   remove(@Param('id') id: string) {
     return this.rolesService.remove(id);
+  }
+
+  @Post('assign')
+  @RequirePermissions(Permission.ROLE_ASSIGN)
+  @ApiOperation({ summary: 'Admin/Dispatcher: Assign roles to a user' })
+  assign(@Body() dto: AssignRolesDto) {
+    return this.rolesService.assignRolesToUser(dto.userId, dto.roleIds);
   }
 }

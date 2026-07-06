@@ -19,6 +19,8 @@ export interface OptimisedRoute {
   totalDistanceKm: number;
   /** Total estimated travel duration in seconds */
   totalDurationSec: number;
+  /** Estimated arrival time per waypoint index (UTC ISO string) */
+  etaPerStop?: Record<number, string>;
 }
 
 /** Token used to inject a RouteOptimizerPort */

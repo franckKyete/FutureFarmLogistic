@@ -27,6 +27,7 @@ export function validateEnv(config: Record<string, unknown>) {
     VAPID_SUBJECT: Joi.string().optional(),
     WHATSAPP_ENABLED: Joi.boolean().default(false),
     PUSH_ENABLED: Joi.boolean().default(false),
+    HARVEST_APPROVAL_MIN_SCORE: Joi.number().default(4.0),
   }).unknown(true);
 
   const result = schema.validate(config, { abortEarly: false });

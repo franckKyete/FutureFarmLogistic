@@ -40,7 +40,6 @@ export class SeedService implements OnApplicationBootstrap {
         permissions: [
           Permission.USER_READ,
           Permission.ROLE_READ,
-          Permission.EXAMPLE_READ,
         ],
       });
       userRole = await this.roleRepository.save(userRoleToCreate);
@@ -105,6 +104,8 @@ export class SeedService implements OnApplicationBootstrap {
           Permission.SESSION_MANAGE,
           Permission.NOTIFICATION_READ,
           Permission.NOTIFICATION_DELETE_OWN,
+          Permission.DRIVER_PROFILE_READ,
+          Permission.DRIVER_PROFILE_UPDATE,
         ],
       });
       await this.roleRepository.save(driverRoleToCreate);
@@ -191,6 +192,8 @@ export class SeedService implements OnApplicationBootstrap {
             Permission.SESSION_MANAGE,
             Permission.NOTIFICATION_READ,
             Permission.NOTIFICATION_DELETE_OWN,
+            Permission.DRIVER_PROFILE_READ,
+            Permission.DRIVER_PROFILE_UPDATE,
           ],
         });
         await this.roleRepository.save(r);

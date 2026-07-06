@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { BasketLineEntity } from './basket-line.entity';
+import { BasketStatus } from './basket-status.enum';
 
 @Entity('baskets')
 export class BasketEntity {
@@ -26,11 +27,11 @@ export class BasketEntity {
   buyer: UserEntity;
 
   @Column({
-    type: 'varchar',
-    length: 20,
-    default: 'ACTIVE',
+    type: 'enum',
+    enum: BasketStatus,
+    default: BasketStatus.ACTIVE,
   })
-  status: 'ACTIVE' | 'ABANDONED';
+  status: BasketStatus;
 
   @OneToMany(() => BasketLineEntity, (line) => line.basket, { cascade: true })
   lines: BasketLineEntity[];

@@ -6,6 +6,8 @@ import { VehicleEntity } from './entities/vehicle.entity';
 import { DeliveryRunEntity } from './entities/delivery-run.entity';
 import { DeliveryStopEntity } from './entities/delivery-stop.entity';
 import { DriverLocationEntity } from './entities/driver-location.entity';
+import { DriverProfileEntity } from './entities/driver-profile.entity';
+import { UserEntity } from '../users/entities/user.entity';
 
 // Cross-module entities needed by LogisticsService
 import { OrderLineEntity } from '../orders/entities/order-line.entity';
@@ -13,8 +15,10 @@ import { InspectionReportEntity } from '../inspections/entities/inspection-repor
 
 import { VehiclesService } from './vehicles.service';
 import { LogisticsService } from './logistics.service';
+import { DriverProfileService } from './driver-profile.service';
 import { VehiclesController } from './vehicles.controller';
 import { LogisticsController } from './logistics.controller';
+import { DriverProfileController } from './driver-profile.controller';
 import { LogisticsGateway } from './logistics.gateway';
 
 import {
@@ -38,6 +42,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
       DeliveryRunEntity,
       DeliveryStopEntity,
       DriverLocationEntity,
+      DriverProfileEntity,
+      UserEntity,
       // Needed for direct repository access (deliver line propagation & report lookup)
       OrderLineEntity,
       InspectionReportEntity,
@@ -47,7 +53,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     InspectionsModule,
     NotificationsModule,
   ],
-  controllers: [LogisticsController, VehiclesController],
+  controllers: [LogisticsController, VehiclesController, DriverProfileController],
   providers: [
     VehiclesService,
     LogisticsGateway,
@@ -58,6 +64,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       useExisting: LogisticsGateway,
     },
     LogisticsService,
+    DriverProfileService,
     {
       provide: ROUTE_OPTIMIZER_PORT,
       useClass: OsrmRouteOptimizer,
@@ -76,6 +83,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
       inject: [ConfigService],
     },
   ],
-  exports: [LogisticsService, VehiclesService],
+  exports: [LogisticsService, VehiclesService, DriverProfileService],
 })
 export class LogisticsModule {}

@@ -20,6 +20,7 @@ import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
 
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
@@ -54,6 +55,48 @@ export class ProductsService {
 
     const product = this.productRepository.create(dto);
     return this.productRepository.save(product);
+  }
+
+  async updateProduct(id: string, dto: UpdateProductDto): Promise<ProductEntity> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product template with ID ${id} not found`);
+    }
+    if (dto.name !== undefined) {
+      const existing = await this.productRepository.findOne({
+        where: { name: dto.name },
+      });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException(
+          `Product template with name "${dto.name}" already exists.`,
+        );
+      }
+      product.name = dto.name;
+    }
+    if (dto.description !== undefined) product.description = dto.description;
+    if (dto.category !== undefined) product.category = dto.category;
+    return this.productRepository.save(product);
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product template with ID ${id} not found`);
+    }
+    await this.productRepository.remove(product);
+  }
+
+  async findFarmerOwnHarvests(userId: string): Promise<HarvestEntity[]> {
+    const profile = await this.farmerProfileRepository.findOne({
+      where: { userId },
+    });
+    if (!profile) {
+      throw new NotFoundException('Farmer profile not found');
+    }
+    return this.findAllHarvests({
+      farmerProfileId: profile.id,
+      isPublicView: false,
+    });
   }
 
   async findAllProducts(category?: ProductCategory): Promise<ProductEntity[]> {

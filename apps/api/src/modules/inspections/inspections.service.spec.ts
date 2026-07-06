@@ -27,6 +27,8 @@ describe('InspectionsService', () => {
   let userRepo: jest.Mocked<Repository<UserEntity>>;
   let harvestRepo: jest.Mocked<Repository<HarvestEntity>>;
   let productRepo: jest.Mocked<Repository<ProductEntity>>;
+  let photoRepo: jest.Mocked<Repository<InspectionPhotoEntity>>;
+  let configService: any;
   let mockVisionProvider: any;
 
   const mockChecklist = {
@@ -41,40 +43,68 @@ describe('InspectionsService', () => {
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     mockVisionProvider = {
       analyzeHarvestPhotos: jest.fn(),
       classifyHarvestPhotos: jest.fn(),
     };
-
-    const mockRepo = () => ({
-      find: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
-      remove: jest.fn(),
-      createQueryBuilder: jest.fn(),
-    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InspectionsService,
         {
           provide: getRepositoryToken(InspectorProfileEntity),
-          useFactory: mockRepo,
+          useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(InspectionReportEntity),
-          useFactory: mockRepo,
+          useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(InspectionPhotoEntity),
-          useFactory: mockRepo,
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
         },
-        { provide: getRepositoryToken(UserEntity), useFactory: mockRepo },
-        { provide: getRepositoryToken(HarvestEntity), useFactory: mockRepo },
-        { provide: getRepositoryToken(ProductEntity), useFactory: mockRepo },
-        { provide: ConfigService, useValue: { get: jest.fn() } },
-        { provide: 'QUALITY_VISION_PROVIDER', useValue: mockVisionProvider },
+        {
+          provide: getRepositoryToken(UserEntity),
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(HarvestEntity),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(ProductEntity),
+          useValue: {
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: 'QUALITY_VISION_PROVIDER',
+          useValue: mockVisionProvider,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -83,9 +113,12 @@ describe('InspectionsService', () => {
       getRepositoryToken(InspectorProfileEntity),
     );
     reportRepo = module.get(getRepositoryToken(InspectionReportEntity));
+    photoRepo = module.get(getRepositoryToken(InspectionPhotoEntity));
     userRepo = module.get(getRepositoryToken(UserEntity));
     harvestRepo = module.get(getRepositoryToken(HarvestEntity));
     productRepo = module.get(getRepositoryToken(ProductEntity));
+    configService = module.get(ConfigService);
+    configService.get.mockReturnValue(4.0);
   });
 
   describe('createInspectorProfile', () => {
@@ -279,6 +312,38 @@ describe('InspectionsService', () => {
       expect(res.suggestedProductId).toBe('matching-prod-id');
       expect(res.suggestedName).toBe('Roma Tomatoes');
       expect(res.category).toBe(ProductCategory.VEGETABLES);
+    });
+  });
+
+  describe('Report updates and photo management', () => {
+    it('should update report successfully', async () => {
+      const mockReport = {
+        id: 'report-id',
+        status: InspectionStatus.IN_PROGRESS,
+        inspectorProfileId: 'prof-id',
+      };
+      inspectorProfileRepo.findOne.mockResolvedValue({ id: 'prof-id' } as any);
+      reportRepo.findOne.mockResolvedValue(mockReport as any);
+      reportRepo.save.mockImplementation((r: any) => Promise.resolve(r));
+
+      const res = await service.updateReport('report-id', 'user-id', { overallNotes: 'New notes' });
+      expect(res.overallNotes).toBe('New notes');
+    });
+
+    it('should add photos to report successfully', async () => {
+      const mockReport = {
+        id: 'report-id',
+        status: InspectionStatus.IN_PROGRESS,
+        inspectorProfileId: 'prof-id',
+      };
+      photoRepo.create.mockImplementation((x: any) => x);
+      photoRepo.save.mockImplementation((x: any) => Promise.resolve({ id: 'photo-1', ...x }));
+
+      inspectorProfileRepo.findOne.mockResolvedValue({ id: 'prof-id' } as any);
+      reportRepo.findOne.mockResolvedValue(mockReport as any);
+
+      const res = await service.addPhoto('report-id', 'user-id', { url: 'http://test.com/new.jpg' });
+      expect(res.url).toBe('http://test.com/new.jpg');
     });
   });
 });

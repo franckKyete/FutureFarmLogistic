@@ -100,11 +100,19 @@ export class LogisticsService {
           savedRun.optimisedRoute   = optimised.orderedWaypoints as unknown as object;
           savedRun.totalDistanceKm  = optimised.totalDistanceKm;
 
-          // Re-sequence stops according to optimised order
+          const durationPerStopSec = optimised.totalDurationSec / stops.length;
+          const baseTime = savedRun.scheduledAt.getTime();
+
+          // Re-sequence stops according to optimised order and set ETA
           for (let idx = 0; idx < optimised.orderedWaypoints.length; idx++) {
             const wp    = optimised.orderedWaypoints[idx]!;
             const stop  = stops[wp.originalIndex]!;
             stop.sequence = idx;
+            
+            // ETA is scheduledAt + (idx + 1) * durationPerStopSec
+            const stopEta = new Date(baseTime + (idx + 1) * durationPerStopSec * 1000);
+            stop.eta = stopEta;
+            
             await manager.save(DeliveryStopEntity, stop);
           }
         } catch (err) {
@@ -199,10 +207,17 @@ export class LogisticsService {
     run.optimisedRoute  = optimised.orderedWaypoints as unknown as object;
     run.totalDistanceKm = optimised.totalDistanceKm;
 
+    const durationPerStopSec = optimised.totalDurationSec / pendingStops.length;
+    const baseTime = run.scheduledAt.getTime();
+
     for (let idx = 0; idx < optimised.orderedWaypoints.length; idx++) {
       const wp   = optimised.orderedWaypoints[idx]!;
       const stop = pendingStops[wp.originalIndex]!;
       stop.sequence = idx;
+      
+      const stopEta = new Date(baseTime + (idx + 1) * durationPerStopSec * 1000);
+      stop.eta = stopEta;
+      
       await this.stopRepo.save(stop);
     }
     await this.runRepo.save(run);

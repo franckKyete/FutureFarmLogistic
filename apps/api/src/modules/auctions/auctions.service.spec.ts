@@ -23,6 +23,7 @@ describe('AuctionsService', () => {
   let harvestRepository: any;
   let farmerProfileRepository: any;
   let auctionsGateway: any;
+  let bidRepository: any;
 
   const mockEntityManager = {
     findOne: jest.fn(),
@@ -109,6 +110,7 @@ describe('AuctionsService', () => {
     farmerProfileRepository = module.get(
       getRepositoryToken(FarmerProfileEntity),
     );
+    bidRepository = module.get(getRepositoryToken(BidEntity));
     auctionsGateway = module.get(AuctionsGateway);
   });
 
@@ -119,8 +121,8 @@ describe('AuctionsService', () => {
       reservePrice: 50,
       priceDecrementAmount: 5,
       priceDecrementIntervalMinutes: 10,
-      startAt: '2026-07-04T18:00:00.000Z',
-      endAt: '2026-07-05T18:00:00.000Z',
+      startAt: new Date(Date.now() + 10000).toISOString(),
+      endAt: new Date(Date.now() + 86400000).toISOString(),
       quantityOnOffer: 50,
     };
 
@@ -348,6 +350,57 @@ describe('AuctionsService', () => {
         expect.objectContaining({ quantityInStock: 90 }),
       );
       expect(auctionsGateway.emitCancelled).toHaveBeenCalledWith('auction-1');
+    });
+  });
+
+  describe('Queries and updates', () => {
+    it('should update scheduled auction details', async () => {
+      const mockAuction = {
+        id: 'auction-1',
+        status: AuctionStatus.SCHEDULED,
+        farmerProfileId: 'farmer-1',
+      };
+      auctionRepository.findOne.mockResolvedValue(mockAuction);
+      farmerProfileRepository.findOne.mockResolvedValue({ id: 'farmer-1' });
+      auctionRepository.save.mockImplementation((x: any) => Promise.resolve(x));
+
+      const result = await service.updateAuction('user-1', 'auction-1', {
+        startAt: new Date(Date.now() + 100000).toISOString(),
+      });
+      expect(result).toBeDefined();
+    });
+
+    it('should get single auction with relations', async () => {
+      const mockAuction = { id: 'auction-1' };
+      auctionRepository.findOne.mockResolvedValue(mockAuction);
+
+      const result = await service.getAuction('auction-1');
+      expect(result.id).toBe('auction-1');
+    });
+
+    it('should list auctions paginated', async () => {
+      const mockQueryBuilder = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      auctionRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      const result = await service.listAuctions({});
+      expect(result.data.length).toBe(0);
+    });
+
+    it('should list my bids', async () => {
+      const mockBids = [{ id: 'bid-1' }];
+      bidRepository.find = jest.fn().mockResolvedValue(mockBids);
+
+      const result = await service.listMyBids('buyer-1');
+      expect(result.length).toBe(1);
     });
   });
 });

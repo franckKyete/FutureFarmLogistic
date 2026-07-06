@@ -8,6 +8,7 @@ import {
   INotificationChannel,
   NotificationPayload,
 } from './notification-channel.interface';
+import { NotificationsGateway } from '../notifications.gateway';
 
 @Injectable()
 export class DatabaseChannel implements INotificationChannel {
@@ -17,6 +18,7 @@ export class DatabaseChannel implements INotificationChannel {
   constructor(
     @InjectRepository(NotificationEntity)
     private readonly notificationRepository: Repository<NotificationEntity>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async send(payload: NotificationPayload): Promise<void> {
@@ -26,10 +28,12 @@ export class DatabaseChannel implements INotificationChannel {
       });
       if (notification) {
         notification.status = NotificationStatus.SENT;
-        await this.notificationRepository.save(notification);
+        const saved = await this.notificationRepository.save(notification);
         this.logger.log(
           `Notification status updated to SENT in database for user ${payload.userId}`,
         );
+        // Push notification in real-time to connected WebSocket clients
+        this.notificationsGateway.emitNewNotification(payload.userId, saved);
       } else {
         this.logger.warn(
           `Could not find NotificationEntity with ID ${payload.notificationId} to update status.`,

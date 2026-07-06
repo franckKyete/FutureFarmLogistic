@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BasketEntity } from './entities/basket.entity';
 import { BasketLineEntity } from './entities/basket-line.entity';
+import { BasketStatus } from './entities/basket-status.enum';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { HarvestStatus } from '@futurefarm/types';
 import { AddBasketLineDto, UpdateBasketLineDto } from '@futurefarm/types';
@@ -25,14 +26,14 @@ export class BasketService {
 
   async getOrCreateBasket(buyerId: string): Promise<BasketEntity> {
     let basket = await this.basketRepository.findOne({
-      where: { buyerId, status: 'ACTIVE' },
+      where: { buyerId, status: BasketStatus.ACTIVE },
       relations: ['lines', 'lines.harvest', 'lines.harvest.product'],
     });
 
     if (!basket) {
       basket = new BasketEntity();
       basket.buyerId = buyerId;
-      basket.status = 'ACTIVE';
+      basket.status = BasketStatus.ACTIVE;
       basket.lines = [];
       basket = await this.basketRepository.save(basket);
     }

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -45,6 +46,7 @@ export class InspectionsService {
     private readonly productRepo: Repository<ProductEntity>,
     @Inject('QUALITY_VISION_PROVIDER')
     private readonly visionProvider: QualityVisionProvider,
+    private readonly configService: ConfigService,
   ) {}
 
   // --- Inspector Profile Management ---
@@ -309,7 +311,8 @@ export class InspectionsService {
     report.finalQualityScore = dto.finalQualityScore;
     report.submittedAt = new Date();
 
-    const isApproved = dto.finalQualityScore >= 4.0;
+    const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 4.0);
+    const isApproved = dto.finalQualityScore >= minScore;
     report.status = isApproved
       ? InspectionStatus.SUBMITTED
       : InspectionStatus.REJECTED;

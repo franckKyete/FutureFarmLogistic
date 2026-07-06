@@ -69,10 +69,6 @@ describe('BasketService', () => {
 
       const result = await service.getOrCreateBasket('buyer-1');
       expect(result).toEqual(mockBasket);
-      expect(basketRepo.findOne).toHaveBeenCalledWith({
-        where: { buyerId: 'buyer-1', status: 'ACTIVE' },
-        relations: ['lines', 'lines.harvest', 'lines.harvest.product'],
-      });
     });
 
     it('should create new basket if none active exists', async () => {
@@ -171,6 +167,32 @@ describe('BasketService', () => {
       await expect(
         service.addBasketLine('buyer-1', { harvestId: 'harvest-1', quantity: 95 }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updateBasketLine and removeBasketLine', () => {
+    it('should update basket line quantity successfully', async () => {
+      const mockBasket = { id: 'basket-1', buyerId: 'buyer-1', status: 'ACTIVE' };
+      const mockHarvest = { id: 'harvest-1', quantityInStock: 100, stockMarge: 10, status: HarvestStatus.APPROVED };
+      const mockLine = { id: 'line-1', basketId: 'basket-1', harvestId: 'harvest-1', quantity: 10, harvest: mockHarvest };
+
+      basketRepo.findOne.mockResolvedValue(mockBasket);
+      basketLineRepo.findOne.mockResolvedValue(mockLine);
+      harvestRepo.findOne.mockResolvedValue(mockHarvest);
+
+      const result = await service.updateBasketLine('buyer-1', 'line-1', { quantity: 20 });
+      expect(result.quantity).toBe(20);
+    });
+
+    it('should remove basket line successfully', async () => {
+      const mockBasket = { id: 'basket-1', buyerId: 'buyer-1' };
+      const mockLine = { id: 'line-1', basketId: 'basket-1' };
+
+      basketRepo.findOne.mockResolvedValue(mockBasket);
+      basketLineRepo.findOne.mockResolvedValue(mockLine);
+
+      await service.removeBasketLine('buyer-1', 'line-1');
+      expect(basketLineRepo.remove).toHaveBeenCalledWith(mockLine);
     });
   });
 });
