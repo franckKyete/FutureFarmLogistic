@@ -4,6 +4,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth } from '@/features/auth/store/auth.store';
+import { useToasts, removeToast } from '@/features/shared/store/toast.store';
 import { Permission } from '@futurefarm/types';
 
 export interface RouterContext {
@@ -17,6 +18,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   const navigate = useNavigate();
   const { user, isAuthenticated, can } = useAuth();
+  const toasts = useToasts();
 
   const handleLogout = () => {
     clearAuth();
@@ -77,6 +79,39 @@ function RootLayout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+
+      {/* Floating Toast Notification Container */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            onClick={() => removeToast(toast.id)}
+            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-lg border text-sm font-semibold transition-all cursor-pointer hover:opacity-95 animate-slide-in ${
+              toast.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : toast.type === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : toast.type === 'warning'
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-blue-50 border-blue-200 text-blue-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+              {toast.type === 'success'
+                ? 'check_circle'
+                : toast.type === 'error'
+                ? 'error'
+                : toast.type === 'warning'
+                ? 'warning'
+                : 'info'}
+            </span>
+            <span className="flex-1 leading-snug">{toast.message}</span>
+            <span className="material-symbols-outlined text-[16px] opacity-70 hover:opacity-100">
+              close
+            </span>
+          </div>
+        ))}
+      </div>
 
       {import.meta.env.DEV && <TanStackRouterDevtools />}
     </div>

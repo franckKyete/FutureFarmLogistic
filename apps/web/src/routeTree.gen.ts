@@ -9,14 +9,86 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
+import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
+import { Route as FarmerProfileRouteImport } from './routes/farmer/profile'
+import { Route as FarmerOrdersRouteImport } from './routes/farmer/orders'
+import { Route as FarmerOnboardingRouteImport } from './routes/farmer/onboarding'
+import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
+import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
+import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
+import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
+import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
+import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
+import { Route as FarmerHarvestsAnalyzeRouteImport } from './routes/farmer/harvests/analyze'
+import { Route as FarmerAuctionsNewRouteImport } from './routes/farmer/auctions/new'
+import { Route as FarmerAuctionsIdBiddersRouteImport } from './routes/farmer/auctions/$id.bidders'
 
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FarmerRoute = FarmerRouteImport.update({
+  id: '/farmer',
+  path: '/farmer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FarmerWelcomeRoute = FarmerWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerStockRoute = FarmerStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProfileRoute = FarmerProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOnboardingRoute = FarmerOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const AuthUnauthorizedRoute = AuthUnauthorizedRouteImport.update({
+  id: '/auth/unauthorized',
+  path: '/auth/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRegisterRoute = AuthRegisterRouteImport.update({
+  id: '/auth/register',
+  path: '/auth/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -34,48 +106,274 @@ const AdminRolesRoute = AdminRolesRouteImport.update({
   path: '/admin/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FarmerAuctionsIndexRoute = FarmerAuctionsIndexRouteImport.update({
+  id: '/auctions/',
+  path: '/auctions/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsIdRoute = FarmerProductsIdRouteImport.update({
+  id: '/products/$id',
+  path: '/products/$id',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerHarvestsNewRoute = FarmerHarvestsNewRouteImport.update({
+  id: '/harvests/new',
+  path: '/harvests/new',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerHarvestsAnalyzeRoute = FarmerHarvestsAnalyzeRouteImport.update({
+  id: '/harvests/analyze',
+  path: '/harvests/analyze',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerAuctionsNewRoute = FarmerAuctionsNewRouteImport.update({
+  id: '/auctions/new',
+  path: '/auctions/new',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerAuctionsIdBiddersRoute = FarmerAuctionsIdBiddersRouteImport.update({
+  id: '/auctions/$id/bidders',
+  path: '/auctions/$id/bidders',
+  getParentRoute: () => FarmerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/farmer': typeof FarmerRouteWithChildren
+  '/notifications': typeof NotificationsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/register': typeof AuthRegisterRoute
+  '/auth/unauthorized': typeof AuthUnauthorizedRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/onboarding': typeof FarmerOnboardingRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/profile': typeof FarmerProfileRoute
+  '/farmer/stock': typeof FarmerStockRoute
+  '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
+  '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
+  '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
+  '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/farmer': typeof FarmerRouteWithChildren
+  '/notifications': typeof NotificationsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/register': typeof AuthRegisterRoute
+  '/auth/unauthorized': typeof AuthUnauthorizedRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/onboarding': typeof FarmerOnboardingRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/profile': typeof FarmerProfileRoute
+  '/farmer/stock': typeof FarmerStockRoute
+  '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
+  '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
+  '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/farmer/auctions': typeof FarmerAuctionsIndexRoute
+  '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/farmer': typeof FarmerRouteWithChildren
+  '/notifications': typeof NotificationsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/register': typeof AuthRegisterRoute
+  '/auth/unauthorized': typeof AuthUnauthorizedRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/onboarding': typeof FarmerOnboardingRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/profile': typeof FarmerProfileRoute
+  '/farmer/stock': typeof FarmerStockRoute
+  '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
+  '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
+  '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
+  '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin/roles' | '/admin/users' | '/auth/login'
+  fullPaths:
+    | '/'
+    | '/farmer'
+    | '/notifications'
+    | '/admin/roles'
+    | '/admin/users'
+    | '/auth/login'
+    | '/auth/register'
+    | '/auth/unauthorized'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/onboarding'
+    | '/farmer/orders'
+    | '/farmer/profile'
+    | '/farmer/stock'
+    | '/farmer/welcome'
+    | '/farmer/auctions/new'
+    | '/farmer/harvests/analyze'
+    | '/farmer/harvests/new'
+    | '/farmer/products/$id'
+    | '/farmer/auctions/'
+    | '/farmer/auctions/$id/bidders'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/roles' | '/admin/users' | '/auth/login'
-  id: '__root__' | '/' | '/admin/roles' | '/admin/users' | '/auth/login'
+  to:
+    | '/'
+    | '/farmer'
+    | '/notifications'
+    | '/admin/roles'
+    | '/admin/users'
+    | '/auth/login'
+    | '/auth/register'
+    | '/auth/unauthorized'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/onboarding'
+    | '/farmer/orders'
+    | '/farmer/profile'
+    | '/farmer/stock'
+    | '/farmer/welcome'
+    | '/farmer/auctions/new'
+    | '/farmer/harvests/analyze'
+    | '/farmer/harvests/new'
+    | '/farmer/products/$id'
+    | '/farmer/auctions'
+    | '/farmer/auctions/$id/bidders'
+  id:
+    | '__root__'
+    | '/'
+    | '/farmer'
+    | '/notifications'
+    | '/admin/roles'
+    | '/admin/users'
+    | '/auth/login'
+    | '/auth/register'
+    | '/auth/unauthorized'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/onboarding'
+    | '/farmer/orders'
+    | '/farmer/profile'
+    | '/farmer/stock'
+    | '/farmer/welcome'
+    | '/farmer/auctions/new'
+    | '/farmer/harvests/analyze'
+    | '/farmer/harvests/new'
+    | '/farmer/products/$id'
+    | '/farmer/auctions/'
+    | '/farmer/auctions/$id/bidders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FarmerRoute: typeof FarmerRouteWithChildren
+  NotificationsRoute: typeof NotificationsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthRegisterRoute: typeof AuthRegisterRoute
+  AuthUnauthorizedRoute: typeof AuthUnauthorizedRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/farmer': {
+      id: '/farmer'
+      path: '/farmer'
+      fullPath: '/farmer'
+      preLoaderRoute: typeof FarmerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/farmer/welcome': {
+      id: '/farmer/welcome'
+      path: '/welcome'
+      fullPath: '/farmer/welcome'
+      preLoaderRoute: typeof FarmerWelcomeRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/stock': {
+      id: '/farmer/stock'
+      path: '/stock'
+      fullPath: '/farmer/stock'
+      preLoaderRoute: typeof FarmerStockRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/profile': {
+      id: '/farmer/profile'
+      path: '/profile'
+      fullPath: '/farmer/profile'
+      preLoaderRoute: typeof FarmerProfileRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/orders': {
+      id: '/farmer/orders'
+      path: '/orders'
+      fullPath: '/farmer/orders'
+      preLoaderRoute: typeof FarmerOrdersRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/onboarding': {
+      id: '/farmer/onboarding'
+      path: '/onboarding'
+      fullPath: '/farmer/onboarding'
+      preLoaderRoute: typeof FarmerOnboardingRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/dashboard': {
+      id: '/farmer/dashboard'
+      path: '/dashboard'
+      fullPath: '/farmer/dashboard'
+      preLoaderRoute: typeof FarmerDashboardRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/analytics': {
+      id: '/farmer/analytics'
+      path: '/analytics'
+      fullPath: '/farmer/analytics'
+      preLoaderRoute: typeof FarmerAnalyticsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/auth/unauthorized': {
+      id: '/auth/unauthorized'
+      path: '/auth/unauthorized'
+      fullPath: '/auth/unauthorized'
+      preLoaderRoute: typeof AuthUnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/register': {
+      id: '/auth/register'
+      path: '/auth/register'
+      fullPath: '/auth/register'
+      preLoaderRoute: typeof AuthRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -99,14 +397,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRolesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/farmer/auctions/': {
+      id: '/farmer/auctions/'
+      path: '/auctions'
+      fullPath: '/farmer/auctions/'
+      preLoaderRoute: typeof FarmerAuctionsIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/$id': {
+      id: '/farmer/products/$id'
+      path: '/products/$id'
+      fullPath: '/farmer/products/$id'
+      preLoaderRoute: typeof FarmerProductsIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/harvests/new': {
+      id: '/farmer/harvests/new'
+      path: '/harvests/new'
+      fullPath: '/farmer/harvests/new'
+      preLoaderRoute: typeof FarmerHarvestsNewRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/harvests/analyze': {
+      id: '/farmer/harvests/analyze'
+      path: '/harvests/analyze'
+      fullPath: '/farmer/harvests/analyze'
+      preLoaderRoute: typeof FarmerHarvestsAnalyzeRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/auctions/new': {
+      id: '/farmer/auctions/new'
+      path: '/auctions/new'
+      fullPath: '/farmer/auctions/new'
+      preLoaderRoute: typeof FarmerAuctionsNewRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/auctions/$id/bidders': {
+      id: '/farmer/auctions/$id/bidders'
+      path: '/auctions/$id/bidders'
+      fullPath: '/farmer/auctions/$id/bidders'
+      preLoaderRoute: typeof FarmerAuctionsIdBiddersRouteImport
+      parentRoute: typeof FarmerRoute
+    }
   }
 }
 
+interface FarmerRouteChildren {
+  FarmerAnalyticsRoute: typeof FarmerAnalyticsRoute
+  FarmerDashboardRoute: typeof FarmerDashboardRoute
+  FarmerOnboardingRoute: typeof FarmerOnboardingRoute
+  FarmerOrdersRoute: typeof FarmerOrdersRoute
+  FarmerProfileRoute: typeof FarmerProfileRoute
+  FarmerStockRoute: typeof FarmerStockRoute
+  FarmerWelcomeRoute: typeof FarmerWelcomeRoute
+  FarmerAuctionsNewRoute: typeof FarmerAuctionsNewRoute
+  FarmerHarvestsAnalyzeRoute: typeof FarmerHarvestsAnalyzeRoute
+  FarmerHarvestsNewRoute: typeof FarmerHarvestsNewRoute
+  FarmerProductsIdRoute: typeof FarmerProductsIdRoute
+  FarmerAuctionsIndexRoute: typeof FarmerAuctionsIndexRoute
+  FarmerAuctionsIdBiddersRoute: typeof FarmerAuctionsIdBiddersRoute
+}
+
+const FarmerRouteChildren: FarmerRouteChildren = {
+  FarmerAnalyticsRoute: FarmerAnalyticsRoute,
+  FarmerDashboardRoute: FarmerDashboardRoute,
+  FarmerOnboardingRoute: FarmerOnboardingRoute,
+  FarmerOrdersRoute: FarmerOrdersRoute,
+  FarmerProfileRoute: FarmerProfileRoute,
+  FarmerStockRoute: FarmerStockRoute,
+  FarmerWelcomeRoute: FarmerWelcomeRoute,
+  FarmerAuctionsNewRoute: FarmerAuctionsNewRoute,
+  FarmerHarvestsAnalyzeRoute: FarmerHarvestsAnalyzeRoute,
+  FarmerHarvestsNewRoute: FarmerHarvestsNewRoute,
+  FarmerProductsIdRoute: FarmerProductsIdRoute,
+  FarmerAuctionsIndexRoute: FarmerAuctionsIndexRoute,
+  FarmerAuctionsIdBiddersRoute: FarmerAuctionsIdBiddersRoute,
+}
+
+const FarmerRouteWithChildren =
+  FarmerRoute._addFileChildren(FarmerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FarmerRoute: FarmerRouteWithChildren,
+  NotificationsRoute: NotificationsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthRegisterRoute: AuthRegisterRoute,
+  AuthUnauthorizedRoute: AuthUnauthorizedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

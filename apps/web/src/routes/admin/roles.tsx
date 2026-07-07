@@ -1,16 +1,10 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { Permission } from '@futurefarm/types';
-import { authStore } from '@/features/auth/store/auth.store';
+import { requireAuth } from '@/features/auth/utils/auth-guard';
 
 export const Route = createFileRoute('/admin/roles')({
   beforeLoad: () => {
-    if (!authStore.state.isAuthenticated) {
-      throw redirect({ to: '/auth/login' });
-    }
-    const user = authStore.state.user;
-    if (!user?.permissions.includes(Permission.ROLE_READ)) {
-      throw redirect({ to: '/' });
-    }
+    requireAuth(Permission.ROLE_READ);
   },
   component: RolesAdminPage,
 });

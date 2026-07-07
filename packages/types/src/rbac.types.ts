@@ -118,6 +118,12 @@ export enum Permission {
   DRIVER_PROFILE_READ           = 'driver:profile:read',
   DRIVER_PROFILE_UPDATE         = 'driver:profile:update',
   DRIVER_PROFILE_DELETE         = 'driver:profile:delete',
+
+  // --- Example Module ---
+  EXAMPLE_READ                  = 'example:read',
+  EXAMPLE_CREATE                = 'example:create',
+  EXAMPLE_UPDATE                = 'example:update',
+  EXAMPLE_DELETE                = 'example:delete',
 }
 
 

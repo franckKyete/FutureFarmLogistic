@@ -16,14 +16,59 @@
   --color-brand-800: oklch(0.30 0.12 145);
   --color-brand-900: oklch(0.22 0.08 145);
 
+  /* Stitch Custom Palette */
+  --color-primary: #004322;
+  --color-primary-container: #1a5c35;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #90d2a1;
+  --color-secondary: #885200;
+  --color-secondary-container: #ffa93d;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #6d4100;
+  --color-tertiary: #343c2e;
+  --color-tertiary-container: #4b5344;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #bdc6b3;
+  --color-tertiary-fixed: #dde6d1;
+  --color-on-tertiary-fixed: #161e11;
+  --color-background: #f8f9ff;
+  --color-on-background: #0b1c30;
+  --color-surface: #f8f9ff;
+  --color-on-surface: #0b1c30;
+  --color-surface-bright: #f8f9ff;
+  --color-surface-dim: #cbdbf5;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-surface-variant: #404941;
+  --color-outline: #707970;
+  --color-outline-variant: #c0c9be;
+
   /* Typography */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Geist", "Inter", sans-serif;
 
   /* Border radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+
+  /* Custom Animations */
+  --animate-slide-in: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes slide-in {
+    from {
+      transform: translateY(1.5rem) scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
 }
 
 @layer base {
@@ -38,8 +83,8 @@
 
   body {
     margin: 0;
-    background-color: oklch(0.98 0.005 145);
-    color: oklch(0.20 0.01 145);
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
   }
 
   a {

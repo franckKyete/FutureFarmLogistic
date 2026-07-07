@@ -15,7 +15,7 @@ import { SeedService } from './seed.service';
         url: config.get<string>('DATABASE_URL') || '',
         autoLoadEntities: true,
         synchronize: config.get<string>('app.nodeEnv') === 'development',
-        logging: config.get<string>('app.nodeEnv') === 'development',
+        logging: false,
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         migrationsRun: false,
       }),

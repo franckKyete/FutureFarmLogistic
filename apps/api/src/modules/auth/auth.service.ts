@@ -83,7 +83,9 @@ export class AuthService {
     }
 
     // Verify account status
-    if (user.status === UserStatus.PENDING_VALIDATION) {
+    const isFarmer = user.roles.some((r) => r.name.toLowerCase() === 'farmer');
+    const isBuyer = user.roles.some((r) => r.name.toLowerCase() === 'buyer');
+    if (user.status === UserStatus.PENDING_VALIDATION && !isFarmer && !isBuyer) {
       throw new ForbiddenException(
         'Your account is pending administrator approval.',
       );
