@@ -1,69 +1,50 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
+import { addToast } from '@/features/shared/store/toast.store';
 
 export const Route = createFileRoute('/farmer/stock')({
   component: StockPage,
 });
 
-type Category = 'Tout' | 'Céréales' | 'Légumes' | 'Fruits' | 'Engrais';
+type Category = 'Tout' | 'Céréales' | 'Légumes' | 'Fruits' | 'Dattes' | 'Laitier';
 
-interface HarvestDetails {
-  month: string;
-  quality: number;
-  stock: string;
-  avgPrice: string;
-  harvestsCount: number;
-}
+const CATEGORY_MAP: Record<string, string> = {
+  CEREALS: 'Céréales',
+  VEGETABLES: 'Légumes',
+  FRUITS: 'Fruits',
+  DATES: 'Dattes',
+  DAIRY: 'Laitier',
+  MEAT: 'Viande',
+  OTHER: 'Autre',
+};
 
-interface ProductGroup {
-  id: string;
-  name: string;
-  category: string;
-  totalStock: string;
-  imgUrl: string;
-  distributions: { name: string; percentage: number; colorClass: string }[];
-  details: HarvestDetails[];
-}
-
-const PRODUCT_GROUPS: ProductGroup[] = [
-  {
-    id: 'tomates-grappe',
-    name: 'Tomates Grappe',
-    category: 'Légumes',
-    totalStock: '770 kg',
-    imgUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDse8VSUL0s9wZxCFkVNBACWkA9cI2CCzo62KPqgT_gTQmF6TTtqbbZeTv76RxV8chIRPSpK_FQ3zelQICkSw2sJU8KFtMn0B2eMICU6Tgld2S7VC4BxbZJ5LMQuVOO2hbhYUSZYXxDmyJVRqoPvyZ_UGGAuGm1MEnyzsNVMbSkLQ384gPdXxD1giybxDb0yyQzd1C5QBoM8Ejoa6FzZ4_W4tCa-FWw7phcz-HVsna4rJ7Frg1bnJ54HqKeMo3BFAe4Kwp8H_NUR9g',
-    distributions: [
-      { name: 'Jan', percentage: 15.5, colorClass: 'bg-primary' },
-      { name: 'Mar', percentage: 32.5, colorClass: 'bg-surface-tint' },
-      { name: 'Mai', percentage: 52, colorClass: 'bg-primary-container' },
-    ],
-    details: [
-      { month: 'Novembre 2023', quality: 92, stock: '320kg', avgPrice: '2 500 FCFA/kg', harvestsCount: 2 },
-      { month: 'Octobre 2023', quality: 89, stock: '450kg', avgPrice: '2 400 FCFA/kg', harvestsCount: 3 },
-    ],
-  },
-  {
-    id: 'ble-tendre',
-    name: 'Blé Tendre',
-    category: 'Céréales',
-    totalStock: '15 t',
-    imgUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCbKwDUmDdg6aRvgnuwHwxBHBWyu23GUntNZIIYnEpuMxQMDoflSGJIq56uhXmV4wYgZlZQfJKZ0IfO9cf6MNZeufUzJew3GQl8J0XSpHoeUxOCXk7cxd4eFQbzBNUOfwCtJbl04TpWcciZlNyrG7QvseGB5h0e9XWG6OqK7Sa8cYE1jMTnPlN7-JBsdT1tnIW_LQiMd5Q-H6VKxU6tNdFnRl5fCSDfuiSxqVYhw4gcjvmvI9e0mFCUuiCtGRwtqxR_3rzHEPFlm_E',
-    distributions: [
-      { name: 'Juil', percentage: 33.3, colorClass: 'bg-secondary' },
-      { name: 'Août', percentage: 66.7, colorClass: 'bg-secondary-container' },
-    ],
-    details: [
-      { month: 'Septembre 2023', quality: 75, stock: '15 t', avgPrice: '180 000 FCFA/t', harvestsCount: 1 },
-    ],
-  },
-];
+const CATEGORY_REVERSE_MAP: Record<Category, string> = {
+  Tout: '',
+  Céréales: 'CEREALS',
+  Légumes: 'VEGETABLES',
+  Fruits: 'FRUITS',
+  Dattes: 'DATES',
+  Laitier: 'DAIRY',
+};
 
 function StockPage() {
-  const navigate = useNavigate();
-  const [alertOpen, setAlertOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category>('Tout');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  // Fetch harvests query
+  const { data: harvests, refetch } = useQuery(getFarmerHarvestsQuery());
+
+  // Archive harvest mutation
+  const { mutate: deleteHarvest, isPending: deletePending } = useMutation({
+    ...deleteHarvestMutation(),
+    onSuccess: () => {
+      addToast('Le lot a été archivé avec succès.', 'success');
+      void refetch();
+    },
+  });
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => ({
@@ -72,11 +53,96 @@ function StockPage() {
     }));
   };
 
-  const filteredGroups = PRODUCT_GROUPS.filter((group) => {
-    const matchesCategory = activeCategory === 'Tout' || group.category === activeCategory;
+  // Group harvests by product
+  const groups: Record<string, {
+    id: string;
+    name: string;
+    category: string;
+    rawCategory: string;
+    totalStock: number;
+    unit: string;
+    imgUrl: string;
+    distributions: { name: string; percentage: number; colorClass: string }[];
+    details: {
+      id: string;
+      month: string;
+      quality: number;
+      stock: string;
+      avgPrice: string;
+      status: string;
+    }[];
+  }> = {};
+
+  (harvests || []).forEach((h) => {
+    const prod = h.product;
+    if (!prod) return;
+
+    let group = groups[prod.id];
+    if (!group) {
+      group = {
+        id: prod.id,
+        name: prod.name,
+        category: CATEGORY_MAP[prod.category] || prod.category,
+        rawCategory: prod.category,
+        totalStock: 0,
+        unit: h.unit,
+        imgUrl: h.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=200',
+        distributions: [],
+        details: [],
+      };
+      groups[prod.id] = group;
+    }
+
+    group.totalStock += Number(h.quantityInStock);
+
+    const harvestMonth = new Date(h.harvestDate).toLocaleDateString('fr-FR', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    group.details.push({
+      id: h.id,
+      month: harvestMonth.charAt(0).toUpperCase() + harvestMonth.slice(1),
+      quality: h.qualityScore ? Math.round(h.qualityScore * 10) : 0,
+      stock: `${h.quantityInStock} ${h.unit}`,
+      avgPrice: `${Number(h.pricePerUnit).toLocaleString()} FCFA/${h.unit}`,
+      status: h.status,
+    });
+  });
+
+  // Calculate percentage distributions
+  Object.values(groups).forEach((g) => {
+    const total = g.totalStock;
+    if (total > 0 && g.details.length > 0) {
+      g.distributions = g.details.map((detail, idx) => {
+        const qty = parseFloat(detail.stock);
+        const pct = total > 0 ? Math.round((qty / total) * 100) : 0;
+        const colors = ['bg-primary', 'bg-surface-tint', 'bg-primary-container', 'bg-secondary'];
+        return {
+          name: detail.month.split(' ')[0] || 'Batch',
+          percentage: pct,
+          colorClass: colors[idx % colors.length] || 'bg-primary',
+        };
+      });
+    } else {
+      g.distributions = [{ name: 'Aucun', percentage: 100, colorClass: 'bg-outline-variant' }];
+    }
+  });
+
+  const productGroups = Object.values(groups);
+
+  const filteredGroups = productGroups.filter((group) => {
+    const matchesCategory = activeCategory === 'Tout' || group.rawCategory === CATEGORY_REVERSE_MAP[activeCategory];
     const matchesSearch = group.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  // Dynamic statistics
+  const activeCount = harvests ? harvests.filter((h) => h.status === 'APPROVED').length : 0;
+  const lowStockCount = harvests
+    ? harvests.filter((h) => h.status === 'APPROVED' && Number(h.quantityInStock) <= Number(h.stockMarge) && Number(h.quantityInStock) > 0).length
+    : 0;
+  const outOfStockCount = harvests ? harvests.filter((h) => Number(h.quantityInStock) === 0).length : 0;
 
   return (
     <div className="bg-surface text-on-surface font-sans min-h-screen pb-24 relative">
@@ -87,43 +153,37 @@ function StockPage() {
           <h1 className="text-sm font-bold text-primary">Gestion des stocks</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => alert('Notifications')}
-            className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant cursor-pointer"
+          <Link
+            to="/notifications"
+            className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
           >
             <span className="material-symbols-outlined">notifications</span>
-          </button>
+          </Link>
         </div>
       </header>
 
       <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-6">
         {/* Alert Banner */}
-        {alertOpen && (
+        {lowStockCount > 0 && (
           <div className="bg-[#ffddbb] text-[#2b1700] flex items-center justify-between p-3.5 rounded-xl border border-[#ffa93d]/30 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined">warning</span>
-              <span className="text-xs font-semibold">3 produits ont un stock faible</span>
+              <span className="text-xs font-semibold">{lowStockCount} produits ont un stock faible</span>
             </div>
-            <button
-              onClick={() => setAlertOpen(false)}
-              className="p-1 hover:bg-black/10 rounded-full cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
           </div>
         )}
 
         {/* Action Buttons */}
         <div className="flex gap-3">
           <Link
-            to="/farmer/harvests/new"
+            to="/farmer/harvests/analyze"
             className="flex-1 bg-primary text-white py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer text-center"
           >
-            <span className="material-symbols-outlined">add_circle</span>
-            Ajouter un produit
+            <span className="material-symbols-outlined">analytics</span>
+            Ajouter une récolte
           </Link>
           <button
-            onClick={() => alert('Stock mis à jour')}
+            onClick={() => void refetch()}
             className="flex-1 bg-white border border-outline-variant text-on-surface py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer"
           >
             <span className="material-symbols-outlined">refresh</span>
@@ -135,18 +195,20 @@ function StockPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-on-surface-variant text-xs font-semibold">Produits actifs</span>
+              <span className="text-on-surface-variant text-xs font-semibold">Lots approuvés</span>
               <span className="material-symbols-outlined text-primary">inventory_2</span>
             </div>
-            <div className="text-2xl font-bold font-display text-primary">42</div>
-            <div className="text-[10px] font-semibold text-on-surface-variant mt-1">+4 cette semaine</div>
+            <div className="text-2xl font-bold font-display text-primary">{activeCount}</div>
+            <div className="text-[10px] font-semibold text-on-surface-variant mt-1">Disponibles pour la vente</div>
           </div>
           <div className="bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
             <div className="flex justify-between items-start mb-2">
               <span className="text-on-surface-variant text-xs font-semibold">Stocks faibles</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-xl font-bold text-secondary font-display">03</span>
+              <span className="text-xl font-bold text-secondary font-display">
+                {String(lowStockCount).padStart(2, '0')}
+              </span>
               <span className="bg-secondary/10 px-2 py-0.5 rounded-full text-[9px] font-bold text-secondary mb-1">AMBRE</span>
             </div>
           </div>
@@ -155,7 +217,9 @@ function StockPage() {
               <span className="text-on-surface-variant text-xs font-semibold">Ruptures</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-xl font-bold text-error font-display">00</span>
+              <span className="text-xl font-bold text-error font-display">
+                {String(outOfStockCount).padStart(2, '0')}
+              </span>
               <span className="bg-error/10 px-2 py-0.5 rounded-full text-[9px] font-bold text-error mb-1">ROUGE</span>
             </div>
           </div>
@@ -174,7 +238,7 @@ function StockPage() {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {(['Tout', 'Céréales', 'Légumes', 'Fruits', 'Engrais'] as Category[]).map((cat) => {
+            {(['Tout', 'Céréales', 'Légumes', 'Fruits', 'Dattes', 'Laitier'] as Category[]).map((cat) => {
               const isActive = activeCategory === cat;
               return (
                 <button
@@ -197,101 +261,130 @@ function StockPage() {
         <div className="space-y-3">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-sm font-bold">Inventaire groupé</h2>
-            <span className="text-[10px] font-bold text-on-surface-variant">Trier par: Produit</span>
           </div>
 
-          {filteredGroups.map((group) => {
-            const isExpanded = !!expandedGroups[group.id];
-            return (
-              <div key={group.id} className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-                {/* Header Card */}
-                <div
-                  onClick={() => toggleGroup(group.id)}
-                  className="p-4 flex gap-4 items-center cursor-pointer hover:bg-surface-container-low transition-colors"
-                >
-                  <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30">
-                    <img alt={group.name} className="w-full h-full object-cover" src={group.imgUrl} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-sm text-on-surface truncate">{group.name}</h3>
-                      <span className="bg-surface-container px-2 py-0.5 rounded text-[9px] font-bold text-on-surface-variant">
-                        {group.category.toUpperCase()}
-                      </span>
+          {filteredGroups.length === 0 ? (
+            <div className="bg-white border border-outline-variant p-8 text-center text-outline rounded-xl text-sm">
+              Aucun produit trouvé dans votre stock.
+            </div>
+          ) : (
+            filteredGroups.map((group) => {
+              const isExpanded = !!expandedGroups[group.id];
+              return (
+                <div key={group.id} className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+                  {/* Header Card */}
+                  <div
+                    onClick={() => toggleGroup(group.id)}
+                    className="p-4 flex gap-4 items-center cursor-pointer hover:bg-surface-container-low transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30">
+                      <img alt={group.name} className="w-full h-full object-cover" src={group.imgUrl} />
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-on-surface-variant">
-                        Stock total: <span className="text-on-surface font-bold">{group.totalStock}</span>
-                      </span>
-                      <span className="material-symbols-outlined text-on-surface-variant">
-                        {isExpanded ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </div>
-                    {/* Visual distributions */}
-                    <div className="mt-2 space-y-1">
-                      <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden flex">
-                        {group.distributions.map((dist, i) => (
-                          <div
-                            key={i}
-                            className={`h-full ${dist.colorClass}`}
-                            style={{ width: `${dist.percentage}%` }}
-                            title={`${dist.name} — ${dist.percentage}%`}
-                          ></div>
-                        ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-sm text-on-surface truncate">{group.name}</h3>
+                        <span className="bg-surface-container px-2 py-0.5 rounded text-[9px] font-bold text-on-surface-variant">
+                          {group.category.toUpperCase()}
+                        </span>
                       </div>
-                      <div className="flex gap-3 text-[9px] font-semibold text-on-surface-variant">
-                        {group.distributions.map((dist, i) => (
-                          <span key={i} className="flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${dist.colorClass}`}></span> {dist.name}
-                          </span>
-                        ))}
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-on-surface-variant">
+                          Stock total : <span className="text-on-surface font-bold">{group.totalStock} {group.unit}</span>
+                        </span>
+                        <span className="material-symbols-outlined text-on-surface-variant">
+                          {isExpanded ? 'expand_less' : 'expand_more'}
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Content */}
-                {isExpanded && (
-                  <div className="border-t border-outline-variant bg-surface-container-low animate-fadeIn">
-                    <div className="p-4 space-y-3">
-                      {group.details.map((detail, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => void navigate({ to: `/farmer/products/${group.id}` })}
-                          className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm cursor-pointer hover:border-primary transition-all"
-                        >
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-xs">{detail.month}</span>
-                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold">
-                              {detail.quality}%
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-[10px] text-on-surface-variant font-semibold">
-                            <div>
-                              Stock: <span className="text-on-surface font-bold">{detail.stock}</span>
-                            </div>
-                            <div>
-                              Prix moy: <span className="text-on-surface font-bold">{detail.avgPrice}</span>
-                            </div>
-                            <div>
-                              Récoltes: <span className="text-on-surface font-bold">{detail.harvestsCount}</span>
-                            </div>
-                          </div>
+                      {/* Visual distributions */}
+                      <div className="mt-2 space-y-1">
+                        <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden flex">
+                          {group.distributions.map((dist, i) => (
+                            <div
+                              key={i}
+                              className={`h-full ${dist.colorClass}`}
+                              style={{ width: `${dist.percentage}%` }}
+                              title={`${dist.name} — ${dist.percentage}%`}
+                            ></div>
+                          ))}
                         </div>
-                      ))}
-                      <Link
-                        to="/farmer/harvests/new"
-                        className="w-full py-2 border-2 border-dashed border-primary text-primary rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors cursor-pointer text-center"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                        Ajouter une récolte
-                      </Link>
+                        <div className="flex gap-3 text-[9px] font-semibold text-on-surface-variant overflow-x-auto scrollbar-none">
+                          {group.distributions.map((dist, i) => (
+                            <span key={i} className="flex items-center gap-1 shrink-0">
+                              <span className={`w-1.5 h-1.5 rounded-full ${dist.colorClass}`}></span> {dist.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Expanded Content */}
+                  {isExpanded && (
+                    <div className="border-t border-outline-variant bg-surface-container-low animate-fadeIn">
+                      <div className="p-4 space-y-3">
+                        {group.details.map((detail) => (
+                          <div
+                            key={detail.id}
+                            className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm flex flex-col gap-2"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-xs">{detail.month}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  detail.status === 'APPROVED'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : detail.status === 'PENDING_APPROVAL'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}>
+                                  {detail.status === 'APPROVED' ? 'Approuvé' : detail.status === 'PENDING_APPROVAL' ? 'En attente' : 'Rejeté'}
+                                </span>
+                                {detail.status === 'APPROVED' && (
+                                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold">
+                                    Qualité : {detail.quality}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] text-on-surface-variant font-semibold">
+                              <div className="flex gap-4">
+                                <div>
+                                  Stock : <span className="text-on-surface font-bold">{detail.stock}</span>
+                                </div>
+                                <div>
+                                  Prix : <span className="text-on-surface font-bold">{detail.avgPrice}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Voulez-vous vraiment archiver ce lot ?')) {
+                                    deleteHarvest(detail.id);
+                                  }
+                                }}
+                                disabled={deletePending}
+                                className="text-error hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                Archiver
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <Link
+                          to="/farmer/harvests/analyze"
+                          className="w-full py-2 border-2 border-dashed border-primary text-primary rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors cursor-pointer text-center"
+                        >
+                          <span className="material-symbols-outlined text-sm">analytics</span>
+                          Ajouter une récolte
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </main>
 
@@ -315,8 +408,8 @@ function StockPage() {
           to="/farmer/harvests/analyze"
           className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
         >
-          <span className="material-symbols-outlined">gavel</span>
-          <span className="text-[10px] font-bold">Enchères</span>
+          <span className="material-symbols-outlined">analytics</span>
+          <span className="text-[10px] font-bold">Analyses</span>
         </Link>
         <Link
           to="/farmer/orders"
@@ -326,7 +419,7 @@ function StockPage() {
           <span className="text-[10px] font-bold">Commandes</span>
         </Link>
         <Link
-          to="/farmer/onboarding"
+          to="/farmer/profile"
           className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
         >
           <span className="material-symbols-outlined">person</span>

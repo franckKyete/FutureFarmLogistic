@@ -1,23 +1,82 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
+import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
+import { getFarmerProfileQuery } from '@/features/profile/api/profile.queries';
 
 export const Route = createFileRoute('/farmer/dashboard')({
   component: DashboardPage,
 });
 
 function DashboardPage() {
+  const { user } = useAuth();
   const [alertOpen, setAlertOpen] = useState(true);
+
+  // Queries
+  const { data: harvests } = useQuery(getFarmerHarvestsQuery());
+  const { data: orders } = useQuery(getSellerOrdersQuery());
+  const { data: profile } = useQuery(getFarmerProfileQuery());
+
+  // Stats calculations
+  const totalRevenue = orders
+    ? orders
+        .filter((o) => o.status === 'CONFIRMED' || o.status === 'DELIVERED')
+        .reduce((sum, o) => sum + o.totalPrice, 0)
+    : 0;
+
+  const approvedHarvests = harvests ? harvests.filter((h) => h.status === 'APPROVED') : [];
+  const averageQuality = approvedHarvests.length
+    ? Math.round((approvedHarvests.reduce((sum, h) => sum + (h.qualityScore || 0), 0) / approvedHarvests.length) * 10)
+    : 92; // default fallback metric if none
+
+  const strokeDashoffset = 226.19 * (1 - averageQuality / 100);
+
+  const activeListingsCount = harvests
+    ? harvests.filter((h) => h.status === 'APPROVED' || h.status === 'PENDING_APPROVAL').length
+    : 0;
+
+  const pendingOrdersCount = orders ? orders.filter((o) => o.status === 'PENDING').length : 0;
+
+  // Dynamic activity feed
+  const activities = [
+    ...(harvests || []).map((h) => ({
+      id: h.id,
+      title: `Lot #${h.id.slice(0, 4)} - ${h.product?.name || 'Produit'}`,
+      description: h.status === 'APPROVED'
+        ? 'Lot approuvé par l\'inspecteur'
+        : h.status === 'PENDING_APPROVAL'
+        ? 'Lot en attente d\'approbation'
+        : 'Lot rejeté ou archivé',
+      status: h.status === 'APPROVED' ? 'Actif' : h.status === 'PENDING_APPROVAL' ? 'En attente' : 'Inactif',
+      statusColor: h.status === 'APPROVED' ? 'text-[#1A5C35]' : 'text-[#885200]',
+      time: new Date(h.createdAt).toLocaleDateString(),
+      image: h.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100',
+    })),
+    ...(orders || []).map((o) => ({
+      id: o.id,
+      title: `Commande #${o.id.slice(0, 4)}`,
+      description: `Quantité : ${o.quantity} — Statut : ${o.status}`,
+      status: 'Commande',
+      statusColor: 'text-[#1a5c35]',
+      time: new Date(o.createdAt).toLocaleDateString(),
+      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100',
+    })),
+  ]
+    .sort((a, b) => b.id.localeCompare(a.id))
+    .slice(0, 3);
 
   return (
     <div className="bg-background text-[#1C1C1C] min-h-screen pb-24 relative">
       {/* Alert Banner */}
-      {alertOpen && (
+      {alertOpen && harvests?.some((h) => h.status === 'REJECTED') && (
         <div className="fixed top-0 left-0 right-0 z-[60] bg-secondary-container text-on-secondary-container px-4 py-3 flex items-center gap-3 animate-pulse shadow-sm">
           <span className="material-symbols-outlined shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
             warning
           </span>
           <p className="text-xs font-semibold">
-            Alerte qualité IA : Votre annonce 'Oignons doux' nécessite une révision.
+            Attention : Un de vos lots récoltés a été rejeté par l'inspecteur qualité.
           </p>
           <button
             onClick={() => setAlertOpen(false)}
@@ -31,21 +90,23 @@ function DashboardPage() {
       {/* Top App Bar */}
       <header
         className={`fixed left-0 right-0 z-50 bg-white border-b border-[#E5E7EB] transition-all duration-300 ${
-          alertOpen ? 'top-12' : 'top-0'
+          alertOpen && harvests?.some((h) => h.status === 'REJECTED') ? 'top-12' : 'top-0'
         }`}
       >
         <div className="flex justify-between items-center h-16 px-4 max-w-[480px] mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full border border-outline-variant overflow-hidden">
               <img
-                alt="Mamadou Kone"
+                alt={user?.firstName || 'Farmer'}
                 className="w-full h-full object-cover"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGn2qT7QeTwtyfxgRosPmS-0nlUhtNydP7tpD9OEvVxH29WNqSqtWuVwNcqVu_hUb_yOBI53x1tTo1nkLvjpmNM0vUSZ92Hb9hPr3hWsRprzPYdcs_SYL-YuK1yl4dUcF9iO4SPv5sLazrYHxgoEaT72ro1fO99jzuShr5vtmd3qCkKaIiZAcNSahnL58pr1OULBwbh8LFZdHR6Wy3AvM9rygCGjRedCZBRdKoDGhmHZ0l1rd-Cj1dyzRn8FgRFA25wpp4Enzf5A4"
               />
             </div>
             <div>
               <div className="flex items-center gap-1">
-                <h1 className="text-sm font-bold text-on-surface">Mamadou Kone</h1>
+                <h1 className="text-sm font-bold text-on-surface">
+                  {user?.firstName} {user?.lastName}
+                </h1>
                 <span
                   className="material-symbols-outlined text-[16px] text-primary"
                   style={{ fontVariationSettings: "'FILL' 1" }}
@@ -53,22 +114,24 @@ function DashboardPage() {
                   shield_with_heart
                 </span>
               </div>
-              <p className="text-[10px] font-semibold text-outline">Producteur Premium</p>
+              <p className="text-[10px] font-semibold text-outline">
+                {profile?.companyName || 'Producteur Premium'}
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => alert('Notifications')}
+          <Link
+            to="/notifications"
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface"
           >
             <span className="material-symbols-outlined">notifications</span>
-          </button>
+          </Link>
         </div>
       </header>
 
       {/* Main Content */}
       <main
         className={`px-4 max-w-[480px] mx-auto space-y-6 transition-all duration-300 ${
-          alertOpen ? 'pt-32' : 'pt-20'
+          alertOpen && harvests?.some((h) => h.status === 'REJECTED') ? 'pt-32' : 'pt-20'
         }`}
       >
         {/* KPI Bento Grid */}
@@ -79,9 +142,9 @@ function DashboardPage() {
             <div>
               <p className="text-xs text-[#6B7280]">Revenu total</p>
               <p className="text-lg font-bold text-[#1C1C1C] tracking-tight">
-                1.2M <span className="text-[10px] font-normal">FCFA</span>
+                {totalRevenue.toLocaleString()} <span className="text-[10px] font-normal">FCFA</span>
               </p>
-              <p className="text-[9px] text-[#6B7280] mt-1">Revenus du mois en cours</p>
+              <p className="text-[9px] text-[#6B7280] mt-1">Revenus cumulés confirmés</p>
             </div>
           </div>
 
@@ -98,35 +161,36 @@ function DashboardPage() {
                   r="36"
                   stroke="currentColor"
                   strokeDasharray="226.19"
-                  strokeDashoffset="18.1"
+                  strokeDashoffset={strokeDashoffset}
                   strokeWidth="6"
                 ></circle>
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-base font-bold text-[#1C1C1C]">92%</span>
+                <span className="text-base font-bold text-[#1C1C1C]">{averageQuality}%</span>
               </div>
             </div>
             <p className="text-xs text-[#6B7280]">Score de qualité</p>
-            <p className="text-[9px] text-[#6B7280] mt-1 leading-tight">Score qualité moyen de vos produits actifs</p>
+            <p className="text-[9px] text-[#6B7280] mt-1 leading-tight">Moyenne des scores de vos lots approuvés</p>
           </div>
 
           {/* Active Listings */}
-          <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl shadow-sm">
+          <Link to="/farmer/stock" className="bg-white border border-[#E5E7EB] p-4 rounded-xl shadow-sm block hover:border-[#1A5C35] transition-colors">
             <p className="text-xs text-[#6B7280] mb-1">Annonces actives</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-[#1C1C1C]">14</p>
-              <span className="text-[#1A5C35] text-xs font-bold">↑ 2</span>
+              <p className="text-xl font-bold text-[#1C1C1C]">{activeListingsCount}</p>
             </div>
-          </div>
+          </Link>
 
           {/* Pending Orders */}
-          <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl shadow-sm">
+          <Link to="/farmer/orders" className="bg-white border border-[#E5E7EB] p-4 rounded-xl shadow-sm block hover:border-[#ffa93d] transition-colors">
             <p className="text-xs text-[#6B7280] mb-1">Commandes en attente</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-[#1C1C1C]">08</p>
-              <span className="text-[#885200] text-xs font-bold bg-[#ffa93d]/10 px-1.5 py-0.5 rounded-full">Nouveau</span>
+              <p className="text-xl font-bold text-[#1C1C1C]">{pendingOrdersCount}</p>
+              {pendingOrdersCount > 0 && (
+                <span className="text-[#885200] text-xs font-bold bg-[#ffa93d]/10 px-1.5 py-0.5 rounded-full">Nouveau</span>
+              )}
             </div>
-          </div>
+          </Link>
         </section>
 
         {/* Quick Actions Row */}
@@ -137,15 +201,12 @@ function DashboardPage() {
             </div>
             <span className="text-xs font-semibold text-[#1C1C1C]">Ajouter</span>
           </Link>
-          <button
-            onClick={() => alert("Création d'enchère")}
-            className="flex flex-col items-center gap-2 group cursor-pointer"
-          >
+          <Link to="/farmer/auctions/new" className="flex flex-col items-center gap-2 group cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-[#ffa93d] text-[#2b1700] flex items-center justify-center group-active:scale-95 transition-transform">
               <span className="material-symbols-outlined">gavel</span>
             </div>
             <span className="text-xs font-semibold text-[#1C1C1C]">Créer enchère</span>
-          </button>
+          </Link>
           <Link to="/farmer/orders" className="flex flex-col items-center gap-2 group cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-[#4b5344] text-white flex items-center justify-center group-active:scale-95 transition-transform">
               <span className="material-symbols-outlined">receipt_long</span>
@@ -158,70 +219,33 @@ function DashboardPage() {
         <section className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-base font-bold text-on-surface">Activité récente</h2>
-            <button
-              onClick={() => alert('Voir tout')}
-              className="text-primary font-semibold text-xs hover:underline cursor-pointer"
-            >
-              Voir tout
-            </button>
           </div>
           <div className="space-y-3">
-            {/* Activity Item 1 */}
-            <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
-                <img
-                  alt="Tomatoes"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbkmBD6mmrZ9Dc5uwiwPSr-dmB5av8Gr6v8GTMp9hOYX4W4gGpZO1TnEKbmiH9pFhG2da5u4GFIVzcSQE_oSuQQbKJovgP61hEkHJvAt4tNqTIhB6cBx4znvdPvcXqjtseYv5yVbhZoD8Hv419miQqMW0ub8gU-5f5rU3SGFfQUEwo44aH_SDbHf1sq4hmoZC_a2Y7RM6huwbtPhrGBspA3rq34_Qsh589Uf9929Ix0EYlDjVoSvZNYudpMa1ufiUD4ocvBERTUX8"
-                />
+            {activities.length === 0 ? (
+              <div className="bg-white border border-[#E5E7EB] p-8 text-center text-outline rounded-xl text-sm">
+                Aucune activité récente disponible.
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#1C1C1C]">Lot #204 - Tomates</p>
-                <p className="text-xs text-[#6B7280]">Commande récupérée par le centre logistique</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-[#1A5C35]">Actif</p>
-                <p className="text-[10px] text-[#6B7280]">Il y a 2m</p>
-              </div>
-            </div>
-
-            {/* Activity Item 2 */}
-            <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
-                <img
-                  alt="Maize"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAX2oKdD-jsPjRnjVAau1Nz1GSj59oOaatKyG8QnjV7lM9upAd7kFWDNLhGQK7YsC7vyiBFAqa8SnsoNj6fiAr5y2AB75O_Kl0XsXwcSvKXp_DS51Lf-enrEs1OSW6c29IIVWBPzJUgnb4LX_OB4Kee3EZIPZfdVZ--7P2_1Z_lQ4qZuw0URNCWZ7qxa1C9tWO-EzqUgBlIAz591oJmMGB6CAK7xC45A4joGV3RhJwG_bLYLrQzIEy_9x4xv89vHUTT-fJ4ooNjj8w"
-                />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#1C1C1C]">Enchère Maïs Blanc</p>
-                <p className="text-xs text-[#6B7280]">Nouvelle offre : 45 000 FCFA</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-[#885200]">Offre</p>
-                <p className="text-[10px] text-[#6B7280]">Il y a 15m</p>
-              </div>
-            </div>
-
-            {/* Activity Item 3 */}
-            <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 border-l-4 border-l-[#ffa93d] shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-[#ffa93d]/10 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[#885200]">warning</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#1C1C1C]">Action requise</p>
-                <p className="text-xs text-[#6B7280]">Oignons doux : Télécharger cert. qualité</p>
-              </div>
-              <div className="text-right">
-                <button
-                  onClick={() => alert("Résolution de l'alerte")}
-                  className="bg-[#ffa93d] text-[#2b1700] hover:bg-[#ffa93d]/90 px-3 py-1 rounded-full text-xs font-bold cursor-pointer"
-                >
-                  Régler
-                </button>
-              </div>
-            </div>
+            ) : (
+              activities.map((act) => (
+                <div key={act.id} className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 shadow-sm">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
+                    <img
+                      alt="Crop activity"
+                      className="w-full h-full object-cover"
+                      src={act.image}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#1C1C1C] truncate">{act.title}</p>
+                    <p className="text-xs text-[#6B7280] truncate">{act.description}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-xs font-bold ${act.statusColor}`}>{act.status}</p>
+                    <p className="text-[10px] text-[#6B7280]">{act.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </main>
@@ -249,7 +273,7 @@ function DashboardPage() {
             to="/farmer/harvests/analyze"
             className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
           >
-            <span className="material-symbols-outlined">gavel</span>
+            <span className="material-symbols-outlined">analytics</span>
             <span className="text-[10px] font-semibold">Analyses</span>
           </Link>
           <Link
@@ -260,7 +284,7 @@ function DashboardPage() {
             <span className="text-[10px] font-semibold">Commandes</span>
           </Link>
           <Link
-            to="/farmer/onboarding"
+            to="/farmer/profile"
             className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
           >
             <span className="material-symbols-outlined">person</span>

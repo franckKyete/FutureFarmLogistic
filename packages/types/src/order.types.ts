@@ -67,6 +67,8 @@ export interface BasketDto {
   updatedAt: string;
 }
 
+import { HarvestDto } from './product.types';
+
 export interface OrderLineDto {
   id: string;
   orderId: string;
@@ -78,6 +80,8 @@ export interface OrderLineDto {
   status: OrderLineStatus;
   rejectionReason: string | null;
   createdAt: string;
+  order?: OrderDto;
+  harvest?: HarvestDto;
 }
 
 export interface OrderDto {
