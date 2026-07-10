@@ -9,9 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as FarmerRouteImport } from './routes/farmer'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CartRouteImport } from './routes/cart'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as AuctionsIndexRouteImport } from './routes/auctions/index'
+import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as HarvestsIdRouteImport } from './routes/harvests/$id'
 import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
 import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
 import { Route as FarmerProfileRouteImport } from './routes/farmer/profile'
@@ -22,18 +30,32 @@ import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
 import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
+import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
 import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
+import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
+import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
 import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
 import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
 import { Route as FarmerHarvestsAnalyzeRouteImport } from './routes/farmer/harvests/analyze'
 import { Route as FarmerAuctionsNewRouteImport } from './routes/farmer/auctions/new'
 import { Route as FarmerAuctionsIdBiddersRouteImport } from './routes/farmer/auctions/$id.bidders'
 
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerRoute = FarmerRouteImport.update({
@@ -41,9 +63,39 @@ const FarmerRoute = FarmerRouteImport.update({
   path: '/farmer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIndexRoute = OrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const AuctionsIndexRoute = AuctionsIndexRouteImport.update({
+  id: '/auctions/',
+  path: '/auctions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIdRoute = OrdersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const HarvestsIdRoute = HarvestsIdRouteImport.update({
+  id: '/harvests/$id',
+  path: '/harvests/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerWelcomeRoute = FarmerWelcomeRouteImport.update({
@@ -96,6 +148,16 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuctionsStoryRoute = AuctionsStoryRouteImport.update({
+  id: '/auctions/story',
+  path: '/auctions/story',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuctionsIdRoute = AuctionsIdRouteImport.update({
+  id: '/auctions/$id',
+  path: '/auctions/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -110,6 +172,16 @@ const FarmerAuctionsIndexRoute = FarmerAuctionsIndexRouteImport.update({
   id: '/auctions/',
   path: '/auctions/',
   getParentRoute: () => FarmerRoute,
+} as any)
+const OrdersIdTrackingRoute = OrdersIdTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => OrdersIdRoute,
+} as any)
+const HarvestsIdQualityRoute = HarvestsIdQualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => HarvestsIdRoute,
 } as any)
 const FarmerProductsIdRoute = FarmerProductsIdRouteImport.update({
   id: '/products/$id',
@@ -139,10 +211,16 @@ const FarmerAuctionsIdBiddersRoute = FarmerAuctionsIdBiddersRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
+  '/orders': typeof OrdersRouteWithChildren
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auctions/$id': typeof AuctionsIdRoute
+  '/auctions/story': typeof AuctionsStoryRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
@@ -153,19 +231,30 @@ export interface FileRoutesByFullPath {
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/orders/$id': typeof OrdersIdRouteWithChildren
+  '/auctions/': typeof AuctionsIndexRoute
+  '/orders/': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auctions/$id': typeof AuctionsIdRoute
+  '/auctions/story': typeof AuctionsStoryRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
@@ -176,20 +265,32 @@ export interface FileRoutesByTo {
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/orders/$id': typeof OrdersIdRouteWithChildren
+  '/auctions': typeof AuctionsIndexRoute
+  '/orders': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/farmer/auctions': typeof FarmerAuctionsIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
+  '/orders': typeof OrdersRouteWithChildren
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auctions/$id': typeof AuctionsIdRoute
+  '/auctions/story': typeof AuctionsStoryRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
@@ -200,10 +301,16 @@ export interface FileRoutesById {
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
+  '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/orders/$id': typeof OrdersIdRouteWithChildren
+  '/auctions/': typeof AuctionsIndexRoute
+  '/orders/': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
+  '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
@@ -211,10 +318,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/cart'
+    | '/checkout'
     | '/farmer'
+    | '/marketplace'
     | '/notifications'
+    | '/orders'
     | '/admin/roles'
     | '/admin/users'
+    | '/auctions/$id'
+    | '/auctions/story'
     | '/auth/login'
     | '/auth/register'
     | '/auth/unauthorized'
@@ -225,19 +338,30 @@ export interface FileRouteTypes {
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
+    | '/harvests/$id'
+    | '/orders/$id'
+    | '/auctions/'
+    | '/orders/'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
+    | '/harvests/$id/quality'
+    | '/orders/$id/tracking'
     | '/farmer/auctions/'
     | '/farmer/auctions/$id/bidders'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cart'
+    | '/checkout'
     | '/farmer'
+    | '/marketplace'
     | '/notifications'
     | '/admin/roles'
     | '/admin/users'
+    | '/auctions/$id'
+    | '/auctions/story'
     | '/auth/login'
     | '/auth/register'
     | '/auth/unauthorized'
@@ -248,19 +372,31 @@ export interface FileRouteTypes {
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
+    | '/harvests/$id'
+    | '/orders/$id'
+    | '/auctions'
+    | '/orders'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
+    | '/harvests/$id/quality'
+    | '/orders/$id/tracking'
     | '/farmer/auctions'
     | '/farmer/auctions/$id/bidders'
   id:
     | '__root__'
     | '/'
+    | '/cart'
+    | '/checkout'
     | '/farmer'
+    | '/marketplace'
     | '/notifications'
+    | '/orders'
     | '/admin/roles'
     | '/admin/users'
+    | '/auctions/$id'
+    | '/auctions/story'
     | '/auth/login'
     | '/auth/register'
     | '/auth/unauthorized'
@@ -271,32 +407,60 @@ export interface FileRouteTypes {
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
+    | '/harvests/$id'
+    | '/orders/$id'
+    | '/auctions/'
+    | '/orders/'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
+    | '/harvests/$id/quality'
+    | '/orders/$id/tracking'
     | '/farmer/auctions/'
     | '/farmer/auctions/$id/bidders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CartRoute: typeof CartRoute
+  CheckoutRoute: typeof CheckoutRoute
   FarmerRoute: typeof FarmerRouteWithChildren
+  MarketplaceRoute: typeof MarketplaceRoute
   NotificationsRoute: typeof NotificationsRoute
+  OrdersRoute: typeof OrdersRouteWithChildren
   AdminRolesRoute: typeof AdminRolesRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AuctionsIdRoute: typeof AuctionsIdRoute
+  AuctionsStoryRoute: typeof AuctionsStoryRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
   AuthUnauthorizedRoute: typeof AuthUnauthorizedRoute
+  HarvestsIdRoute: typeof HarvestsIdRouteWithChildren
+  AuctionsIndexRoute: typeof AuctionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications': {
       id: '/notifications'
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer': {
@@ -306,11 +470,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/': {
+      id: '/orders/'
+      path: '/'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/auctions/': {
+      id: '/auctions/'
+      path: '/auctions'
+      fullPath: '/auctions/'
+      preLoaderRoute: typeof AuctionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/$id': {
+      id: '/orders/$id'
+      path: '/$id'
+      fullPath: '/orders/$id'
+      preLoaderRoute: typeof OrdersIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/harvests/$id': {
+      id: '/harvests/$id'
+      path: '/harvests/$id'
+      fullPath: '/harvests/$id'
+      preLoaderRoute: typeof HarvestsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/welcome': {
@@ -383,6 +589,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auctions/story': {
+      id: '/auctions/story'
+      path: '/auctions/story'
+      fullPath: '/auctions/story'
+      preLoaderRoute: typeof AuctionsStoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auctions/$id': {
+      id: '/auctions/$id'
+      path: '/auctions/$id'
+      fullPath: '/auctions/$id'
+      preLoaderRoute: typeof AuctionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -403,6 +623,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/farmer/auctions/'
       preLoaderRoute: typeof FarmerAuctionsIndexRouteImport
       parentRoute: typeof FarmerRoute
+    }
+    '/orders/$id/tracking': {
+      id: '/orders/$id/tracking'
+      path: '/tracking'
+      fullPath: '/orders/$id/tracking'
+      preLoaderRoute: typeof OrdersIdTrackingRouteImport
+      parentRoute: typeof OrdersIdRoute
+    }
+    '/harvests/$id/quality': {
+      id: '/harvests/$id/quality'
+      path: '/quality'
+      fullPath: '/harvests/$id/quality'
+      preLoaderRoute: typeof HarvestsIdQualityRouteImport
+      parentRoute: typeof HarvestsIdRoute
     }
     '/farmer/products/$id': {
       id: '/farmer/products/$id'
@@ -477,15 +711,60 @@ const FarmerRouteChildren: FarmerRouteChildren = {
 const FarmerRouteWithChildren =
   FarmerRoute._addFileChildren(FarmerRouteChildren)
 
+interface OrdersIdRouteChildren {
+  OrdersIdTrackingRoute: typeof OrdersIdTrackingRoute
+}
+
+const OrdersIdRouteChildren: OrdersIdRouteChildren = {
+  OrdersIdTrackingRoute: OrdersIdTrackingRoute,
+}
+
+const OrdersIdRouteWithChildren = OrdersIdRoute._addFileChildren(
+  OrdersIdRouteChildren,
+)
+
+interface OrdersRouteChildren {
+  OrdersIdRoute: typeof OrdersIdRouteWithChildren
+  OrdersIndexRoute: typeof OrdersIndexRoute
+}
+
+const OrdersRouteChildren: OrdersRouteChildren = {
+  OrdersIdRoute: OrdersIdRouteWithChildren,
+  OrdersIndexRoute: OrdersIndexRoute,
+}
+
+const OrdersRouteWithChildren =
+  OrdersRoute._addFileChildren(OrdersRouteChildren)
+
+interface HarvestsIdRouteChildren {
+  HarvestsIdQualityRoute: typeof HarvestsIdQualityRoute
+}
+
+const HarvestsIdRouteChildren: HarvestsIdRouteChildren = {
+  HarvestsIdQualityRoute: HarvestsIdQualityRoute,
+}
+
+const HarvestsIdRouteWithChildren = HarvestsIdRoute._addFileChildren(
+  HarvestsIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CartRoute: CartRoute,
+  CheckoutRoute: CheckoutRoute,
   FarmerRoute: FarmerRouteWithChildren,
+  MarketplaceRoute: MarketplaceRoute,
   NotificationsRoute: NotificationsRoute,
+  OrdersRoute: OrdersRouteWithChildren,
   AdminRolesRoute: AdminRolesRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AuctionsIdRoute: AuctionsIdRoute,
+  AuctionsStoryRoute: AuctionsStoryRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
   AuthUnauthorizedRoute: AuthUnauthorizedRoute,
+  HarvestsIdRoute: HarvestsIdRouteWithChildren,
+  AuctionsIndexRoute: AuctionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

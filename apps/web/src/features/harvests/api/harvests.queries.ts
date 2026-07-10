@@ -77,3 +77,12 @@ export const aiClassifyHarvestMutation = () => ({
     return data.data;
   },
 });
+
+export const mediaUploadMutation = () => ({
+  mutationFn: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await apiClient.post<{ data: { url: string } }>('/media/upload', formData);
+    return data.data;
+  },
+});

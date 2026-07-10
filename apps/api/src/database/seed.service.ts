@@ -57,7 +57,10 @@ export class SeedService implements OnApplicationBootstrap {
       Permission.ORDER_READ,
       Permission.BID_CREATE,
       Permission.BID_READ,
+      Permission.BID_CANCEL,
       Permission.BASKET_MANAGE,
+      Permission.ORDER_CANCEL,
+      Permission.DRIVER_LOCATION_READ,
     ];
 
     const inspectorPermissions = [

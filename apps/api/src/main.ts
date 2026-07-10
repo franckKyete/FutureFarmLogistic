@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import express from 'express';
+import { join } from 'path';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -13,6 +15,12 @@ async function bootstrap() {
 
   // --- Security ---
   app.use(helmet());
+
+  // --- Trust Proxy ---
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+  // --- Static Files (Uploads) ---
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   // --- CORS ---
   const corsOrigins = process.env['CORS_ORIGINS']?.split(',') ?? [

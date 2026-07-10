@@ -18,6 +18,7 @@ function AnalyzePage() {
   const navigate = useNavigate();
   const [images, setImages] = useState<string[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [classifiedData, setClassifiedData] = useState<any | null>(null);
 
@@ -75,6 +76,18 @@ function AnalyzePage() {
     e.target.value = '';
   };
 
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next;
+    });
+    setActiveImageIndex((prev) => {
+      if (prev === index) return Math.max(0, index - 1);
+      if (prev > index) return prev - 1;
+      return prev;
+    });
+  };
+
   const handleCameraClick = async () => {
     if (isActive) {
       const file = await capture();
@@ -108,8 +121,8 @@ function AnalyzePage() {
 
   return (
     <div className="bg-black text-white min-h-screen overflow-hidden select-none relative">
-      {/* Live camera preview when no images */}
-      {images.length === 0 && isActive && (
+      {/* Camera viewfinder (always visible when camera is active) */}
+      {isActive && (
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -118,19 +131,48 @@ function AnalyzePage() {
             muted
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/40 z-1"></div>
+          <div className="absolute inset-0 bg-black/15 z-1" />
         </div>
       )}
 
-      {/* Immersive Background Image */}
-      {images.length > 0 && (
-        <div className="absolute inset-0 z-0 transition-all duration-500">
+      {/* Full-screen image preview modal */}
+      {showPreview && images.length > 0 && (
+        <div className="absolute inset-0 z-40 bg-black/95 flex items-center justify-center">
           <img
-            alt="Récolte active"
-            className="w-full h-full object-cover object-center transition-all duration-500"
+            alt="Aperçu"
+            className="w-full h-full object-contain"
             src={images[activeImageIndex]}
           />
-          <div className="absolute inset-0 bg-black/40 z-1"></div>
+          {/* Preview: close button */}
+          <button
+            onClick={() => setShowPreview(false)}
+            className="absolute top-6 left-4 w-10 h-10 flex items-center justify-center bg-black/60 backdrop-blur-md rounded-full text-white active:scale-95 transition-transform cursor-pointer z-10"
+          >
+            <span className="material-symbols-outlined text-2xl">close</span>
+          </button>
+          {/* Preview: delete button */}
+          <button
+            onClick={() => {
+              handleRemoveImage(activeImageIndex);
+              setShowPreview(false);
+            }}
+            className="absolute top-6 right-4 w-10 h-10 flex items-center justify-center bg-red-600/80 rounded-full text-white active:scale-95 transition-transform cursor-pointer z-10"
+          >
+            <span className="material-symbols-outlined text-2xl">delete</span>
+          </button>
+        </div>
+      )}
+
+      {/* Capture button overlaid on camera viewfinder */}
+      {isActive && !showPreview && (
+        <div className="absolute left-0 right-0 z-20 flex justify-center" style={{ bottom: '200px' }}>
+          <button
+            onClick={handleCameraClick}
+            disabled={uploadFile.isPending}
+            className="w-18 h-18 rounded-full bg-white/20 backdrop-blur-xs border-4 border-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer disabled:opacity-40"
+          >
+            <div className="w-14 h-14 rounded-full bg-white" />
+          </button>
         </div>
       )}
 
@@ -210,7 +252,8 @@ function AnalyzePage() {
         </div>
       )}
 
-      {/* Bottom Bar (WhatsApp Story Style) */}
+      {/* Bottom Bar (hidden during full-screen preview) */}
+      {!showPreview && (
       <footer className="absolute bottom-0 left-0 w-full z-30 bg-black/85 backdrop-blur-xl border-t border-white/10 pb-8">
         <div className="p-4 space-y-6 max-w-[480px] mx-auto">
           {/* Notes description input */}
@@ -234,15 +277,30 @@ function AnalyzePage() {
             {images.length > 0 && images.map((imgUrl, index) => {
               const isActive = index === activeImageIndex;
               return (
-                <button
+                <div
                   key={index}
-                  onClick={() => setActiveImageIndex(index)}
-                  className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden transition-all cursor-pointer ${
-                    isActive ? 'border-2 border-white ring-2 ring-black/50 scale-105' : 'border border-white/20 opacity-60'
-                  }`}
+                  className="relative flex-shrink-0"
                 >
-                  <img alt={`Vignette ${index + 1}`} className="w-full h-full object-cover" src={imgUrl} />
-                </button>
+                  <button
+                    onClick={() => {
+                      setActiveImageIndex(index);
+                      setShowPreview(true);
+                    }}
+                    className={`w-14 h-14 rounded-lg overflow-hidden transition-all cursor-pointer ${
+                      isActive ? 'border-2 border-white ring-2 ring-black/50 scale-105' : 'border border-white/20 opacity-60'
+                    }`}
+                  >
+                    <img alt={`Vignette ${index + 1}`} className="w-full h-full object-cover" src={imgUrl} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600/90 hover:bg-red-600 rounded-full flex items-center justify-center active:scale-90 transition-all cursor-pointer z-10"
+                    title="Supprimer"
+                  >
+                    <span className="material-symbols-outlined text-white text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>close</span>
+                  </button>
+                </div>
               );
             })}
 
@@ -253,32 +311,16 @@ function AnalyzePage() {
               </div>
             )}
 
-            {/* Camera/gallery buttons when images exist */}
-            {!uploadFile.isPending && images.length > 0 && (
-              <>
-                <button onClick={handleCameraClick} disabled={uploadFile.isPending} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" title="Prendre une photo">
-                  <span className="material-symbols-outlined text-white/60">camera_alt</span>
-                </button>
-                <button onClick={() => galleryInputRef.current?.click()} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer" title="Choisir depuis la galerie">
-                  <span className="material-symbols-outlined text-white/60">photo_library</span>
-                </button>
-              </>
+            {/* Add from gallery button (always visible) */}
+            {!uploadFile.isPending && (
+              <button onClick={() => galleryInputRef.current?.click()} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer" title="Choisir depuis la galerie">
+                <span className="material-symbols-outlined text-white/60">photo_library</span>
+              </button>
             )}
 
-            {/* Empty state — show when no images and not uploading */}
-            {images.length === 0 && !uploadFile.isPending && (
-              <>
-                <button onClick={handleCameraClick} disabled={uploadFile.isPending} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" title="Prendre une photo">
-                  <span className="material-symbols-outlined text-white/60">camera_alt</span>
-                </button>
-                <button onClick={() => galleryInputRef.current?.click()} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer" title="Choisir depuis la galerie">
-                  <span className="material-symbols-outlined text-white/60">photo_library</span>
-                </button>
-                {cameraError && (
-                  <span className="text-[10px] text-amber-400 whitespace-nowrap">Caméra non disponible. Utilisez la galerie.</span>
-                )}
-                <span className="text-[10px] text-white/40 whitespace-nowrap">Ajoutez une photo</span>
-              </>
+            {/* Camera error hint */}
+            {cameraError && images.length === 0 && (
+              <span className="text-[10px] text-amber-400 whitespace-nowrap">Caméra non disponible. Utilisez la galerie.</span>
             )}
           </div>
 
@@ -295,6 +337,7 @@ function AnalyzePage() {
           </div>
         </div>
       </footer>
+      )}
 
     </div>
   );

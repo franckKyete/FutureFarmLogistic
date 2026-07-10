@@ -59,3 +59,10 @@ export const placeBidMutation = () => ({
     return data.data;
   },
 });
+
+export const cancelBidMutation = () => ({
+  mutationFn: async (id: string): Promise<BidDto> => {
+    const { data } = await apiClient.post<{ data: BidDto }>(`/auctions/${id}/cancel-bid`);
+    return data.data;
+  },
+});

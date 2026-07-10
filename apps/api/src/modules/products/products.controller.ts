@@ -79,7 +79,6 @@ export class ProductsController {
       }),
     )
     file: UploadedFileDto,
-    @Req() req: any,
   ) {
     const uploadDir = path.resolve(process.cwd(), 'uploads', 'media');
     if (!fs.existsSync(uploadDir)) {
@@ -90,9 +89,7 @@ export class ProductsController {
     const dest = path.join(uploadDir, uniqueName);
     await fs.promises.writeFile(dest, file.buffer);
 
-    const host = req.get('host');
-    const protocol = req.protocol;
-    const url = `${protocol}://${host}/uploads/media/${uniqueName}`;
+    const url = `/uploads/media/${uniqueName}`;
     return { url };
   }
 

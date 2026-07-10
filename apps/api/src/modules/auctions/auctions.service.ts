@@ -394,6 +394,35 @@ export class AuctionsService {
     });
   }
 
+  async cancelBid(userId: string, auctionId: string): Promise<BidEntity> {
+    const auction = await this.auctionRepository.findOne({
+      where: { id: auctionId },
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    if (auction.status !== AuctionStatus.ACTIVE) {
+      throw new ConflictException('Auction is not active');
+    }
+
+    const bid = await this.bidRepository.findOne({
+      where: { auctionId, buyerId: userId },
+    });
+
+    if (!bid) {
+      throw new NotFoundException('No bid found for this auction');
+    }
+
+    if (bid.status === BidStatus.CANCELLED) {
+      throw new ConflictException('Bid is already cancelled');
+    }
+
+    bid.status = BidStatus.CANCELLED;
+    return this.bidRepository.save(bid);
+  }
+
   async listAllBidsForAdmin(auctionId: string): Promise<BidEntity[]> {
     return this.bidRepository.find({
       where: { auctionId },

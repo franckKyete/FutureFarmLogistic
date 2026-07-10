@@ -179,6 +179,17 @@ export class AuctionsController {
     return this.auctionsService.placeBid(user.id, id);
   }
 
+  @Post(':id/cancel-bid')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.BID_CANCEL)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel own bid on an auction (Buyer)' })
+  @ApiOkResponse({ description: 'Bid cancelled successfully' })
+  async cancelBid(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auctionsService.cancelBid(user.id, id);
+  }
+
   @Get(':id/bids')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.BID_READ_ALL)

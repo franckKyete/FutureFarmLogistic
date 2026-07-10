@@ -71,6 +71,7 @@ export enum Permission {
   BID_CREATE = 'bid:create',
   BID_READ = 'bid:read',
   BID_READ_ALL = 'bid:read:all',
+  BID_CANCEL = 'bid:cancel',
 
   // --- Basket ---
   BASKET_MANAGE = 'basket:manage',
