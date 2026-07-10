@@ -61,6 +61,13 @@ export function useCamera(): UseCameraReturn {
     };
   }, []);
 
+  // Assign stream to video element when it mounts (isActive transitions to true)
+  useEffect(() => {
+    if (videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isActive]);
+
   const capture = useCallback(async (): Promise<File | null> => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
