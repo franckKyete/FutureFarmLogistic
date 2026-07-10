@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useCamera } from '@/hooks/useCamera';
 import { useMutation } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
-import { aiClassifyHarvestMutation } from '@/features/harvests/api/harvests.queries';
+import { aiClassifyHarvestMutation, mediaUploadMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { Permission } from '@futurefarm/types';
 
@@ -13,20 +14,17 @@ export const Route = createFileRoute('/farmer/harvests/analyze')({
   component: AnalyzePage,
 });
 
-const DEFAULT_IMAGES = [
-  'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=600', // Soybeans
-  'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600', // Corn field
-  'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600', // Tomatoes
-];
-
 function AnalyzePage() {
   const navigate = useNavigate();
-  const [images, setImages] = useState<string[]>(DEFAULT_IMAGES);
+  const [images, setImages] = useState<string[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [classifiedData, setClassifiedData] = useState<any | null>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const { videoRef, isActive, error: cameraError, capture } = useCamera();
 
   // Mutation for photo analysis
   const classify = useMutation({
@@ -40,14 +38,24 @@ function AnalyzePage() {
     },
   });
 
+  const uploadFile = useMutation({
+    ...mediaUploadMutation(),
+    onSuccess: (result) => {
+      setImages((prev) => [...prev, result.url]);
+      setActiveImageIndex(images.length);
+    },
+    onError: (err) => {
+      addToast(err instanceof Error ? err.message : "Erreur lors de l'upload de l'image", 'error');
+    },
+  });
+
   const handleAnalyze = () => {
-    const activeImage = images[activeImageIndex];
-    if (!activeImage) {
-      addToast('Veuillez sélectionner une image à analyser.', 'warning');
+    if (images.length === 0) {
+      addToast('Veuillez ajouter au moins une photo.', 'warning');
       return;
     }
     const payload: { photoUrls: string[]; additionalNotes?: string } = {
-      photoUrls: [activeImage],
+      photoUrls: images,
     };
     if (additionalNotes) {
       payload.additionalNotes = additionalNotes;
@@ -55,16 +63,25 @@ function AnalyzePage() {
     classify.mutate(payload);
   };
 
-  const handleAddImage = () => {
-    if (!newImageUrl.trim()) {
-      addToast('Veuillez saisir une URL valide.', 'warning');
-      return;
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile.mutate(file);
+    e.target.value = '';
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) Array.from(files).forEach((file) => uploadFile.mutate(file));
+    e.target.value = '';
+  };
+
+  const handleCameraClick = async () => {
+    if (isActive) {
+      const file = await capture();
+      if (file) uploadFile.mutate(file);
+    } else {
+      cameraInputRef.current?.click();
     }
-    setImages((prev) => [...prev, newImageUrl.trim()]);
-    setActiveImageIndex(images.length);
-    setNewImageUrl('');
-    setShowAddModal(false);
-    addToast('Image ajoutée à la galerie.', 'success');
   };
 
   const handleContinue = () => {
@@ -91,15 +108,31 @@ function AnalyzePage() {
 
   return (
     <div className="bg-black text-white min-h-screen overflow-hidden select-none relative">
+      {/* Live camera preview when no images */}
+      {images.length === 0 && isActive && (
+        <div className="absolute inset-0 z-0">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/40 z-1"></div>
+        </div>
+      )}
+
       {/* Immersive Background Image */}
-      <div className="absolute inset-0 z-0 transition-all duration-500">
-        <img
-          alt="Récolte active"
-          className="w-full h-full object-cover object-center transition-all duration-500"
-          src={images[activeImageIndex]}
-        />
-        <div className="absolute inset-0 bg-black/40 z-1"></div>
-      </div>
+      {images.length > 0 && (
+        <div className="absolute inset-0 z-0 transition-all duration-500">
+          <img
+            alt="Récolte active"
+            className="w-full h-full object-cover object-center transition-all duration-500"
+            src={images[activeImageIndex]}
+          />
+          <div className="absolute inset-0 bg-black/40 z-1"></div>
+        </div>
+      )}
 
       {/* Top Action: Close Button */}
       <header className="absolute top-0 left-0 w-full z-50 p-4 pt-6">
@@ -192,9 +225,13 @@ function AnalyzePage() {
             />
           </div>
 
+          {/* Hidden file inputs */}
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleCameraCapture} className="absolute w-0 h-0 opacity-0 pointer-events-none" />
+          <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleGallerySelect} className="absolute w-0 h-0 opacity-0 pointer-events-none" />
+
           {/* Horizontal Thumbnail List */}
           <div className="flex items-center gap-3 overflow-x-auto scrollbar-none">
-            {images.map((imgUrl, index) => {
+            {images.length > 0 && images.map((imgUrl, index) => {
               const isActive = index === activeImageIndex;
               return (
                 <button
@@ -209,20 +246,48 @@ function AnalyzePage() {
               );
             })}
 
-            {/* Add Button */}
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-white/60">add</span>
-            </button>
+            {/* Upload loading indicator */}
+            {uploadFile.isPending && (
+              <div className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-emerald-500/40 flex items-center justify-center bg-white/5">
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-emerald-500" />
+              </div>
+            )}
+
+            {/* Camera/gallery buttons when images exist */}
+            {!uploadFile.isPending && images.length > 0 && (
+              <>
+                <button onClick={handleCameraClick} disabled={uploadFile.isPending} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" title="Prendre une photo">
+                  <span className="material-symbols-outlined text-white/60">camera_alt</span>
+                </button>
+                <button onClick={() => galleryInputRef.current?.click()} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer" title="Choisir depuis la galerie">
+                  <span className="material-symbols-outlined text-white/60">photo_library</span>
+                </button>
+              </>
+            )}
+
+            {/* Empty state — show when no images and not uploading */}
+            {images.length === 0 && !uploadFile.isPending && (
+              <>
+                <button onClick={handleCameraClick} disabled={uploadFile.isPending} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" title="Prendre une photo">
+                  <span className="material-symbols-outlined text-white/60">camera_alt</span>
+                </button>
+                <button onClick={() => galleryInputRef.current?.click()} className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer" title="Choisir depuis la galerie">
+                  <span className="material-symbols-outlined text-white/60">photo_library</span>
+                </button>
+                {cameraError && (
+                  <span className="text-[10px] text-amber-400 whitespace-nowrap">Caméra non disponible. Utilisez la galerie.</span>
+                )}
+                <span className="text-[10px] text-white/40 whitespace-nowrap">Ajoutez une photo</span>
+              </>
+            )}
           </div>
 
           {/* Action Button */}
           <div className="pb-2">
             <button
               onClick={handleAnalyze}
-              className="w-full bg-emerald-700 text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/25 cursor-pointer text-xs uppercase tracking-wider"
+              disabled={images.length === 0 || classify.isPending}
+              className="w-full bg-emerald-700 text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/25 cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined">analytics</span>
               Analyser la récolte
@@ -231,38 +296,6 @@ function AnalyzePage() {
         </div>
       </footer>
 
-      {/* Add Custom Image Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1c1e] border border-white/10 rounded-2xl w-full max-w-[360px] p-6 space-y-4 text-white">
-            <h3 className="text-sm font-bold">Ajouter une image personnalisée</h3>
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/60 block">URL de l'image</label>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-white outline-none focus:border-emerald-500"
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                required
-              />
-            </div>
-            <div className="flex justify-end gap-3 pt-2 text-xs">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 border border-white/20 rounded-lg text-[11px] font-semibold hover:bg-white/5 cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAddImage}
-                className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-[11px] font-semibold hover:bg-emerald-600 cursor-pointer"
-              >
-                Ajouter
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

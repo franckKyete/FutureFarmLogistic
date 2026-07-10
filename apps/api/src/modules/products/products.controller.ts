@@ -10,14 +10,24 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  Req,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import * as path from 'path';
+import * as fs from 'fs';
 
 import {
   Permission,
@@ -38,10 +48,53 @@ import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
 import { AiSuggestHarvestDto } from './dto/ai-suggest.dto';
 
+interface UploadedFileDto {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
 @ApiTags('Products & Harvests')
 @Controller()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Post('media/upload')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload any media file (image/pdf/etc)' })
+  @HttpCode(HttpStatus.OK)
+  async uploadMedia(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10 MB
+          new FileTypeValidator({ fileType: 'image/(jpeg|png|webp|gif|heic|heif)' }),
+        ],
+      }),
+    )
+    file: UploadedFileDto,
+    @Req() req: any,
+  ) {
+    const uploadDir = path.resolve(process.cwd(), 'uploads', 'media');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const ext = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    const dest = path.join(uploadDir, uniqueName);
+    await fs.promises.writeFile(dest, file.buffer);
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const url = `${protocol}://${host}/uploads/media/${uniqueName}`;
+    return { url };
+  }
 
   // =============================================================================
   // Product Crop Templates
@@ -80,9 +133,6 @@ export class ProductsController {
   }
 
   @Get('products')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.PRODUCT_READ)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'List crop templates' })
   @ApiOkResponse({ description: 'List of crop templates' })
   findAllProducts(@Query('category') category?: ProductCategory) {
@@ -127,19 +177,17 @@ export class ProductsController {
   }
 
   @Get('harvests')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.HARVEST_READ)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'List harvest batches' })
   @ApiOkResponse({ description: 'List of harvest batches' })
   async findAllHarvests(
-    @CurrentUser() user: AuthUser,
+    @Req() req: any,
     @Query('status') status?: HarvestStatus,
     @Query('category') category?: ProductCategory,
     @Query('productId') productId?: string,
     @Query('farmerProfileId') farmerProfileId?: string,
   ) {
-    const hasReadAll = user.permissions.includes(Permission.HARVEST_READ_ALL);
+    const user = req.user as AuthUser | undefined;
+    const hasReadAll = user?.permissions?.includes(Permission.HARVEST_READ_ALL) ?? false;
     return this.productsService.findAllHarvests({
       status: hasReadAll ? status : HarvestStatus.APPROVED,
       category,
@@ -160,9 +208,6 @@ export class ProductsController {
   }
 
   @Get('harvests/:id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.HARVEST_READ)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get details of a specific harvest batch' })
   @ApiOkResponse({ description: 'Harvest details' })
   findHarvestById(@Param('id') id: string) {
@@ -170,9 +215,6 @@ export class ProductsController {
   }
 
   @Get('harvests/:id/price')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.HARVEST_READ)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Calculate current decayed dynamic price for a harvest batch',
   })

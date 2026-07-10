@@ -1,0 +1,7 @@
+=== Web Build ===
+pnpm run build --filter @futurefarm/web
+Status: SUCCESS (338 modules transformed, vite build passed, exit 0)
+
+=== API Build ===
+pnpm run build --filter @futurefarm/api
+Status: SUCCESS (cached, nest build passed, exit 0)
