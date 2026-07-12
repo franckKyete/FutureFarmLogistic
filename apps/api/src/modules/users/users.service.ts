@@ -43,17 +43,33 @@ export class UsersService {
   ) {}
 
   async findAll(
-    query: PaginationQuery,
+    query: PaginationQuery & { role?: string; status?: string; search?: string },
   ): Promise<PaginatedResult<Omit<UserEntity, 'password'>>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.usersRepository.findAndCount({
-      skip,
-      take: limit,
-      order: { createdAt: 'DESC' },
-    });
+    const qb = this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'role')
+      .skip(skip)
+      .take(limit)
+      .orderBy('user.createdAt', 'DESC');
+
+    if (query.role) {
+      qb.andWhere('role.name = :role', { role: query.role });
+    }
+    if (query.status) {
+      qb.andWhere('user.status = :status', { status: query.status });
+    }
+    if (query.search) {
+      qb.andWhere(
+        '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    const [data, total] = await qb.getManyAndCount();
 
     return {
       data,

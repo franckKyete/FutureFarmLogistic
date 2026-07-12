@@ -5,7 +5,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth } from '@/features/auth/store/auth.store';
 import { useToasts, removeToast } from '@/features/shared/store/toast.store';
-import { Permission } from '@futurefarm/types';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -17,7 +16,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, can } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const toasts = useToasts();
 
   const handleLogout = () => {
@@ -41,16 +40,7 @@ function RootLayout() {
                 <Link to="/" className="hover:text-brand-600 transition-colors [&.active]:text-brand-600">
                   Dashboard
                 </Link>
-                {can(Permission.USER_READ) && (
-                  <Link to="/admin/users" className="hover:text-brand-600 transition-colors [&.active]:text-brand-600">
-                    Users
-                  </Link>
-                )}
-                {can(Permission.ROLE_READ) && (
-                  <Link to="/admin/roles" className="hover:text-brand-600 transition-colors [&.active]:text-brand-600">
-                    Roles
-                  </Link>
-                )}
+
                 <span className="text-gray-400">|</span>
                 <span className="text-gray-500 font-normal">
                   Hello, {user?.firstName}

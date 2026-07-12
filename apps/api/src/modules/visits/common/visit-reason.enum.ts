@@ -1,0 +1,5 @@
+export enum VisitReason {
+  ROUTINE = 'ROUTINE',
+  URGENT = 'URGENT',
+  FIRST_INSPECTION = 'FIRST_INSPECTION',
+}

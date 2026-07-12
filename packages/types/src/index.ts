@@ -10,6 +10,8 @@ export * from './user.types';
 export * from './product.types';
 export * from './inspection.types';
 export * from './auction.types';
+export * from './dispute.types';
 export * from './order.types';
 export * from './logistics.types';
+export * from './visit.types';
 

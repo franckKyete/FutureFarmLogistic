@@ -23,6 +23,15 @@ describe('UsersService', () => {
   let buyerProfileRepository: any;
   let parcelRepository: any;
 
+  const mockQueryBuilder = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+  };
+
   const mockUsersRepository = {
     findAndCount: jest.fn(),
     findOne: jest.fn(),
@@ -30,6 +39,7 @@ describe('UsersService', () => {
     create: jest.fn(),
     save: jest.fn(),
     update: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockRolesRepository = {
@@ -102,6 +112,8 @@ describe('UsersService', () => {
     mockUsersRepository.findOneBy.mockReset();
     mockUsersRepository.create.mockReset();
     mockUsersRepository.save.mockReset();
+    mockQueryBuilder.getManyAndCount.mockReset();
+    mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
 
     mockRolesRepository.findOneBy.mockReset();
 

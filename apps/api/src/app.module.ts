@@ -15,8 +15,11 @@ import { RolesModule } from './modules/roles/roles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProductsModule } from './modules/products/products.module';
 import { InspectionsModule } from './modules/inspections/inspections.module';
+import { VisitsModule } from './modules/visits/visits.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { DisputesModule } from './modules/disputes/disputes.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 
 @Module({
@@ -53,8 +56,11 @@ import { LogisticsModule } from './modules/logistics/logistics.module';
     NotificationsModule,
     ProductsModule,
     InspectionsModule,
+    VisitsModule,
     AuctionsModule,
     OrdersModule,
+    DisputesModule,
+    AdminModule,
     LogisticsModule,
   ],
 })

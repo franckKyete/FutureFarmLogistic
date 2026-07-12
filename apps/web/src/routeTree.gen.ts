@@ -12,13 +12,20 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as InspectorIndexRouteImport } from './routes/inspector/index'
 import { Route as AuctionsIndexRouteImport } from './routes/auctions/index'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as InspectorValidateRouteImport } from './routes/inspector/validate'
+import { Route as InspectorPlanningRouteImport } from './routes/inspector/planning'
+import { Route as InspectorDashboardRouteImport } from './routes/inspector/dashboard'
+import { Route as InspectorAccountsRouteImport } from './routes/inspector/accounts'
 import { Route as HarvestsIdRouteImport } from './routes/harvests/$id'
 import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
 import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
@@ -34,6 +41,12 @@ import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
 import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
+import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
+import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminAuctionsRouteImport } from './routes/admin/auctions'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
 import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
 import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
@@ -58,6 +71,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InspectorRoute = InspectorRouteImport.update({
+  id: '/inspector',
+  path: '/inspector',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FarmerRoute = FarmerRouteImport.update({
   id: '/farmer',
   path: '/farmer',
@@ -73,6 +91,11 @@ const CartRoute = CartRouteImport.update({
   path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -83,6 +106,11 @@ const OrdersIndexRoute = OrdersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OrdersRoute,
 } as any)
+const InspectorIndexRoute = InspectorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => InspectorRoute,
+} as any)
 const AuctionsIndexRoute = AuctionsIndexRouteImport.update({
   id: '/auctions/',
   path: '/auctions/',
@@ -92,6 +120,26 @@ const OrdersIdRoute = OrdersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => OrdersRoute,
+} as any)
+const InspectorValidateRoute = InspectorValidateRouteImport.update({
+  id: '/validate',
+  path: '/validate',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorPlanningRoute = InspectorPlanningRouteImport.update({
+  id: '/planning',
+  path: '/planning',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorDashboardRoute = InspectorDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorAccountsRoute = InspectorAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => InspectorRoute,
 } as any)
 const HarvestsIdRoute = HarvestsIdRouteImport.update({
   id: '/harvests/$id',
@@ -159,14 +207,44 @@ const AuctionsIdRoute = AuctionsIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => rootRouteImport,
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminRolesRoute = AdminRolesRouteImport.update({
-  id: '/admin/roles',
-  path: '/admin/roles',
-  getParentRoute: () => rootRouteImport,
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLogisticsRoute = AdminLogisticsRouteImport.update({
+  id: '/logistics',
+  path: '/logistics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
+  id: '/inspections',
+  path: '/inspections',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuctionsRoute = AdminAuctionsRouteImport.update({
+  id: '/auctions',
+  path: '/auctions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRoute,
 } as any)
 const FarmerAuctionsIndexRoute = FarmerAuctionsIndexRouteImport.update({
   id: '/auctions/',
@@ -211,12 +289,20 @@ const FarmerAuctionsIdBiddersRoute = FarmerAuctionsIdBiddersRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/inspector': typeof InspectorRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/inspections': typeof AdminInspectionsRoute
+  '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
@@ -232,8 +318,13 @@ export interface FileRoutesByFullPath {
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
   '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/inspector/accounts': typeof InspectorAccountsRoute
+  '/inspector/dashboard': typeof InspectorDashboardRoute
+  '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
+  '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
@@ -246,11 +337,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/inspections': typeof AdminInspectionsRoute
+  '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
@@ -266,8 +364,13 @@ export interface FileRoutesByTo {
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
   '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/inspector/accounts': typeof InspectorAccountsRoute
+  '/inspector/dashboard': typeof InspectorDashboardRoute
+  '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions': typeof AuctionsIndexRoute
+  '/inspector': typeof InspectorIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
@@ -281,12 +384,20 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/inspector': typeof InspectorRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/inspections': typeof AdminInspectionsRoute
+  '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
@@ -302,8 +413,13 @@ export interface FileRoutesById {
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
   '/harvests/$id': typeof HarvestsIdRouteWithChildren
+  '/inspector/accounts': typeof InspectorAccountsRoute
+  '/inspector/dashboard': typeof InspectorDashboardRoute
+  '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
+  '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
@@ -318,12 +434,20 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/farmer'
+    | '/inspector'
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/admin/analytics'
+    | '/admin/auctions'
+    | '/admin/dashboard'
+    | '/admin/disputes'
+    | '/admin/inspections'
+    | '/admin/logistics'
     | '/admin/roles'
     | '/admin/users'
     | '/auctions/$id'
@@ -339,8 +463,13 @@ export interface FileRouteTypes {
     | '/farmer/stock'
     | '/farmer/welcome'
     | '/harvests/$id'
+    | '/inspector/accounts'
+    | '/inspector/dashboard'
+    | '/inspector/planning'
+    | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
+    | '/inspector/'
     | '/orders/'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
@@ -353,11 +482,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/farmer'
     | '/marketplace'
     | '/notifications'
+    | '/admin/analytics'
+    | '/admin/auctions'
+    | '/admin/dashboard'
+    | '/admin/disputes'
+    | '/admin/inspections'
+    | '/admin/logistics'
     | '/admin/roles'
     | '/admin/users'
     | '/auctions/$id'
@@ -373,8 +509,13 @@ export interface FileRouteTypes {
     | '/farmer/stock'
     | '/farmer/welcome'
     | '/harvests/$id'
+    | '/inspector/accounts'
+    | '/inspector/dashboard'
+    | '/inspector/planning'
+    | '/inspector/validate'
     | '/orders/$id'
     | '/auctions'
+    | '/inspector'
     | '/orders'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
@@ -387,12 +528,20 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/farmer'
+    | '/inspector'
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/admin/analytics'
+    | '/admin/auctions'
+    | '/admin/dashboard'
+    | '/admin/disputes'
+    | '/admin/inspections'
+    | '/admin/logistics'
     | '/admin/roles'
     | '/admin/users'
     | '/auctions/$id'
@@ -408,8 +557,13 @@ export interface FileRouteTypes {
     | '/farmer/stock'
     | '/farmer/welcome'
     | '/harvests/$id'
+    | '/inspector/accounts'
+    | '/inspector/dashboard'
+    | '/inspector/planning'
+    | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
+    | '/inspector/'
     | '/orders/'
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
@@ -423,14 +577,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   FarmerRoute: typeof FarmerRouteWithChildren
+  InspectorRoute: typeof InspectorRouteWithChildren
   MarketplaceRoute: typeof MarketplaceRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
-  AdminRolesRoute: typeof AdminRolesRoute
-  AdminUsersRoute: typeof AdminUsersRoute
   AuctionsIdRoute: typeof AuctionsIdRoute
   AuctionsStoryRoute: typeof AuctionsStoryRoute
   AuthLoginRoute: typeof AuthLoginRoute
@@ -463,6 +617,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inspector': {
+      id: '/inspector'
+      path: '/inspector'
+      fullPath: '/inspector'
+      preLoaderRoute: typeof InspectorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/farmer': {
       id: '/farmer'
       path: '/farmer'
@@ -484,6 +645,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -498,6 +666,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersIndexRouteImport
       parentRoute: typeof OrdersRoute
     }
+    '/inspector/': {
+      id: '/inspector/'
+      path: '/'
+      fullPath: '/inspector/'
+      preLoaderRoute: typeof InspectorIndexRouteImport
+      parentRoute: typeof InspectorRoute
+    }
     '/auctions/': {
       id: '/auctions/'
       path: '/auctions'
@@ -511,6 +686,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$id'
       preLoaderRoute: typeof OrdersIdRouteImport
       parentRoute: typeof OrdersRoute
+    }
+    '/inspector/validate': {
+      id: '/inspector/validate'
+      path: '/validate'
+      fullPath: '/inspector/validate'
+      preLoaderRoute: typeof InspectorValidateRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/planning': {
+      id: '/inspector/planning'
+      path: '/planning'
+      fullPath: '/inspector/planning'
+      preLoaderRoute: typeof InspectorPlanningRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/dashboard': {
+      id: '/inspector/dashboard'
+      path: '/dashboard'
+      fullPath: '/inspector/dashboard'
+      preLoaderRoute: typeof InspectorDashboardRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/accounts': {
+      id: '/inspector/accounts'
+      path: '/accounts'
+      fullPath: '/inspector/accounts'
+      preLoaderRoute: typeof InspectorAccountsRouteImport
+      parentRoute: typeof InspectorRoute
     }
     '/harvests/$id': {
       id: '/harvests/$id'
@@ -605,17 +808,59 @@ declare module '@tanstack/react-router' {
     }
     '/admin/users': {
       id: '/admin/users'
-      path: '/admin/users'
+      path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/roles': {
       id: '/admin/roles'
-      path: '/admin/roles'
+      path: '/roles'
       fullPath: '/admin/roles'
       preLoaderRoute: typeof AdminRolesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/logistics': {
+      id: '/admin/logistics'
+      path: '/logistics'
+      fullPath: '/admin/logistics'
+      preLoaderRoute: typeof AdminLogisticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inspections': {
+      id: '/admin/inspections'
+      path: '/inspections'
+      fullPath: '/admin/inspections'
+      preLoaderRoute: typeof AdminInspectionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/auctions': {
+      id: '/admin/auctions'
+      path: '/auctions'
+      fullPath: '/admin/auctions'
+      preLoaderRoute: typeof AdminAuctionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/farmer/auctions/': {
       id: '/farmer/auctions/'
@@ -676,6 +921,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminAuctionsRoute: typeof AdminAuctionsRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDisputesRoute: typeof AdminDisputesRoute
+  AdminInspectionsRoute: typeof AdminInspectionsRoute
+  AdminLogisticsRoute: typeof AdminLogisticsRoute
+  AdminRolesRoute: typeof AdminRolesRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminAuctionsRoute: AdminAuctionsRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminDisputesRoute: AdminDisputesRoute,
+  AdminInspectionsRoute: AdminInspectionsRoute,
+  AdminLogisticsRoute: AdminLogisticsRoute,
+  AdminRolesRoute: AdminRolesRoute,
+  AdminUsersRoute: AdminUsersRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface FarmerRouteChildren {
   FarmerAnalyticsRoute: typeof FarmerAnalyticsRoute
   FarmerDashboardRoute: typeof FarmerDashboardRoute
@@ -710,6 +979,26 @@ const FarmerRouteChildren: FarmerRouteChildren = {
 
 const FarmerRouteWithChildren =
   FarmerRoute._addFileChildren(FarmerRouteChildren)
+
+interface InspectorRouteChildren {
+  InspectorAccountsRoute: typeof InspectorAccountsRoute
+  InspectorDashboardRoute: typeof InspectorDashboardRoute
+  InspectorPlanningRoute: typeof InspectorPlanningRoute
+  InspectorValidateRoute: typeof InspectorValidateRoute
+  InspectorIndexRoute: typeof InspectorIndexRoute
+}
+
+const InspectorRouteChildren: InspectorRouteChildren = {
+  InspectorAccountsRoute: InspectorAccountsRoute,
+  InspectorDashboardRoute: InspectorDashboardRoute,
+  InspectorPlanningRoute: InspectorPlanningRoute,
+  InspectorValidateRoute: InspectorValidateRoute,
+  InspectorIndexRoute: InspectorIndexRoute,
+}
+
+const InspectorRouteWithChildren = InspectorRoute._addFileChildren(
+  InspectorRouteChildren,
+)
 
 interface OrdersIdRouteChildren {
   OrdersIdTrackingRoute: typeof OrdersIdTrackingRoute
@@ -750,14 +1039,14 @@ const HarvestsIdRouteWithChildren = HarvestsIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   FarmerRoute: FarmerRouteWithChildren,
+  InspectorRoute: InspectorRouteWithChildren,
   MarketplaceRoute: MarketplaceRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
-  AdminRolesRoute: AdminRolesRoute,
-  AdminUsersRoute: AdminUsersRoute,
   AuctionsIdRoute: AuctionsIdRoute,
   AuctionsStoryRoute: AuctionsStoryRoute,
   AuthLoginRoute: AuthLoginRoute,

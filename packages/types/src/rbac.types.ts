@@ -115,6 +115,15 @@ export enum Permission {
   INSPECTION_CENTER_DELETE      = 'inspection:center:delete',
   INSPECTION_CENTER_ASSIGN      = 'inspection:center:assign',
 
+  // --- Visits / Planning ---
+  VISIT_CREATE                  = 'visit:create',
+  VISIT_READ                    = 'visit:read',
+  VISIT_UPDATE                  = 'visit:update',
+  VISIT_DELETE                  = 'visit:delete',
+
+  // --- Dashboard ---
+  DASHBOARD_READ                = 'dashboard:read',
+
   // --- Driver Profile ---
   DRIVER_PROFILE_READ           = 'driver:profile:read',
   DRIVER_PROFILE_UPDATE         = 'driver:profile:update',
@@ -125,6 +134,12 @@ export enum Permission {
   EXAMPLE_CREATE                = 'example:create',
   EXAMPLE_UPDATE                = 'example:update',
   EXAMPLE_DELETE                = 'example:delete',
+
+  // --- Disputes ---
+  DISPUTE_READ                  = 'dispute:read',
+  DISPUTE_CREATE                = 'dispute:create',
+  DISPUTE_UPDATE                = 'dispute:update',
+  DISPUTE_RESOLVE               = 'dispute:resolve',
 }
 
 

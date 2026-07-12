@@ -1,10 +1,11 @@
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Permission, ProductCategory } from '@futurefarm/types';
+import { Permission, ProductCategory, DisputeStatus, DisputeSeverity } from '@futurefarm/types';
 import { UserEntity } from '../modules/users/entities/user.entity';
 import { RoleEntity } from '../modules/roles/entities/role.entity';
 import { ProductEntity } from '../modules/products/entities/product.entity';
+import { DisputeEntity } from '../modules/disputes/entities/dispute.entity';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -75,6 +76,21 @@ export class SeedService implements OnApplicationBootstrap {
       Permission.FARMER_PROXY_AUCTION_MANAGE,
       Permission.INSPECTION_CENTER_READ,
       Permission.INSPECTION_CENTER_ASSIGN,
+      Permission.INSPECTION_CREATE,
+      Permission.INSPECTION_READ,
+      Permission.INSPECTION_READ_ALL,
+      Permission.INSPECTION_UPDATE,
+      Permission.INSPECTOR_PROFILE_READ,
+      Permission.INSPECTOR_PROFILE_UPDATE,
+      Permission.HARVEST_VERIFY,
+      Permission.HARVEST_READ_ALL,
+      Permission.USER_VALIDATE,
+      Permission.VISIT_CREATE,
+      Permission.VISIT_READ,
+      Permission.VISIT_UPDATE,
+      Permission.VISIT_DELETE,
+      Permission.DASHBOARD_READ,
+      Permission.DISPUTE_READ,
     ];
 
     const driverPermissions = [
@@ -249,6 +265,60 @@ export class SeedService implements OnApplicationBootstrap {
         await productRepository.save(productRepository.create(prod));
       }
       this.logger.log('Default product templates seeded.');
+    }
+
+    // 4. Seed Disputes
+    const disputeRepository =
+      this.userRepository.manager.getRepository(DisputeEntity);
+    const disputeCount = await disputeRepository.count();
+    if (disputeCount === 0) {
+      this.logger.log('Seeding sample disputes...');
+
+      const adminUser = await this.userRepository.findOne({
+        where: { email: 'admin@futurefarm.local' },
+      });
+
+      if (adminUser) {
+        const sampleDisputes = [
+          {
+            title: 'Livraison de produits abîmés',
+            description:
+              "Les tomates livrées le 10 juillet présentent des signes d'écrasement et d'oxydation. Plus de 30% du lot est impropre à la vente. Le transporteur n'a pas respecté les consignes de manutention.",
+            severity: DisputeSeverity.HIGH,
+            status: DisputeStatus.OPEN,
+            relatedType: 'order',
+            relatedId: '00000000-0000-0000-0000-000000000001',
+            createdById: adminUser.id,
+          },
+          {
+            title: 'Désaccord sur le poids de la récolte',
+            description:
+              'Le poids déclaré à la pesée diffère de 150 kg par rapport au certificat de récolte du producteur. Une contre-expertise est demandée pour vérifier les balances utilisées.',
+            severity: DisputeSeverity.MEDIUM,
+            status: DisputeStatus.UNDER_REVIEW,
+            relatedType: 'order',
+            relatedId: '00000000-0000-0000-0000-000000000002',
+            createdById: adminUser.id,
+          },
+          {
+            title: 'Non-conformité du calibre des dattes',
+            description:
+              'Les dattes Medjool livrées ne correspondent pas au calibre commandé (taille 24-28 mm au lieu de 30-34 mm). Le client réclame un avoir proportionnel à la différence de qualité.',
+            severity: DisputeSeverity.LOW,
+            status: DisputeStatus.OPEN,
+            relatedType: 'order',
+            relatedId: '00000000-0000-0000-0000-000000000003',
+            createdById: adminUser.id,
+          },
+        ];
+
+        for (const dispute of sampleDisputes) {
+          await disputeRepository.save(
+            disputeRepository.create(dispute),
+          );
+        }
+        this.logger.log('Sample disputes seeded successfully.');
+      }
     }
   }
 }

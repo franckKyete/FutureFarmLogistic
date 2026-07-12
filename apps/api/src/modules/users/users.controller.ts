@@ -108,7 +108,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.USER_READ)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: List all users (paginated)' })
+  @ApiOperation({ summary: 'Admin: List all users (paginated). Supports role, status, and search filters' })
   findAll(@Query() query: PaginationQueryDto) {
     return this.usersService.findAll(query);
   }
