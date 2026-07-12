@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
+import { requireRole } from '@/features/auth/utils/role-guard';
 import { Permission } from '@futurefarm/types';
 import { AdminSidebar } from '@/features/admin/components/AdminSidebar';
 
@@ -14,6 +15,7 @@ export const Route = createFileRoute('/admin')({
       Permission.DELIVERY_RUN_READ_ALL,
       Permission.AUCTION_MANAGE,
     ], 'any');
+    requireRole(['Admin']);
   },
   component: AdminLayout,
 });
