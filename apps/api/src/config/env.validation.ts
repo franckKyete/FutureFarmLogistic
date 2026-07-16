@@ -28,6 +28,11 @@ export function validateEnv(config: Record<string, unknown>) {
     WHATSAPP_ENABLED: Joi.boolean().default(false),
     PUSH_ENABLED: Joi.boolean().default(false),
     HARVEST_APPROVAL_MIN_SCORE: Joi.number().default(4.0),
+    PAYMENT_PROVIDER: Joi.string().valid('stripe', 'mock').default('mock'),
+    STRIPE_SECRET_KEY: Joi.string().optional(),
+    STRIPE_CURRENCY: Joi.string().default('usd'),
+    STRIPE_SUCCESS_URL: Joi.string().optional(),
+    STRIPE_CANCEL_URL: Joi.string().optional(),
   }).unknown(true);
 
   const result = schema.validate(config, { abortEarly: false });

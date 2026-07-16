@@ -36,8 +36,8 @@ export const removeBasketLineMutation = (lineId: string) => ({
 });
 
 export const checkoutMutation = () => ({
-  mutationFn: async (payload: CheckoutDto): Promise<void> => {
-    const { data } = await apiClient.post<{ data: void }>(`/basket/checkout`, payload);
+  mutationFn: async (payload: CheckoutDto): Promise<{ order: any; paymentUrl?: string }> => {
+    const { data } = await apiClient.post<{ data: { order: any; paymentUrl?: string } }>(`/basket/checkout`, payload);
     return data.data;
   },
 });

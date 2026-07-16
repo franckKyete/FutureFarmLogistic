@@ -1,11 +1,7 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { clearAuth } from '@/features/auth/store/auth.store';
 import { useLocation, Link } from '@tanstack/react-router';
 import { Permission } from '@futurefarm/types';
-
-type NavSection = {
-  title: string;
-  links: NavLink[];
-};
 
 type NavLink = {
   label: string;
@@ -14,35 +10,16 @@ type NavLink = {
   permission: Permission;
 };
 
-const NAV_SECTIONS: NavSection[] = [
-  {
-    title: "Vue d'ensemble",
-    links: [
-      { label: 'Tableau de bord', path: '/admin/dashboard', icon: 'dashboard', permission: Permission.DASHBOARD_READ },
-    ],
-  },
-  {
-    title: 'Gestion',
-    links: [
-      { label: 'Utilisateurs', path: '/admin/users', icon: 'people', permission: Permission.USER_READ },
-      { label: 'Rôles', path: '/admin/roles', icon: 'security', permission: Permission.ROLE_READ },
-    ],
-  },
-  {
-    title: 'Opérations',
-    links: [
-      { label: 'Inspections & Qualité', path: '/admin/inspections', icon: 'verified', permission: Permission.INSPECTION_READ_ALL },
-      { label: 'Gestion Logistique', path: '/admin/logistics', icon: 'local_shipping', permission: Permission.DELIVERY_RUN_READ_ALL },
-      { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
-    ],
-  },
-  {
-    title: 'Support',
-    links: [
-      { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
-      { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
-    ],
-  },
+const NAV_LINKS: NavLink[] = [
+  { label: 'Tableau de bord', path: '/admin/dashboard', icon: 'dashboard', permission: Permission.DASHBOARD_READ },
+  { label: 'Expéditions', path: '/admin/logistics', icon: 'local_shipping', permission: Permission.DELIVERY_RUN_READ_ALL },
+  { label: 'Utilisateurs & Rôles', path: '/admin/users', icon: 'group', permission: Permission.USER_READ },
+  { label: 'Inspections & Qualité', path: '/admin/inspections', icon: 'verified', permission: Permission.INSPECTION_READ_ALL },
+  { label: 'Validation récoltes', path: '/admin/harvests', icon: 'rule', permission: Permission.HARVEST_VERIFY },
+  { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
+  { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
+  { label: 'Transactions', path: '/admin/transactions', icon: 'receipt_long', permission: Permission.ORDER_READ_ALL },
+  { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
 ];
 
 function NavLinkItem({ link }: { link: NavLink }) {
@@ -57,40 +34,62 @@ function NavLinkItem({ link }: { link: NavLink }) {
   return (
     <Link
       to={link.path}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+      className={`flex items-center gap-3 px-4 py-3 font-medium transition-all ${
         isActive
-          ? 'bg-brand-50 text-brand-700 font-semibold'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          ? 'text-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 border-r-4 border-[var(--admin-primary)]'
+          : 'text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-primary)]'
       }`}
     >
-      <span className="material-symbols-outlined text-2xl">{link.icon}</span>
-      <span>{link.label}</span>
+      <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
+      <span className="text-sm">{link.label}</span>
     </Link>
   );
 }
 
 export function AdminSidebar() {
+  const { user } = useAuth();
+
   return (
-    <aside className="fixed left-0 top-0 z-40 w-64 h-screen bg-white border-r border-gray-200 overflow-y-auto sticky top-0">
-      <div className="flex items-center h-16 px-6 border-b border-gray-200">
-        <Link to="/admin/dashboard" className="text-lg font-bold text-[#1a5c35]">
-          Administration
-        </Link>
+    <aside className="fixed left-0 top-0 z-40 w-[240px] h-screen bg-[var(--admin-surface-container-lowest)] border-r border-[var(--admin-outline-variant)] flex flex-col justify-between">
+      <div>
+        <div className="p-6 flex flex-col gap-0.5 border-b border-[var(--admin-outline-variant)]/40">
+          <span className="text-lg font-bold text-[var(--admin-primary)] tracking-tight">Future Farm</span>
+          <span className="text-[10px] font-bold text-[var(--admin-on-surface-variant)]/70 uppercase tracking-widest">
+            Logistic V2.0
+          </span>
+        </div>
+        <nav className="mt-4 flex flex-col">
+          {NAV_LINKS.map((link) => (
+            <NavLinkItem key={link.path} link={link} />
+          ))}
+        </nav>
       </div>
-      <nav className="p-4 space-y-6">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.title}>
-            <h3 className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              {section.title}
-            </h3>
-            <div className="space-y-1">
-              {section.links.map((link) => (
-                <NavLinkItem key={link.path} link={link} />
-              ))}
+
+      <div className="p-4 border-t border-[var(--admin-outline-variant)]/40 space-y-4">
+        {user && (
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 rounded-full bg-[var(--admin-primary-container)]/20 flex items-center justify-center border border-[var(--admin-primary)]/10 overflow-hidden shrink-0">
+              <span className="material-symbols-outlined text-[20px] text-[var(--admin-primary)]">person</span>
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold truncate text-[var(--admin-on-surface)]">
+                {`${user.firstName} ${user.lastName}`}
+              </p>
+              <p className="text-[10px] text-[var(--admin-on-surface-variant)] font-medium uppercase truncate">
+                {user.roles?.[0] || 'Admin Principal'}
+              </p>
             </div>
           </div>
-        ))}
-      </nav>
+        )}
+        <button
+          onClick={() => clearAuth()}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-error)] transition-colors rounded-xl text-sm font-medium"
+        >
+          <span className="material-symbols-outlined text-[20px]">logout</span>
+          <span>Déconnexion</span>
+        </button>
+      </div>
     </aside>
   );
 }
+

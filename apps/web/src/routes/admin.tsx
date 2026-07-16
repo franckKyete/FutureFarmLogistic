@@ -2,7 +2,9 @@ import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { requireRole } from '@/features/auth/utils/role-guard';
 import { Permission } from '@futurefarm/types';
-import { AdminSidebar } from '@/features/admin/components/AdminSidebar';
+import { AdminSidebar, AdminHeader } from '@/features/admin/components';
+import '@fontsource-variable/geist';
+import '@/styles/admin-theme.css';
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: () => {
@@ -14,6 +16,7 @@ export const Route = createFileRoute('/admin')({
       Permission.INSPECTION_READ_ALL,
       Permission.DELIVERY_RUN_READ_ALL,
       Permission.AUCTION_MANAGE,
+      Permission.ORDER_READ_ALL,
     ], 'any');
     requireRole(['Admin']);
   },
@@ -22,11 +25,15 @@ export const Route = createFileRoute('/admin')({
 
 function AdminLayout() {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="admin-theme min-h-screen bg-[#EAF3DE]">
       <AdminSidebar />
-      <main className="flex-1 p-6 lg:p-8 ml-64">
-        <Outlet />
+      <AdminHeader />
+      <main className="ml-[240px] pt-[60px] min-h-[calc(100vh-60px)] p-8">
+        <div className="max-w-[1400px] mx-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
 }
+

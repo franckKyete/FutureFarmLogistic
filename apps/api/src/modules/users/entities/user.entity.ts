@@ -40,7 +40,7 @@ export class UserEntity {
   @Column({
     type: 'enum',
     enum: UserStatus,
-    default: UserStatus.PENDING_VALIDATION,
+    default: UserStatus.APPROVED,
   })
   status: UserStatus;
 

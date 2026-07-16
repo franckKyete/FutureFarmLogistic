@@ -40,9 +40,11 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
 import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
 import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
 import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
+import { Route as AdminHarvestsRouteImport } from './routes/admin/harvests'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminAuctionsRouteImport } from './routes/admin/auctions'
@@ -211,6 +213,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRolesRoute = AdminRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -224,6 +231,11 @@ const AdminLogisticsRoute = AdminLogisticsRouteImport.update({
 const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
   id: '/inspections',
   path: '/inspections',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminHarvestsRoute = AdminHarvestsRouteImport.update({
+  id: '/harvests',
+  path: '/harvests',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDisputesRoute = AdminDisputesRouteImport.update({
@@ -301,9 +313,11 @@ export interface FileRoutesByFullPath {
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
   '/auctions/story': typeof AuctionsStoryRoute
@@ -347,9 +361,11 @@ export interface FileRoutesByTo {
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
   '/auctions/story': typeof AuctionsStoryRoute
@@ -396,9 +412,11 @@ export interface FileRoutesById {
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auctions/$id': typeof AuctionsIdRoute
   '/auctions/story': typeof AuctionsStoryRoute
@@ -446,9 +464,11 @@ export interface FileRouteTypes {
     | '/admin/auctions'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/harvests'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
+    | '/admin/transactions'
     | '/admin/users'
     | '/auctions/$id'
     | '/auctions/story'
@@ -492,9 +512,11 @@ export interface FileRouteTypes {
     | '/admin/auctions'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/harvests'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
+    | '/admin/transactions'
     | '/admin/users'
     | '/auctions/$id'
     | '/auctions/story'
@@ -540,9 +562,11 @@ export interface FileRouteTypes {
     | '/admin/auctions'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/harvests'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
+    | '/admin/transactions'
     | '/admin/users'
     | '/auctions/$id'
     | '/auctions/story'
@@ -813,6 +837,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/transactions': {
+      id: '/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/roles': {
       id: '/admin/roles'
       path: '/roles'
@@ -832,6 +863,13 @@ declare module '@tanstack/react-router' {
       path: '/inspections'
       fullPath: '/admin/inspections'
       preLoaderRoute: typeof AdminInspectionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/harvests': {
+      id: '/admin/harvests'
+      path: '/harvests'
+      fullPath: '/admin/harvests'
+      preLoaderRoute: typeof AdminHarvestsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/disputes': {
@@ -926,9 +964,11 @@ interface AdminRouteChildren {
   AdminAuctionsRoute: typeof AdminAuctionsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDisputesRoute: typeof AdminDisputesRoute
+  AdminHarvestsRoute: typeof AdminHarvestsRoute
   AdminInspectionsRoute: typeof AdminInspectionsRoute
   AdminLogisticsRoute: typeof AdminLogisticsRoute
   AdminRolesRoute: typeof AdminRolesRoute
+  AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
@@ -937,9 +977,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAuctionsRoute: AdminAuctionsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDisputesRoute: AdminDisputesRoute,
+  AdminHarvestsRoute: AdminHarvestsRoute,
   AdminInspectionsRoute: AdminInspectionsRoute,
   AdminLogisticsRoute: AdminLogisticsRoute,
   AdminRolesRoute: AdminRolesRoute,
+  AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 

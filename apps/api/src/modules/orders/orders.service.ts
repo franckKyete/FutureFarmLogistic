@@ -47,7 +47,10 @@ export class OrdersService {
     private readonly paymentGateway: PaymentGatewayPort,
   ) {}
 
-  async checkout(buyerId: string, dto: CheckoutDto): Promise<OrderEntity> {
+  async checkout(
+    buyerId: string,
+    dto: CheckoutDto,
+  ): Promise<{ order: OrderEntity; paymentUrl?: string }> {
     return this.dataSource.transaction('SERIALIZABLE', async (manager) => {
       const basket = await manager.findOne(BasketEntity, {
         where: { buyerId, status: BasketStatus.ACTIVE },
@@ -140,7 +143,13 @@ export class OrdersService {
         channels: [NotificationChannel.DATABASE],
       });
 
-      return finalOrder;
+      const response: { order: OrderEntity; paymentUrl?: string } = {
+        order: finalOrder,
+      };
+      if (paymentResult.paymentUrl) {
+        response.paymentUrl = paymentResult.paymentUrl;
+      }
+      return response;
     });
   }
 

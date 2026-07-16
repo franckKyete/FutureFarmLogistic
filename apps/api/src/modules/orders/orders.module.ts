@@ -14,6 +14,8 @@ import { BasketController } from './basket.controller';
 import { OrdersController } from './orders.controller';
 import { ProductsModule } from '../products/products.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ConfigService } from '@nestjs/config';
+import { StripePaymentGateway } from './adapters/stripe.adapter';
 import { PAYMENT_GATEWAY_PORT, MockPaymentGateway } from './interfaces/payment-gateway.port';
 
 @Module({
@@ -37,7 +39,14 @@ import { PAYMENT_GATEWAY_PORT, MockPaymentGateway } from './interfaces/payment-g
     OrdersService,
     {
       provide: PAYMENT_GATEWAY_PORT,
-      useClass: MockPaymentGateway,
+      useFactory: (config: ConfigService) => {
+        const provider = config.get<string>('PAYMENT_PROVIDER', 'mock');
+        if (provider === 'stripe') {
+          return new StripePaymentGateway(config);
+        }
+        return new MockPaymentGateway();
+      },
+      inject: [ConfigService],
     },
   ],
   exports: [OrdersService],

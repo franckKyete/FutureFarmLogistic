@@ -122,7 +122,14 @@ export class InspectionsService {
   async getReport(id: string): Promise<InspectionReportEntity> {
     const report = await this.reportRepo.findOne({
       where: { id },
-      relations: ['photos', 'inspectorProfile'],
+      relations: [
+        'photos',
+        'inspectorProfile',
+        'harvest',
+        'harvest.product',
+        'harvest.farmerProfile',
+        'harvest.farmerProfile.user',
+      ],
     });
     if (!report) {
       throw new NotFoundException(`Inspection report with ID ${id} not found`);
@@ -136,13 +143,20 @@ export class InspectionsService {
     const profile = await this.getInspectorProfile(userId);
     return this.reportRepo.find({
       where: { inspectorProfileId: profile.id },
-      relations: ['photos'],
+      relations: ['photos', 'harvest', 'harvest.product'],
     });
   }
 
   async listAllReports(): Promise<InspectionReportEntity[]> {
     return this.reportRepo.find({
-      relations: ['photos', 'inspectorProfile'],
+      relations: [
+        'photos',
+        'inspectorProfile',
+        'harvest',
+        'harvest.product',
+        'harvest.farmerProfile',
+        'harvest.farmerProfile.user',
+      ],
     });
   }
 

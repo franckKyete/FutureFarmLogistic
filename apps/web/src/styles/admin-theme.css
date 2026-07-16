@@ -1,0 +1,80 @@
+/* Admin Theme — Stitch Design System Tokens */
+/* Scoped to .admin-theme to avoid leaking into non-admin pages */
+
+.admin-theme {
+  /* Font */
+  --admin-font-family: 'Geist', sans-serif;
+
+  /* Color Tokens */
+  --admin-primary: #004322;
+  --admin-primary-container: #1a5c35;
+  --admin-on-primary: #ffffff;
+  --admin-on-primary-container: #90d2a1;
+  --admin-secondary: #885200;
+  --admin-secondary-container: #ffa93d;
+  --admin-on-secondary: #ffffff;
+  --admin-on-secondary-container: #6d4100;
+
+  /* Surface Tokens */
+  --admin-surface: #f8f9ff;
+  --admin-surface-container: #e5eeff;
+  --admin-surface-container-low: #eff4ff;
+  --admin-surface-container-lowest: #ffffff;
+  --admin-surface-container-high: #dce9ff;
+  --admin-surface-container-highest: #d3e4fe;
+  --admin-on-surface: #0b1c30;
+  --admin-on-surface-variant: #404941;
+
+  /* Outline Tokens */
+  --admin-outline: #707970;
+  --admin-outline-variant: #c0c9be;
+
+  /* Semantic Tokens */
+  --admin-error: #ba1a1a;
+  --admin-error-container: #ffdad6;
+
+  /* Spacing / Radius Tokens */
+  --admin-radius-sm: 4px;
+  --admin-radius-md: 8px;
+  --admin-radius-lg: 12px;
+  --admin-radius-xl: 16px;
+  --admin-radius-2xl: 24px;
+
+  /* Typography */
+  font-family: var(--admin-font-family);
+  color: var(--admin-on-surface);
+  background-color: #EAF3DE; /* Sage green background behind components */
+}
+
+/* Custom styles for Stitch fidelity */
+.admin-theme .glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 0.5px solid rgba(0, 67, 34, 0.1);
+}
+
+.admin-theme .pulse-green {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.admin-theme .hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-theme .hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

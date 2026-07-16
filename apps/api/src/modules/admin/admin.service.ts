@@ -5,7 +5,7 @@ import {
   DeliveryRunStatus,
   DisputeStatus,
   InspectionStatus,
-  UserStatus,
+  HarvestStatus,
 } from '@futurefarm/types';
 
 import { UsersService } from '../users/users.service';
@@ -14,6 +14,7 @@ import { LogisticsService } from '../logistics/logistics.service';
 import { InspectionsService } from '../inspections/inspections.service';
 import { OrdersService } from '../orders/orders.service';
 import { DisputesService } from '../disputes/disputes.service';
+import { ProductsService } from '../products/products.service';
 
 @Injectable()
 export class AdminService {
@@ -24,6 +25,7 @@ export class AdminService {
     private readonly inspectionsService: InspectionsService,
     private readonly ordersService: OrdersService,
     private readonly disputesService: DisputesService,
+    private readonly productsService: ProductsService,
   ) {}
 
   async getDashboardStats(): Promise<{
@@ -38,7 +40,7 @@ export class AdminService {
   }> {
     const [
       allUsers,
-      pendingUsers,
+      pendingHarvests,
       auctionsResult,
       runsResult,
       allInspections,
@@ -46,7 +48,7 @@ export class AdminService {
       ordersResult,
     ] = await Promise.all([
       this.safeUsersFindAll({ limit: 1 }),
-      this.safeUsersFindAll({ status: UserStatus.PENDING_VALIDATION, limit: 1 }),
+      this.safeHarvestsFindAll({ status: HarvestStatus.PENDING_APPROVAL }),
       this.safeListAuctions({ status: AuctionStatus.ACTIVE, limit: 1 }),
       this.safeListAllRuns(1, 1000),
       this.safeListAllReports(),
@@ -78,7 +80,7 @@ export class AdminService {
 
     return {
       totalUsers: allUsers.meta.total,
-      pendingValidations: pendingUsers.meta.total,
+      pendingValidations: pendingHarvests.length,
       activeAuctions: auctionsResult.meta.total,
       activeRuns,
       pendingInspections,
@@ -166,6 +168,14 @@ export class AdminService {
       return await this.usersService.findAll(query);
     } catch {
       return { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPreviousPage: false } };
+    }
+  }
+
+  private async safeHarvestsFindAll(query: any) {
+    try {
+      return await this.productsService.findAllHarvests(query);
+    } catch {
+      return [];
     }
   }
 

@@ -19,8 +19,8 @@ export interface OptimisedRoute {
   totalDistanceKm: number;
   /** Total estimated travel duration in seconds */
   totalDurationSec: number;
-  /** Estimated arrival time per waypoint index (UTC ISO string) */
-  etaPerStop?: Record<number, string>;
+  /** Cumulative travel duration offset in seconds from start for each sequenced stop */
+  durationOffsetPerStop?: Record<number, number>;
 }
 
 /** Token used to inject a RouteOptimizerPort */
@@ -106,10 +106,27 @@ export class OsrmRouteOptimizer implements RouteOptimizerPort {
       return result;
     });
 
+    const durationOffsetPerStop: Record<number, number> = {};
+    let cumulativeDuration = 0;
+    durationOffsetPerStop[0] = 0;
+
+    if (trip.legs && trip.legs.length > 0) {
+      for (let i = 0; i < trip.legs.length; i++) {
+        cumulativeDuration += trip.legs[i]!.duration;
+        durationOffsetPerStop[i + 1] = Math.round(cumulativeDuration);
+      }
+    } else {
+      const avgDuration = trip.duration / (orderedWaypoints.length - 1 || 1);
+      for (let i = 1; i < orderedWaypoints.length; i++) {
+        durationOffsetPerStop[i] = Math.round(i * avgDuration);
+      }
+    }
+
     return {
       orderedWaypoints,
       totalDistanceKm: +(trip.distance / 1000).toFixed(2),
       totalDurationSec: Math.round(trip.duration),
+      durationOffsetPerStop,
     };
   }
 
@@ -132,7 +149,11 @@ export class OsrmRouteOptimizer implements RouteOptimizerPort {
 
 interface OsrmTripResponse {
   code: string;
-  trips: Array<{ distance: number; duration: number }>;
+  trips: Array<{
+    distance: number;
+    duration: number;
+    legs?: Array<{ distance: number; duration: number }>;
+  }>;
   waypoints: Array<{
     waypoint_index: number;
     trips_index?: number;

@@ -83,13 +83,6 @@ export class AuthService {
     }
 
     // Verify account status
-    const isFarmer = user.roles.some((r) => r.name.toLowerCase() === 'farmer');
-    const isBuyer = user.roles.some((r) => r.name.toLowerCase() === 'buyer');
-    if (user.status === UserStatus.PENDING_VALIDATION && !isFarmer && !isBuyer) {
-      throw new ForbiddenException(
-        'Your account is pending administrator approval.',
-      );
-    }
     if (user.status === UserStatus.SUSPENDED) {
       throw new ForbiddenException('Your account has been suspended.');
     }

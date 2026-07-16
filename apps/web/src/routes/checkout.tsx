@@ -44,9 +44,13 @@ function CheckoutPage() {
 
   const checkout = useMutation({
     ...checkoutMutation(),
-    onSuccess: () => {
+    onSuccess: (data) => {
       addToast('Commande confirmée !', 'success');
-      navigate({ to: '/orders' });
+      if (data?.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        navigate({ to: '/orders' });
+      }
     },
     onError: () => {
       addToast('Erreur lors de la confirmation de la commande', 'error');

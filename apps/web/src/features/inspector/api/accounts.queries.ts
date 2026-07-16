@@ -6,10 +6,10 @@ export function useProducers(filters: ProducerFilter) {
   return useQuery<ProducerDto[]>({
     queryKey: ['inspector', 'producers', filters],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: ProducerDto[] }>('/users', {
+      const { data } = await apiClient.get<{ data: { data: ProducerDto[]; meta: unknown } }>('/users', {
         params: filters,
       });
-      return data.data;
+      return data.data.data;
     },
   });
 }

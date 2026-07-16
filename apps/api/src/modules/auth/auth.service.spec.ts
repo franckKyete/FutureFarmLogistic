@@ -104,6 +104,7 @@ describe('AuthService', () => {
       const mockUser = {
         validatePassword: jest.fn().mockResolvedValue(false),
         isActive: true,
+        roles: [],
       };
       usersRepository.findOne.mockResolvedValue(mockUser);
       await expect(service.login(loginDto)).rejects.toThrow(
@@ -116,6 +117,7 @@ describe('AuthService', () => {
         validatePassword: jest.fn().mockResolvedValue(true),
         isActive: true,
         status: UserStatus.PENDING_VALIDATION,
+        roles: [],
       };
       usersRepository.findOne.mockResolvedValue(mockUser);
       await expect(service.login(loginDto)).rejects.toThrow(ForbiddenException);
@@ -129,6 +131,7 @@ describe('AuthService', () => {
         isActive: true,
         status: UserStatus.APPROVED,
         isTwoFactorEnabled: true,
+        roles: [],
       };
       usersRepository.findOne.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('temp-jwt-token');

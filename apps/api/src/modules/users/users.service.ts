@@ -20,12 +20,16 @@ import { ParcelEntity } from './entities/parcel.entity';
 import { RegisterFarmerDto } from './dto/register-farmer.dto';
 import { RegisterFarmerProxyDto } from './dto/register-farmer-proxy.dto';
 import { RegisterBuyerDto } from './dto/register-buyer.dto';
+import { RegisterInspectorDto } from './dto/register-inspector.dto';
+import { RegisterDriverDto } from './dto/register-driver.dto';
 import {
   UpdateFarmerProfileDto,
   UpdateBuyerProfileDto,
 } from './dto/profile.dto';
 import { CreateParcelDto } from './dto/parcel.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 
 @Injectable()
 export class UsersService {
@@ -40,6 +44,10 @@ export class UsersService {
     private readonly buyerProfileRepository: Repository<BuyerProfileEntity>,
     @InjectRepository(ParcelEntity)
     private readonly parcelRepository: Repository<ParcelEntity>,
+    @InjectRepository(InspectorProfileEntity)
+    private readonly inspectorProfileRepository: Repository<InspectorProfileEntity>,
+    @InjectRepository(DriverProfileEntity)
+    private readonly driverProfileRepository: Repository<DriverProfileEntity>,
   ) {}
 
   async findAll(
@@ -115,7 +123,7 @@ export class UsersService {
       lastName: dto.lastName,
       phoneNumber: dto.phoneNumber ?? null,
       roles: [farmerRole],
-      status: UserStatus.PENDING_VALIDATION,
+      status: UserStatus.APPROVED,
       isActive: true,
     });
 
@@ -153,7 +161,7 @@ export class UsersService {
       lastName: dto.lastName,
       phoneNumber: dto.phoneNumber ?? null,
       roles: [buyerRole],
-      status: UserStatus.PENDING_VALIDATION,
+      status: UserStatus.APPROVED,
       isActive: true,
     });
 
@@ -293,7 +301,7 @@ export class UsersService {
       lastName: dto.lastName,
       phoneNumber: dto.phoneNumber ?? null,
       roles: [farmerRole],
-      status: UserStatus.PENDING_VALIDATION,
+      status: UserStatus.APPROVED,
       isActive: true,
       createdByActorId: actorId,
     });
@@ -358,5 +366,91 @@ export class UsersService {
     user.isActive = false;
     user.status = UserStatus.BANNED;
     return this.usersRepository.save(user);
+  }
+
+  async registerInspector(dto: RegisterInspectorDto): Promise<UserEntity> {
+    const existing = await this.usersRepository.findOneBy({ email: dto.email });
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const inspectorRole = await this.rolesRepository.findOneBy({ name: 'Inspector' });
+    if (!inspectorRole) {
+      throw new InternalServerErrorException(
+        'Inspector role not configured in system',
+      );
+    }
+
+    const tempPassword = dto.password || Math.random().toString(36).slice(-10) + '!';
+
+    const user = this.usersRepository.create({
+      email: dto.email,
+      password: tempPassword,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      phoneNumber: dto.phoneNumber ?? null,
+      roles: [inspectorRole],
+      status: UserStatus.APPROVED,
+      isActive: true,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+
+    const profile = this.inspectorProfileRepository.create({
+      userId: savedUser.id,
+      licenseNumber: dto.licenseNumber,
+      agencyName: dto.agencyName,
+      specializations: dto.specializations ?? [],
+      isActiveInspector: true,
+    });
+
+    await this.inspectorProfileRepository.save(profile);
+
+    (savedUser as any).temporaryPassword = tempPassword;
+    return savedUser;
+  }
+
+  async registerDriver(dto: RegisterDriverDto): Promise<UserEntity> {
+    const existing = await this.usersRepository.findOneBy({ email: dto.email });
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const driverRole = await this.rolesRepository.findOneBy({ name: 'Driver' });
+    if (!driverRole) {
+      throw new InternalServerErrorException(
+        'Driver role not configured in system',
+      );
+    }
+
+    const tempPassword = dto.password || Math.random().toString(36).slice(-10) + '!';
+
+    const user = this.usersRepository.create({
+      email: dto.email,
+      password: tempPassword,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      phoneNumber: dto.phoneNumber ?? null,
+      roles: [driverRole],
+      status: UserStatus.APPROVED,
+      isActive: true,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+
+    const profile = this.driverProfileRepository.create({
+      userId: savedUser.id,
+      licenseNumber: dto.licenseNumber,
+      licenseCategory: dto.licenseCategory,
+      licenseExpiresAt: dto.licenseExpiresAt ?? null,
+      isAvailable: true,
+      averageRating: 5.0,
+      totalDeliveriesCompleted: 0,
+    });
+
+    await this.driverProfileRepository.save(profile);
+
+    (savedUser as any).temporaryPassword = tempPassword;
+    return savedUser;
   }
 }

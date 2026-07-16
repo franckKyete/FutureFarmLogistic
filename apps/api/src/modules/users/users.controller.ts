@@ -29,6 +29,8 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { UsersService } from './users.service';
 import { RegisterFarmerDto } from './dto/register-farmer.dto';
 import { RegisterBuyerDto } from './dto/register-buyer.dto';
+import { RegisterInspectorDto } from './dto/register-inspector.dto';
+import { RegisterDriverDto } from './dto/register-driver.dto';
 import {
   UpdateFarmerProfileDto,
   UpdateBuyerProfileDto,
@@ -102,6 +104,26 @@ export class UsersController {
   })
   registerBuyer(@Body() dto: RegisterBuyerDto) {
     return this.usersService.registerBuyer(dto);
+  }
+
+  @Post('register/inspector')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.USER_CREATE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Admin: Register a new Inspector account with profile' })
+  registerInspector(@Body() dto: RegisterInspectorDto) {
+    return this.usersService.registerInspector(dto);
+  }
+
+  @Post('register/driver')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.USER_CREATE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Admin: Register a new Driver account with profile' })
+  registerDriver(@Body() dto: RegisterDriverDto) {
+    return this.usersService.registerDriver(dto);
   }
 
   @Get()

@@ -100,8 +100,8 @@ export class LogisticsService {
           savedRun.optimisedRoute   = optimised.orderedWaypoints as unknown as object;
           savedRun.totalDistanceKm  = optimised.totalDistanceKm;
 
-          const durationPerStopSec = optimised.totalDurationSec / stops.length;
           const baseTime = savedRun.scheduledAt.getTime();
+          const offsets = optimised.durationOffsetPerStop || {};
 
           // Re-sequence stops according to optimised order and set ETA
           for (let idx = 0; idx < optimised.orderedWaypoints.length; idx++) {
@@ -109,8 +109,8 @@ export class LogisticsService {
             const stop  = stops[wp.originalIndex]!;
             stop.sequence = idx;
             
-            // ETA is scheduledAt + (idx + 1) * durationPerStopSec
-            const stopEta = new Date(baseTime + (idx + 1) * durationPerStopSec * 1000);
+            const offsetSec = offsets[idx] ?? (idx * (optimised.totalDurationSec / (optimised.orderedWaypoints.length - 1 || 1)));
+            const stopEta = new Date(baseTime + offsetSec * 1000);
             stop.eta = stopEta;
             
             await manager.save(DeliveryStopEntity, stop);
@@ -207,15 +207,16 @@ export class LogisticsService {
     run.optimisedRoute  = optimised.orderedWaypoints as unknown as object;
     run.totalDistanceKm = optimised.totalDistanceKm;
 
-    const durationPerStopSec = optimised.totalDurationSec / pendingStops.length;
     const baseTime = run.scheduledAt.getTime();
+    const offsets = optimised.durationOffsetPerStop || {};
 
     for (let idx = 0; idx < optimised.orderedWaypoints.length; idx++) {
       const wp   = optimised.orderedWaypoints[idx]!;
       const stop = pendingStops[wp.originalIndex]!;
       stop.sequence = idx;
       
-      const stopEta = new Date(baseTime + (idx + 1) * durationPerStopSec * 1000);
+      const offsetSec = offsets[idx] ?? (idx * (optimised.totalDurationSec / (optimised.orderedWaypoints.length - 1 || 1)));
+      const stopEta = new Date(baseTime + offsetSec * 1000);
       stop.eta = stopEta;
       
       await this.stopRepo.save(stop);

@@ -1,10 +1,12 @@
-import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router';
+import { createRootRouteWithContext, Link, Outlet, useNavigate, useLocation } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import type { QueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { io } from 'socket.io-client';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { clearAuth } from '@/features/auth/store/auth.store';
-import { useToasts, removeToast } from '@/features/shared/store/toast.store';
+import { clearAuth, getAccessToken } from '@/features/auth/store/auth.store';
+import { useToasts, removeToast, addToast } from '@/features/shared/store/toast.store';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -16,13 +18,92 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const toasts = useToasts();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = getAccessToken();
+    if (!token) return;
+
+    const baseUrl = (import.meta.env['VITE_API_BASE_URL'] as string) || 'http://localhost:3000/v1';
+    const socketUrl = baseUrl.endsWith('/v1') ? baseUrl.slice(0, -3) : baseUrl;
+
+    const socket = io(`${socketUrl}/notifications`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+      auth: { token },
+    });
+
+    socket.on('connect', () => {
+      socket.emit('subscribe');
+    });
+
+    socket.on('notification:new', (notification: any) => {
+      addToast(notification.body || notification.title, 'info');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     clearAuth();
     void navigate({ to: '/auth/login' });
   };
+
+  const isDashboardOrPortal =
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/auth') ||
+    location.pathname.startsWith('/farmer') ||
+    location.pathname.startsWith('/inspector');
+
+  // Helper to render notification toasts
+  const renderToasts = () => (
+    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          onClick={() => removeToast(toast.id)}
+          className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-lg border text-sm font-semibold transition-all cursor-pointer hover:opacity-95 animate-slide-in ${
+            toast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : toast.type === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : toast.type === 'warning'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+            {toast.type === 'success'
+              ? 'check_circle'
+              : toast.type === 'error'
+              ? 'error'
+              : toast.type === 'warning'
+              ? 'warning'
+              : 'info'}
+          </span>
+          <span className="flex-1 leading-snug">{toast.message}</span>
+          <span className="material-symbols-outlined text-[16px] opacity-70 hover:opacity-100">
+            close
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (isDashboardOrPortal) {
+    return (
+      <div className="min-h-screen">
+        <Outlet />
+        {renderToasts()}
+        {import.meta.env.DEV && <TanStackRouterDevtools />}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,39 +151,7 @@ function RootLayout() {
         <Outlet />
       </main>
 
-      {/* Floating Toast Notification Container */}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            onClick={() => removeToast(toast.id)}
-            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-lg border text-sm font-semibold transition-all cursor-pointer hover:opacity-95 animate-slide-in ${
-              toast.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : toast.type === 'error'
-                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                : toast.type === 'warning'
-                ? 'bg-amber-50 border-amber-200 text-amber-800'
-                : 'bg-blue-50 border-blue-200 text-blue-800'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-              {toast.type === 'success'
-                ? 'check_circle'
-                : toast.type === 'error'
-                ? 'error'
-                : toast.type === 'warning'
-                ? 'warning'
-                : 'info'}
-            </span>
-            <span className="flex-1 leading-snug">{toast.message}</span>
-            <span className="material-symbols-outlined text-[16px] opacity-70 hover:opacity-100">
-              close
-            </span>
-          </div>
-        ))}
-      </div>
-
+      {renderToasts()}
       {import.meta.env.DEV && <TanStackRouterDevtools />}
     </div>
   );

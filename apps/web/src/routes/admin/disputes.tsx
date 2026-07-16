@@ -1,20 +1,16 @@
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { addToast } from '@/features/shared/store/toast.store';
-import { Button } from '@/components/ui/Button';
+import { Permission, Dispute, DisputeStatus, DisputeSeverity } from '@futurefarm/types';
+import { useDisputes, useResolveDispute } from '@/features/admin/api/disputes.queries';
 import {
-  Permission,
-  Dispute,
-  DisputeStatus,
-  DisputeSeverity,
-} from '@futurefarm/types';
-import {
-  useDisputes,
-  useCreateDispute,
-  useResolveDispute,
-} from '@/features/admin/api/disputes.queries';
+  StatCard,
+  Button,
+  AdminTable,
+  TableFilters,
+  AdminTabs,
+  SidePanel,
+} from '@/features/admin/components';
 
 export const Route = createFileRoute('/admin/disputes')({
   beforeLoad: () => {
@@ -23,551 +19,464 @@ export const Route = createFileRoute('/admin/disputes')({
   component: DisputesPage,
 });
 
-const SEVERITY_CONFIG: Record<
-  DisputeSeverity,
-  { label: string; classes: string }
-> = {
-  [DisputeSeverity.LOW]: {
-    label: 'Faible',
-    classes: 'bg-gray-100 text-gray-700 ring-gray-300',
-  },
-  [DisputeSeverity.MEDIUM]: {
-    label: 'Moyenne',
-    classes: 'bg-blue-100 text-blue-700 ring-blue-300',
-  },
-  [DisputeSeverity.HIGH]: {
-    label: 'Haute',
-    classes: 'bg-amber-100 text-amber-700 ring-amber-300',
-  },
-  [DisputeSeverity.CRITICAL]: {
-    label: 'Critique',
-    classes: 'bg-red-100 text-red-700 ring-red-300',
-  },
-};
-
-const STATUS_CONFIG: Record<
-  DisputeStatus,
-  { label: string; classes: string }
-> = {
-  [DisputeStatus.OPEN]: {
-    label: 'Ouvert',
-    classes: 'bg-red-100 text-red-700 ring-red-300',
-  },
-  [DisputeStatus.UNDER_REVIEW]: {
-    label: 'En examen',
-    classes: 'bg-amber-100 text-amber-700 ring-amber-300',
-  },
-  [DisputeStatus.RESOLVED]: {
-    label: 'Résolu',
-    classes: 'bg-green-100 text-green-700 ring-green-300',
-  },
-  [DisputeStatus.DISMISSED]: {
-    label: 'Rejeté',
-    classes: 'bg-gray-100 text-gray-500 ring-gray-200',
-  },
-};
-
-const RELATED_TYPE_LABELS: Record<string, string> = {
-  order: 'Commande',
-  inspection: 'Inspection',
-  delivery: 'Livraison',
-};
-
-const SEVERITY_OPTIONS: { value: DisputeSeverity; label: string }[] = [
-  { value: DisputeSeverity.LOW, label: 'Faible' },
-  { value: DisputeSeverity.MEDIUM, label: 'Moyenne' },
-  { value: DisputeSeverity.HIGH, label: 'Haute' },
-  { value: DisputeSeverity.CRITICAL, label: 'Critique' },
-];
-
-const RELATED_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'order', label: 'Commande' },
-  { value: 'inspection', label: 'Inspection' },
-  { value: 'delivery', label: 'Livraison' },
-];
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso));
-}
-
-function SeverityBadge({ severity }: { severity: DisputeSeverity }) {
-  const cfg = SEVERITY_CONFIG[severity];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cfg.classes}`}
-    >
-      {cfg.label}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: DisputeStatus }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cfg.classes}`}
-    >
-      {cfg.label}
-    </span>
-  );
-}
-
-function Modal({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-lg mx-4 bg-white rounded-xl shadow-xl border border-gray-200 animate-slide-in">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            <span className="material-symbols-outlined text-xl">close</span>
-          </button>
-        </div>
-        <div className="px-6 py-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function CreateDisputeModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const createMutation = useCreateDispute();
-  const { can } = useAuth();
-
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [severity, setSeverity] = useState<DisputeSeverity>(DisputeSeverity.MEDIUM);
-  const [relatedType, setRelatedType] = useState<string>('order');
-  const [relatedId, setRelatedId] = useState('');
-
-  const canCreate = can(Permission.DISPUTE_CREATE);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canCreate) return;
-
-    try {
-      await createMutation.mutateAsync({
-        title,
-        description,
-        severity,
-        relatedType: relatedType as 'order' | 'inspection' | 'delivery',
-        relatedId,
-      });
-      addToast('Litige créé avec succès.', 'success');
-      setTitle('');
-      setDescription('');
-      setSeverity(DisputeSeverity.MEDIUM);
-      setRelatedType('order');
-      setRelatedId('');
-      onClose();
-    } catch {
-      addToast('Erreur lors de la création du litige.', 'error');
-    }
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title="Nouveau litige">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Titre
-          </label>
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
-            placeholder="Objet du litige"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            required
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors resize-none"
-            placeholder="Décrivez le litige..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Sévérité
-          </label>
-          <select
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value as DisputeSeverity)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
-          >
-            {SEVERITY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type d'entité liée
-          </label>
-          <select
-            value={relatedType}
-            onChange={(e) => setRelatedType(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
-          >
-            {RELATED_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID de l'entité liée
-          </label>
-          <input
-            type="text"
-            required
-            value={relatedId}
-            onChange={(e) => setRelatedId(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
-            placeholder="ID de la commande, inspection ou livraison"
-          />
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={createMutation.isPending}
-            disabled={!canCreate}>
-            Créer le litige
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function ResolveDisputeModal({
-  open,
-  onClose,
-  dispute,
-}: {
-  open: boolean;
-  onClose: () => void;
-  dispute: Dispute | null;
-}) {
-  const resolveMutation = useResolveDispute();
-
-  const [resolutionNotes, setResolutionNotes] = useState('');
-  const [resolveStatus, setResolveStatus] = useState<
-    DisputeStatus.RESOLVED | DisputeStatus.DISMISSED
-  >(DisputeStatus.RESOLVED);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dispute) return;
-
-    try {
-      await resolveMutation.mutateAsync({
-        id: dispute.id,
-        resolutionNotes,
-        status: resolveStatus,
-      });
-      addToast('Litige résolu avec succès.', 'success');
-      setResolutionNotes('');
-      setResolveStatus(DisputeStatus.RESOLVED);
-      onClose();
-    } catch {
-      addToast("Erreur lors de la résolution du litige.", 'error');
-    }
-  };
-
-  if (!dispute) return null;
-
-  return (
-    <Modal open={open} onClose={onClose} title="Résoudre le litige">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-gray-500">
-          Résolution du litige :{' '}
-          <span className="font-medium text-gray-900">{dispute.title}</span>
-        </p>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes de résolution
-          </label>
-          <textarea
-            required
-            rows={4}
-            value={resolutionNotes}
-            onChange={(e) => setResolutionNotes(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors resize-none"
-            placeholder="Expliquez la résolution..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Statut de résolution
-          </label>
-          <select
-            value={resolveStatus}
-            onChange={(e) =>
-              setResolveStatus(
-                e.target.value as DisputeStatus.RESOLVED | DisputeStatus.DISMISSED,
-              )
-            }
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
-          >
-            <option value={DisputeStatus.RESOLVED}>Résolu</option>
-            <option value={DisputeStatus.DISMISSED}>Rejeté</option>
-          </select>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={resolveMutation.isPending}
-          >
-            Confirmer
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
+interface DisputeWithRelations extends Dispute {
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
 }
 
 function DisputesPage() {
-  const { data: disputes, isLoading, isError } = useDisputes();
-  const { can } = useAuth();
+  const { data: disputesData = [], isLoading, isError, refetch } = useDisputes();
+  const disputes = disputesData as DisputeWithRelations[];
+  const resolveDisputeMutation = useResolveDispute();
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [resolveTarget, setResolveTarget] = useState<Dispute | null>(null);
+  const [activeTab, setActiveTab] = useState('open');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [litigeType, setLitigeType] = useState('all');
+  const [urgency, setUrgency] = useState<'all' | 'high' | 'normal'>('all');
 
-  const canCreate = can(Permission.DISPUTE_CREATE);
-  const canResolve = can(Permission.DISPUTE_RESOLVE);
+  const [selectedDispute, setSelectedDispute] = useState<DisputeWithRelations | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<'file' | 'versions' | 'decision'>('file');
+  const [resolutionNotes, setResolutionNotes] = useState('');
+
+  // Filtering based on tab:
+  // 'open' tab -> DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW
+  // 'resolved' tab -> DisputeStatus.RESOLVED, DisputeStatus.DISMISSED
+  const tabFilteredDisputes = disputes.filter((d) => {
+    if (activeTab === 'open') {
+      return d.status === DisputeStatus.OPEN || d.status === DisputeStatus.UNDER_REVIEW;
+    } else {
+      return d.status === DisputeStatus.RESOLVED || d.status === DisputeStatus.DISMISSED;
+    }
+  });
+
+  const filteredDisputes = tabFilteredDisputes.filter((d) => {
+    const creatorName = d.createdBy ? `${d.createdBy.firstName} ${d.createdBy.lastName}` : '';
+    const matchesSearch =
+      d.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      creatorName.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesType = litigeType === 'all' || d.relatedType === litigeType;
+    
+    const isUrgent = d.severity === DisputeSeverity.HIGH || d.severity === DisputeSeverity.CRITICAL;
+    const matchesUrgency =
+      urgency === 'all' ||
+      (urgency === 'high' && isUrgent) ||
+      (urgency === 'normal' && !isUrgent);
+
+    return matchesSearch && matchesType && matchesUrgency;
+  });
+
+  // KPI Calculations
+  const openCount = disputes.filter(
+    (d) => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.UNDER_REVIEW
+  ).length;
+  const underReviewCount = disputes.filter((d) => d.status === DisputeStatus.UNDER_REVIEW).length;
+  const resolvedCount = disputes.filter(
+    (d) => d.status === DisputeStatus.RESOLVED || d.status === DisputeStatus.DISMISSED
+  ).length;
+
+  // Average open days calculation
+  let avgDaysStr = '—';
+  const openDisputesList = disputes.filter(
+    (d) => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.UNDER_REVIEW
+  );
+  if (openDisputesList.length > 0) {
+    const totalDays = openDisputesList.reduce((acc, curr) => {
+      const days = (Date.now() - new Date(curr.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      return acc + Math.max(0, days);
+    }, 0);
+    avgDaysStr = (totalDays / openDisputesList.length).toFixed(1) + ' j';
+  }
+
+  const handleResolve = (status: DisputeStatus.RESOLVED | DisputeStatus.DISMISSED) => {
+    if (!selectedDispute) return;
+    resolveDisputeMutation.mutate(
+      {
+        id: selectedDispute.id,
+        status,
+        resolutionNotes,
+      },
+      {
+        onSuccess: () => {
+          setIsPanelOpen(false);
+          setSelectedDispute(null);
+          setResolutionNotes('');
+        },
+      }
+    );
+  };
+
+  const columns = [
+    {
+      key: 'litigeNo',
+      header: 'No. Litige',
+      render: (row: DisputeWithRelations) => (
+        <span className="font-mono font-bold text-red-600">#LIT-{row.id.slice(0, 8).toUpperCase()}</span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (row: DisputeWithRelations) => {
+        const typeMap: Record<string, string> = {
+          order: 'Commande',
+          inspection: 'Inspection',
+          delivery: 'Livraison',
+        };
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+            {typeMap[row.relatedType] || row.relatedType}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'parties',
+      header: 'Créé par',
+      render: (row: DisputeWithRelations) => (
+        <span className="text-xs font-semibold text-[var(--admin-on-surface)]">
+          {row.createdBy ? `${row.createdBy.firstName} ${row.createdBy.lastName}` : 'Système'}
+        </span>
+      ),
+    },
+    {
+      key: 'details',
+      header: 'Objet & ID Associé',
+      render: (row: DisputeWithRelations) => (
+        <div>
+          <p className="text-xs font-semibold text-[var(--admin-on-surface)] truncate max-w-[200px]" title={row.title}>
+            {row.title}
+          </p>
+          <p className="text-[10px] font-mono text-[var(--admin-on-surface-variant)]">
+            #{row.relatedId.slice(0, 8).toUpperCase()} ({row.relatedType})
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'duration',
+      header: 'Ouvert Depuis',
+      render: (row: DisputeWithRelations) => {
+        const days = Math.max(1, Math.floor((Date.now() - new Date(row.createdAt).getTime()) / (1000 * 60 * 60 * 24)));
+        const isUrgent = row.severity === DisputeSeverity.HIGH || row.severity === DisputeSeverity.CRITICAL;
+        return (
+          <span
+            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+              isUrgent ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+            }`}
+          >
+            {days} jour{days > 1 ? 's' : ''}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Statut',
+      render: (row: DisputeWithRelations) => {
+        const statusConfig: Record<string, { label: string; color: string }> = {
+          [DisputeStatus.OPEN]: { label: 'Nouveau', color: 'bg-red-500' },
+          [DisputeStatus.UNDER_REVIEW]: { label: 'En cours', color: 'bg-amber-500' },
+          [DisputeStatus.RESOLVED]: { label: 'Résolu', color: 'bg-emerald-500' },
+          [DisputeStatus.DISMISSED]: { label: 'Classé', color: 'bg-slate-500' },
+        };
+        const conf = statusConfig[row.status] || { label: row.status, color: 'bg-slate-500' };
+        return (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--admin-on-surface)]">
+            <span className={`w-1.5 h-1.5 rounded-full ${conf.color}`} />
+            <span>{conf.label}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right' as const,
+      render: (row: DisputeWithRelations) => (
+        <div className="flex justify-end items-center gap-1.5">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedDispute(row);
+              setResolutionNotes(row.resolutionNotes || '');
+              setIsPanelOpen(true);
+            }}
+            size="sm"
+            className="bg-[var(--admin-primary)] text-white text-[11px] px-3 py-1 font-semibold"
+          >
+            Traiter
+          </Button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedDispute(row);
+              setResolutionNotes(row.resolutionNotes || '');
+              setIsPanelOpen(true);
+            }}
+            className="p-1.5 hover:bg-[var(--admin-surface-container-high)] rounded-lg text-[var(--admin-on-surface-variant)] transition-all"
+          >
+            <span className="material-symbols-outlined text-lg">visibility</span>
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <div className="flex items-center gap-3 text-gray-400">
-          <svg
-            className="animate-spin h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-            />
-          </svg>
-          <span className="text-sm">Chargement des litiges...</span>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-12 bg-white rounded-xl mb-6"></div>
+        <div className="grid grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-white rounded-xl"></div>
+          ))}
         </div>
+        <div className="h-64 bg-white rounded-xl"></div>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-red-500 text-2xl">error</span>
-          <div>
-            <h3 className="text-sm font-semibold text-red-800">
-              Erreur de chargement
-            </h3>
-            <p className="text-sm text-red-600 mt-1">
-              Impossible de charger la liste des litiges. Veuillez réessayer.
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 p-8">
+        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
+          error_outline
+        </span>
+        <p className="text-lg font-medium text-[var(--admin-on-surface)] mb-1">
+          Erreur de chargement
+        </p>
+        <p className="text-sm text-[var(--admin-on-surface-variant)] mb-6 text-center">
+          Impossible de récupérer les litiges depuis le serveur
+        </p>
+        <Button onClick={() => refetch()} variant="primary">
+          Réessayer
+        </Button>
       </div>
     );
   }
 
-  const disputeList = Array.isArray(disputes) ? disputes : [];
-
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-end mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-semibold text-[var(--admin-primary)] tracking-tight mb-1">
             Gestion des litiges
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Suivez et résolvez les litiges liés aux commandes, inspections et
-            livraisons.
+          <p className="text-sm text-[var(--admin-on-surface-variant)] font-medium">
+            Suivez et résolvez les litiges liés aux commandes, inspections et livraisons.
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setCreateOpen(true)}>
-            <span className="material-symbols-outlined text-lg">add</span>
-            Nouveau litige
-          </Button>
-        )}
       </div>
 
-      {disputeList.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-12 text-center">
-          <span className="material-symbols-outlined text-4xl text-gray-300 mb-3">
-            scale
-          </span>
-          <p className="text-sm text-gray-400">Aucun litige trouvé.</p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Titre
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Sévérité
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Statut
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Entité liée
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Date création
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {disputeList.map((d) => (
-                <tr
-                  key={d.id}
-                  className="hover:bg-gray-50/50 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-gray-900">
-                      {d.title}
-                    </div>
-                    {d.description && (
-                      <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 max-w-xs">
-                        {d.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <SeverityBadge severity={d.severity} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={d.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 text-sm text-gray-600">
-                      <span className="material-symbols-outlined text-base">
-                        {d.relatedType === 'order'
-                          ? 'shopping_bag'
-                          : d.relatedType === 'inspection'
-                            ? 'verified'
-                            : 'local_shipping'}
-                      </span>
-                      {RELATED_TYPE_LABELS[d.relatedType] ?? d.relatedType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                    {formatDate(d.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    {d.status === DisputeStatus.OPEN && canResolve && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setResolveTarget(d)}
-                      >
-                        <span className="material-symbols-outlined text-base">
-                          check_circle
-                        </span>
-                        Résoudre
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <StatCard icon="warning" value={openCount} label="Litiges ouverts" iconBgColor="bg-red-50" iconColor="text-red-700" />
+        <StatCard icon="pending_actions" value={underReviewCount} label="En cours" iconBgColor="bg-amber-50" iconColor="text-amber-700" />
+        <StatCard icon="task_alt" value={resolvedCount} label="Résolus" iconBgColor="bg-emerald-50" iconColor="text-emerald-700" />
+        <StatCard icon="schedule" value={avgDaysStr} label="Délai moyen ouvert" iconBgColor="bg-blue-50" iconColor="text-blue-700" />
+      </div>
 
-      <CreateDisputeModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+      {/* Tabs */}
+      <AdminTabs
+        tabs={[
+          { id: 'open', label: 'Litiges ouverts', count: openCount },
+          { id: 'resolved', label: 'Litiges résolus', count: resolvedCount },
+        ]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
-      <ResolveDisputeModal
-        open={resolveTarget !== null}
-        onClose={() => {
-          setResolveTarget(null);
+      {/* Filters */}
+      <TableFilters searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="Rechercher un litige par ID, titre, créateur...">
+        <select
+          value={litigeType}
+          onChange={(e) => setLitigeType(e.target.value)}
+          className="px-4 py-2 bg-transparent border border-[var(--admin-outline-variant)]/40 rounded-lg text-sm text-[var(--admin-on-surface-variant)] focus:ring-[var(--admin-primary)]/20"
+        >
+          <option value="all">Tous les types</option>
+          <option value="order">Commande</option>
+          <option value="inspection">Inspection</option>
+          <option value="delivery">Livraison</option>
+        </select>
+
+        <div className="flex bg-[var(--admin-surface-container-low)] p-1 rounded-lg border border-[var(--admin-outline-variant)]/20 gap-1">
+          {(['all', 'high', 'normal'] as const).map((opt) => (
+            <button
+              key={opt}
+              onClick={() => setUrgency(opt)}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                urgency === opt
+                  ? 'bg-white text-[var(--admin-primary)] shadow-sm'
+                  : 'text-[var(--admin-on-surface-variant)] hover:bg-white/50'
+              }`}
+            >
+              {opt === 'all' ? 'Tous' : opt === 'high' ? 'Haute/Critique' : 'Normale/Basse'}
+            </button>
+          ))}
+        </div>
+      </TableFilters>
+
+      {/* Table */}
+      <AdminTable
+        columns={columns}
+        data={filteredDisputes}
+        onRowClick={(row) => {
+          setSelectedDispute(row);
+          setResolutionNotes(row.resolutionNotes || '');
+          setIsPanelOpen(true);
         }}
-        dispute={resolveTarget}
       />
+
+      {/* Slide-out disputes detail panel */}
+      <SidePanel
+        isOpen={isPanelOpen}
+        onClose={() => setIsPanelOpen(false)}
+        title={selectedDispute ? `#LIT-${selectedDispute.id.slice(0, 8).toUpperCase()}` : ''}
+        width="w-[500px]"
+      >
+        {selectedDispute && (
+          <div className="flex flex-col h-full bg-[var(--admin-surface-container-lowest)] p-6 space-y-6">
+            <div className="pb-3 border-b border-[var(--admin-outline-variant)]/30 flex gap-4">
+              {(['file', 'versions', 'decision'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setPanelTab(tab)}
+                  className={`text-sm font-semibold capitalize transition-all ${
+                    panelTab === tab
+                      ? 'text-[var(--admin-primary)] border-b-2 border-[var(--admin-primary)] pb-1'
+                      : 'text-[var(--admin-on-surface-variant)] hover:text-[var(--admin-primary)]'
+                  }`}
+                >
+                  {tab === 'file' ? 'Dossier' : tab === 'versions' ? 'Versions' : 'Décision'}
+                </button>
+              ))}
+            </div>
+
+            {panelTab === 'file' && (
+              <div className="space-y-6">
+                <div className="bg-[var(--admin-surface-container-low)] p-4 rounded-xl border border-[var(--admin-outline-variant)]/20 space-y-2">
+                  <h4 className="text-[10px] font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
+                    Informations Commande / Source
+                  </h4>
+                  <p className="font-bold text-sm text-[var(--admin-on-surface)]">
+                    Type: <span className="capitalize">{selectedDispute.relatedType}</span>
+                  </p>
+                  <p className="text-xs text-[var(--admin-on-surface-variant)]">
+                    ID Associé: #{selectedDispute.relatedId}
+                  </p>
+                  <div className="flex justify-between text-xs text-[var(--admin-on-surface-variant)] pt-1">
+                    <span>Créé le: {new Date(selectedDispute.createdAt).toLocaleDateString('fr-FR')}</span>
+                    <span className="font-bold text-red-600">Gravité: {selectedDispute.severity}</span>
+                  </div>
+                </div>
+
+                <div className="bg-[var(--admin-surface-container-low)] p-4 rounded-xl border border-[var(--admin-outline-variant)]/20 space-y-2">
+                  <h4 className="text-[10px] font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
+                    Description du Litige
+                  </h4>
+                  <p className="font-bold text-sm text-[var(--admin-on-surface)]">{selectedDispute.title}</p>
+                  <p className="text-xs text-[var(--admin-on-surface-variant)] whitespace-pre-wrap">
+                    {selectedDispute.description}
+                  </p>
+                </div>
+
+                {selectedDispute.resolutionNotes && (
+                  <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-2">
+                    <h4 className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                      Notes de Résolution
+                    </h4>
+                    <p className="text-xs text-emerald-700 whitespace-pre-wrap">
+                      {selectedDispute.resolutionNotes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase">Documents joints</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
+                      <span className="material-symbols-outlined text-red-600 text-lg">picture_as_pdf</span>
+                      <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Contrat</span>
+                    </div>
+                    <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
+                      <span className="material-symbols-outlined text-blue-600 text-lg">image</span>
+                      <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Photo Lot</span>
+                    </div>
+                    <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
+                      <span className="material-symbols-outlined text-slate-600 text-lg">receipt</span>
+                      <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Facture</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {panelTab === 'versions' && (
+              <div className="space-y-4 text-xs text-[var(--admin-on-surface-variant)] bg-[var(--admin-surface-container-low)] p-4 rounded-xl">
+                <p>Historique des révisions du litige.</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b pb-1">
+                    <span>Création du dossier</span>
+                    <span>{new Date(selectedDispute.createdAt).toLocaleString('fr-FR')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Dernière mise à jour</span>
+                    <span>{new Date(selectedDispute.updatedAt).toLocaleString('fr-FR')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {panelTab === 'decision' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase mb-1">
+                    Notes de décision administrative
+                  </label>
+                  <textarea
+                    value={resolutionNotes}
+                    onChange={(e) => setResolutionNotes(e.target.value)}
+                    className="w-full min-h-[100px] p-3 text-sm border border-[var(--admin-outline-variant)]/40 rounded-xl bg-transparent text-[var(--admin-on-surface)]"
+                    placeholder="Saisissez les notes de résolution du litige..."
+                    disabled={selectedDispute.status === DisputeStatus.RESOLVED || selectedDispute.status === DisputeStatus.DISMISSED}
+                  />
+                </div>
+                {selectedDispute.status !== DisputeStatus.RESOLVED && selectedDispute.status !== DisputeStatus.DISMISSED ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleResolve(DisputeStatus.RESOLVED)}
+                      className="flex-1 bg-[var(--admin-primary)] text-white hover:brightness-110"
+                      disabled={resolveDisputeMutation.isPending}
+                    >
+                      {resolveDisputeMutation.isPending ? 'En cours...' : 'Résoudre le litige'}
+                    </Button>
+                    <Button
+                      onClick={() => handleResolve(DisputeStatus.DISMISSED)}
+                      variant="secondary"
+                      className="flex-1 border border-[var(--admin-outline-variant)]/40 hover:bg-[var(--admin-surface-container-low)]"
+                      disabled={resolveDisputeMutation.isPending}
+                    >
+                      Classer sans suite
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 bg-emerald-50 text-emerald-800 rounded-xl text-sm font-semibold">
+                    Ce litige est clos ({selectedDispute.status})
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </SidePanel>
     </div>
   );
 }
