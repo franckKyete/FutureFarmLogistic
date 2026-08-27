@@ -196,11 +196,11 @@ function HarvestDetailPage() {
             <div className="text-right shrink-0">
               <div className="text-2xl font-bold text-[#1a5c35]">
                 {currentPrice.toFixed(2)}{' '}
-                <span className="text-sm font-medium">€/{unit}</span>
+                <span className="text-sm font-medium">CDF/{unit}</span>
               </div>
               {hasDiscount && (
                 <span className="text-[12px] text-[#707970] line-through">
-                  {originalPrice!.toFixed(2)} €
+                  {originalPrice!.toFixed(2)} CDF
                 </span>
               )}
             </div>
@@ -287,7 +287,7 @@ function HarvestDetailPage() {
             <p className="text-[13px] text-[#707970]">
               Total:{' '}
               <span className="font-bold text-[#1a5c35]">
-                {(currentPrice * quantity).toFixed(2)} €
+                {(currentPrice * quantity).toFixed(2)} CDF
               </span>
             </p>
           </div>

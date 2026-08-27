@@ -35,6 +35,22 @@ export function useInspectionCenters() {
   });
 }
 
+export function useMyCenter() {
+  return useQuery<InspectionCenterDto | null>({
+    queryKey: ['inspector', 'my-center'],
+    queryFn: async () => {
+      try {
+        const { data } = await apiClient.get<{ data: InspectionCenterDto }>(
+          '/inspection-centers/my-center',
+        );
+        return data.data;
+      } catch {
+        return null;
+      }
+    },
+  });
+}
+
 export function useCreateCenter() {
   const queryClient = useQueryClient();
 

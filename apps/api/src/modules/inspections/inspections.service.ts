@@ -19,6 +19,7 @@ import {
   AiClassifyHarvestResponseDto,
   InspectionStatus,
   HarvestStatus,
+  ProductCategory,
 } from '@futurefarm/types';
 
 import { InspectorProfileEntity } from './entities/inspector-profile.entity';
@@ -371,27 +372,70 @@ export class InspectionsService {
       dto.additionalNotes,
     );
 
-    // Search database for matching crop template (ProductEntity)
+    // Only search or auto-create product if crop was identified by the model
     let matchedProductId: string | null = null;
-    const cleanName = classification.suggestedName.trim();
-    if (cleanName) {
-      const product = await this.productRepo
-        .createQueryBuilder('p')
-        .where('LOWER(p.name) = LOWER(:name)', { name: cleanName })
-        .orWhere('LOWER(p.name) LIKE LOWER(:likeName)', {
-          likeName: `%${cleanName}%`,
-        })
-        .getOne();
+    let product: ProductEntity | null = null;
+    const isIdentified = Boolean(classification.isIdentified);
 
-      if (product) {
-        matchedProductId = product.id;
+    if (isIdentified) {
+      let cleanName = (classification.suggestedName || '').trim();
+      if (cleanName) {
+        cleanName = cleanName.slice(0, 150);
+
+        product = await this.productRepo
+          .createQueryBuilder('p')
+          .where('LOWER(p.name) = LOWER(:name)', { name: cleanName })
+          .getOne();
+
+        if (!product) {
+          product = await this.productRepo
+            .createQueryBuilder('p')
+            .where('LOWER(p.name) LIKE LOWER(:likeName)', {
+              likeName: `%${cleanName}%`,
+            })
+            .orWhere(':name LIKE LOWER(CONCAT(\'%\', p.name, \'%\'))', {
+              name: cleanName.toLowerCase(),
+            })
+            .getOne();
+        }
+
+        if (!product) {
+          // Auto-create and persist the newly detected crop in the database
+          try {
+            const category = Object.values(ProductCategory).includes(
+              classification.category,
+            )
+              ? classification.category
+              : ProductCategory.OTHER;
+
+            const newProduct = this.productRepo.create({
+              name: cleanName,
+              category,
+              description:
+                classification.description ||
+                `Culture ${cleanName} enregistrée automatiquement par l'analyse IA.`,
+            });
+            product = await this.productRepo.save(newProduct);
+          } catch {
+            product = await this.productRepo.findOne({
+              where: { name: cleanName },
+            });
+          }
+        }
+
+        if (product) {
+          matchedProductId = product.id;
+        }
       }
     }
 
     return {
+      isIdentified,
       suggestedProductId: matchedProductId,
-      suggestedName: classification.suggestedName,
-      category: classification.category,
+      suggestedName: isIdentified
+        ? (product?.name || classification.suggestedName)
+        : '',
+      category: product?.category || classification.category,
       description: classification.description,
       farmingMethods: classification.farmingMethods,
       recommendedShelfLifeDays: classification.recommendedShelfLifeDays,

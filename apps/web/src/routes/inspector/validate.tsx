@@ -1,7 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { usePendingHarvests } from '../../features/inspector/api/harvests.queries';
-import { HarvestDetailModal } from '../../features/inspector/components/HarvestDetailModal';
 import type { HarvestDto } from '../../features/inspector/types';
 
 type TabKey = 'all' | 'pending' | 'approved' | 'rejected';
@@ -18,13 +17,20 @@ export const Route = createFileRoute('/inspector/validate')({
 });
 
 function ValidatePage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('pending');
-  const [selectedHarvest, setSelectedHarvest] = useState<HarvestDto | null>(null);
   const currentTab = TABS.find((t) => t.key === activeTab)!;
 
   const { data: harvests, isLoading, isError, refetch } = usePendingHarvests(currentTab.status);
   const { data: pendingHarvests } = usePendingHarvests('PENDING_APPROVAL');
   const pendingCount = pendingHarvests?.length ?? 0;
+
+  const handleSelectHarvest = (harvest: HarvestDto) => {
+    void navigate({
+      to: '/inspector/reports/$id',
+      params: { id: harvest.id },
+    });
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -43,7 +49,7 @@ function ValidatePage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
                 activeTab === tab.key
                   ? 'text-[#1a5c35] border-[#1a5c35]'
                   : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -68,18 +74,12 @@ function ValidatePage() {
               <HarvestCard
                 key={harvest.id}
                 harvest={harvest}
-                onSelect={setSelectedHarvest}
+                onSelect={handleSelectHarvest}
               />
             ))}
           </div>
         )}
       </div>
-
-      <HarvestDetailModal
-        harvest={selectedHarvest}
-        isOpen={!!selectedHarvest}
-        onClose={() => setSelectedHarvest(null)}
-      />
     </div>
   );
 }

@@ -126,11 +126,11 @@ function CheckoutPage() {
                         {productName}
                       </p>
                       <p className="text-[#707970] text-[12px]">
-                        {line.quantity} x {unitPrice.toLocaleString()} FCFA
+                        {line.quantity} x {unitPrice.toLocaleString()} CDF
                       </p>
                     </div>
                     <span className="text-[#0b1c30] font-bold ml-4">
-                      {subtotal.toLocaleString()} FCFA
+                      {subtotal.toLocaleString()} CDF
                     </span>
                   </div>
                 );
@@ -140,7 +140,7 @@ function CheckoutPage() {
                   Total ({totalItems} articles)
                 </span>
                 <span className="text-[16px] font-bold text-[#004322]">
-                  {totalPrice.toLocaleString()} FCFA
+                  {totalPrice.toLocaleString()} CDF
                 </span>
               </div>
             </div>

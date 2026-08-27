@@ -158,7 +158,7 @@ function DutchAuctionNewPage() {
                   3. Tarification
                 </label>
                 <div className="space-y-1">
-                  <label className="text-xs text-[#404941]">Prix de départ (FCFA / {selectedHarvest.unit})</label>
+                  <label className="text-xs text-[#404941]">Prix de départ (CDF / {selectedHarvest.unit})</label>
                   <input
                     className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-3 text-xl font-bold text-[#004322] outline-none"
                     type="number"
@@ -169,7 +169,7 @@ function DutchAuctionNewPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-[#404941]">Prix de réserve minimum (FCFA / {selectedHarvest.unit})</label>
+                  <label className="text-xs text-[#404941]">Prix de réserve minimum (CDF / {selectedHarvest.unit})</label>
                   <input
                     className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-3 text-sm outline-none"
                     type="number"
@@ -191,7 +191,7 @@ function DutchAuctionNewPage() {
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs text-[#404941]">Montant de la baisse (FCFA)</label>
+                    <label className="text-xs text-[#404941]">Montant de la baisse (CDF)</label>
                     <input
                       className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-3 text-sm outline-none"
                       type="number"
@@ -259,7 +259,7 @@ function DutchAuctionNewPage() {
               <section className="bg-[#ffddbb]/20 border border-dashed border-[#ffa93d] rounded-xl p-4 space-y-3 animate-fadeIn">
                 <span className="text-xs font-bold text-[#885200] block">Aperçu de la décrémentation</span>
                 <p className="text-xs leading-tight">
-                  Le prix baissera de <strong>{decrementAmount} FCFA</strong> toutes les <strong>{frequencyMinutes} min</strong> de {startPrice} FCFA jusqu'à {reservePrice} FCFA.
+                  Le prix baissera de <strong>{decrementAmount} CDF</strong> toutes les <strong>{frequencyMinutes} min</strong> de {startPrice} CDF jusqu'à {reservePrice} CDF.
                 </p>
               </section>
             </>

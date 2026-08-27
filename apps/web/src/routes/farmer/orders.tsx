@@ -10,6 +10,7 @@ import {
 } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { OrderLineStatus } from '@futurefarm/types';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/orders')({
   component: OrdersPage,
@@ -102,7 +103,7 @@ function OrdersPage() {
       location: locationStr,
       status: line.status,
       weight: `${line.quantity} kg`,
-      price: `${Number(line.totalPrice).toLocaleString()} FCFA`,
+      price: `${Number(line.totalPrice).toLocaleString()} CDF`,
       totalPrice: Number(line.totalPrice),
       imgUrl: line.harvest?.photoUrls?.[0] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100',
       notes: line.order?.notes || null,
@@ -393,48 +394,8 @@ function OrdersPage() {
         </div>
       )}
 
-      {/* BottomNavBar */}
-      <nav className="fixed bottom-0 w-full z-50 bg-white border-t border-outline-variant max-w-[480px] mx-auto shadow-lg">
-        <div className="flex justify-around items-center h-16 w-full">
-          <Link
-            to="/farmer/dashboard"
-            className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">home</span>
-            <span className="text-[10px] font-bold">Accueil</span>
-          </Link>
-          <Link
-            to="/farmer/stock"
-            className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">grass</span>
-            <span className="text-[10px] font-bold">Stock</span>
-          </Link>
-          <Link
-            to="/farmer/harvests/analyze"
-            className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">gavel</span>
-            <span className="text-[10px] font-bold">Enchères</span>
-          </Link>
-          <Link
-            to="/farmer/orders"
-            className="flex flex-col items-center justify-center text-primary font-bold transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-              shopping_cart
-            </span>
-            <span className="text-[10px] font-bold">Commandes</span>
-          </Link>
-          <Link
-            to="/farmer/profile"
-            className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">person</span>
-            <span className="text-[10px] font-bold">Profil</span>
-          </Link>
-        </div>
-      </nav>
+      {/* Bottom Navigation Bar */}
+      <FarmerBottomNav />
     </div>
   );
 }

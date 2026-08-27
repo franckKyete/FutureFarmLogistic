@@ -7,6 +7,7 @@ export interface VisionAnalysisResult {
 }
 
 export interface ClassificationResult {
+  isIdentified: boolean;
   suggestedName: string;
   category: ProductCategory;
   description: string;

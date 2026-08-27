@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import type {
   ProductDto,
+  CreateProductDto,
   HarvestDto,
   CreateHarvestDto,
   UpdateHarvestDto,
@@ -9,6 +10,13 @@ import type {
   AiClassifyHarvestResponseDto,
   ProductCategory,
 } from '@futurefarm/types';
+
+export const createProductMutation = () => ({
+  mutationFn: async (payload: CreateProductDto): Promise<ProductDto> => {
+    const { data } = await apiClient.post<{ data: ProductDto }>('/products', payload);
+    return data.data;
+  },
+});
 
 export const getProductsQuery = (category?: ProductCategory) => ({
   queryKey: ['products', category],

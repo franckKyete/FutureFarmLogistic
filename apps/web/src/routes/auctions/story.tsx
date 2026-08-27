@@ -147,12 +147,12 @@ function AuctionsStoryPage() {
             </p>
             <p className="text-[40px] font-bold text-white">
               {currentAuction.currentPrice.toLocaleString()}
-              <span className="text-[18px] text-[#c0c9be] ml-1">FCFA</span>
+              <span className="text-[18px] text-[#c0c9be] ml-1">CDF</span>
             </p>
             <div className="flex items-center justify-center gap-2 mt-2">
               <span className="material-symbols-outlined text-[#ffa93d] text-[18px]">trending_down</span>
               <span className="text-[#ffa93d] text-[14px] font-semibold">
-                Départ: {currentAuction.startingPrice.toLocaleString()} FCFA
+                Départ: {currentAuction.startingPrice.toLocaleString()} CDF
               </span>
             </div>
           </div>

@@ -80,7 +80,7 @@ export class AdminService {
 
     return {
       totalUsers: allUsers.meta.total,
-      pendingValidations: pendingHarvests.length,
+      pendingValidations: Array.isArray(pendingHarvests) ? pendingHarvests.length : 0,
       activeAuctions: auctionsResult.meta.total,
       activeRuns,
       pendingInspections,

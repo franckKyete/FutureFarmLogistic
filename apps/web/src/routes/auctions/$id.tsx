@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { addToast } from '@/features/shared/store/toast.store';
 import { AuctionStatus, AuctionEvent } from '@futurefarm/types';
+import { io } from 'socket.io-client';
 
 export const Route = createFileRoute('/auctions/$id')({
   component: AuctionDetailPage,
@@ -57,40 +58,57 @@ function AuctionDetailPage() {
     },
   });
 
-  // WebSocket connection for live price updates
+  // Socket.IO connection for live price updates
   useEffect(() => {
     if (!id) return;
-    const baseUrl = import.meta.env['VITE_API_BASE_URL']
-      ? (import.meta.env['VITE_API_BASE_URL'] as string).replace('https://', 'wss://').replace('http://', 'ws://').replace('/v1', '')
-      : window.location.origin;
-    const wsUrl = `${baseUrl}/auctions/${id}`;
-    const ws = new WebSocket(wsUrl);
+    const apiBase = (import.meta.env['VITE_API_BASE_URL'] as string) || '';
+    const wsUrl = apiBase.replace(/\/v1\/?$/, '') || window.location.origin;
 
-    ws.onopen = () => setWsConnected(true);
+    const socket = io(`${wsUrl}/auctions`, {
+      transports: ['websocket', 'polling'],
+    });
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.event === AuctionEvent.PRICE_TICK) {
-          setCurrentPrice(msg.currentPrice);
-        }
-        if (msg.event === AuctionEvent.AUCTION_SOLD) {
-          setAuctionEnded(true);
-          setCurrentPrice(msg.currentPrice ?? msg.priceAtBid);
-          addToast('Cette enchère a été remportée !', 'info');
-        }
-        if (msg.event === AuctionEvent.AUCTION_EXPIRED) {
-          setAuctionEnded(true);
-          addToast("L'enchère a expiré.", 'info');
-        }
-      } catch {
-        // Ignore parse errors
+    socket.on('connect', () => {
+      setWsConnected(true);
+      socket.emit('join_auction', { auctionId: id });
+    });
+
+    socket.on('disconnect', () => {
+      setWsConnected(false);
+    });
+
+    socket.on(AuctionEvent.PRICE_TICK, (data: { auctionId: string; currentPrice: number }) => {
+      if (data.auctionId === id) {
+        setCurrentPrice(data.currentPrice);
       }
+    });
+
+    socket.on(AuctionEvent.AUCTION_SOLD, (data: { auctionId: string; priceAtBid?: number; currentPrice?: number }) => {
+      if (data.auctionId === id) {
+        setAuctionEnded(true);
+        setCurrentPrice(data.priceAtBid ?? data.currentPrice ?? null);
+        addToast('Cette enchère a été remportée !', 'info');
+      }
+    });
+
+    socket.on(AuctionEvent.AUCTION_EXPIRED, (data: { auctionId: string }) => {
+      if (data.auctionId === id) {
+        setAuctionEnded(true);
+        addToast("L'enchère a expiré.", 'info');
+      }
+    });
+
+    socket.on(AuctionEvent.AUCTION_CANCELLED, (data: { auctionId: string }) => {
+      if (data.auctionId === id) {
+        setAuctionEnded(true);
+        addToast("L'enchère a été annulée.", 'info');
+      }
+    });
+
+    return () => {
+      socket.emit('leave_auction', { auctionId: id });
+      socket.disconnect();
     };
-
-    ws.onclose = () => setWsConnected(false);
-
-    return () => ws.close();
   }, [id]);
 
   // Reset state on auction change
@@ -181,7 +199,7 @@ function AuctionDetailPage() {
           <div className="flex items-center justify-center gap-2">
             <p className="text-[36px] font-bold text-[#0b1c30]">
               {displayPrice.toLocaleString()}
-              <span className="text-[16px] text-[#707970] ml-1">FCFA</span>
+              <span className="text-[16px] text-[#707970] ml-1">CDF</span>
             </p>
             {priceDropped && (
               <span className="material-symbols-outlined text-[#1a5c35] text-[24px] animate-bounce">
@@ -235,16 +253,16 @@ function AuctionDetailPage() {
             </div>
             <div>
               <p className="text-[10px] text-[#707970] uppercase font-semibold tracking-wider">Prix de départ</p>
-              <p className="text-[14px] font-semibold mt-0.5">{auction.startingPrice.toLocaleString()} FCFA</p>
+              <p className="text-[14px] font-semibold mt-0.5">{auction.startingPrice.toLocaleString()} CDF</p>
             </div>
             <div>
               <p className="text-[10px] text-[#707970] uppercase font-semibold tracking-wider">Prix de réserve</p>
-              <p className="text-[14px] font-semibold mt-0.5">{auction.reservePrice.toLocaleString()} FCFA</p>
+              <p className="text-[14px] font-semibold mt-0.5">{auction.reservePrice.toLocaleString()} CDF</p>
             </div>
             <div>
               <p className="text-[10px] text-[#707970] uppercase font-semibold tracking-wider">Baisse par intervalle</p>
               <p className="text-[14px] font-semibold mt-0.5">
-                {auction.priceDecrementAmount.toLocaleString()} FCFA / {auction.priceDecrementIntervalMinutes}min
+                {auction.priceDecrementAmount.toLocaleString()} CDF / {auction.priceDecrementIntervalMinutes}min
               </p>
             </div>
             <div>

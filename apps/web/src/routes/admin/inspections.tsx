@@ -286,7 +286,7 @@ function InspectionsPage() {
                       {selectedInspection.aiPreScreenNotes || 'Aucune note d\'analyse automatique générée.'}
                     </p>
                     <p className="text-xs font-semibold text-emerald-700 mt-2">
-                      Prix fixé : {selectedInspection.harvest?.pricePerUnit.toLocaleString('fr-FR')} FCFA / kg
+                      Prix fixé : {selectedInspection.harvest?.pricePerUnit.toLocaleString('fr-FR')} CDF / kg
                     </p>
                   </div>
                 </div>

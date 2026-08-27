@@ -24,9 +24,9 @@ export class RegisterDriverDto {
   @IsString()
   lastName: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  phoneNumber?: string;
+  phoneNumber: string;
 
   @IsNotEmpty()
   @IsString()

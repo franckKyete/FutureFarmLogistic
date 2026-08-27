@@ -4,12 +4,13 @@ import {
   ConflictException,
   InternalServerErrorException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import type { PaginatedResult, PaginationQuery } from '@futurefarm/types';
-import { UserStatus, ParcelStatus } from '@futurefarm/types';
+import { UserStatus, ParcelStatus, NotificationChannel, NotificationPriority } from '@futurefarm/types';
 
 import { UserEntity } from './entities/user.entity';
 import { RoleEntity } from '../roles/entities/role.entity';
@@ -30,9 +31,12 @@ import { CreateParcelDto } from './dto/parcel.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
@@ -48,6 +52,7 @@ export class UsersService {
     private readonly inspectorProfileRepository: Repository<InspectorProfileEntity>,
     @InjectRepository(DriverProfileEntity)
     private readonly driverProfileRepository: Repository<DriverProfileEntity>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(
@@ -208,6 +213,9 @@ export class UsersService {
     profile.companyName = dto.companyName;
     profile.address = dto.address;
     profile.bio = dto.bio ?? null;
+    if (dto.avatarUrl !== undefined) {
+      profile.avatarUrl = dto.avatarUrl || null;
+    }
     return this.farmerProfileRepository.save(profile);
   }
 
@@ -381,14 +389,18 @@ export class UsersService {
       );
     }
 
-    const tempPassword = dto.password || Math.random().toString(36).slice(-10) + '!';
+    const tempPassword =
+      dto.password ||
+      Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-4) +
+        '!';
 
     const user = this.usersRepository.create({
       email: dto.email,
       password: tempPassword,
       firstName: dto.firstName,
       lastName: dto.lastName,
-      phoneNumber: dto.phoneNumber ?? null,
+      phoneNumber: dto.phoneNumber,
       roles: [inspectorRole],
       status: UserStatus.APPROVED,
       isActive: true,
@@ -398,13 +410,35 @@ export class UsersService {
 
     const profile = this.inspectorProfileRepository.create({
       userId: savedUser.id,
-      licenseNumber: dto.licenseNumber,
-      agencyName: dto.agencyName,
+      licenseNumber:
+        dto.licenseNumber ||
+        `INSP-${Math.random().toString(36).slice(-6).toUpperCase()}`,
+      agencyName: dto.agencyName || 'Future Farm Inspection',
       specializations: dto.specializations ?? [],
       isActiveInspector: true,
     });
 
     await this.inspectorProfileRepository.save(profile);
+
+    // Send email notification with login credentials
+    try {
+      await this.notificationsService.send({
+        recipientIds: [savedUser.id],
+        title: 'Bienvenue sur Future Farm - Vos identifiants d’accès',
+        body: `Bonjour ${savedUser.firstName},\n\nVotre compte Inspecteur Qualité a été créé avec succès sur la plateforme Future Farm.\n\nVoici vos identifiants de connexion :\n- Email : ${savedUser.email}\n- Mot de passe temporaire : ${tempPassword}\n\nPour des raisons de sécurité, nous vous invitons à changer votre mot de passe dès votre première connexion.`,
+        channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          actionUrl: '/auth/login',
+          actionText: 'Se connecter',
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send welcome email to inspector ${savedUser.email}:`,
+        error,
+      );
+    }
 
     (savedUser as any).temporaryPassword = tempPassword;
     return savedUser;
@@ -423,14 +457,18 @@ export class UsersService {
       );
     }
 
-    const tempPassword = dto.password || Math.random().toString(36).slice(-10) + '!';
+    const tempPassword =
+      dto.password ||
+      Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-4) +
+        '!';
 
     const user = this.usersRepository.create({
       email: dto.email,
       password: tempPassword,
       firstName: dto.firstName,
       lastName: dto.lastName,
-      phoneNumber: dto.phoneNumber ?? null,
+      phoneNumber: dto.phoneNumber,
       roles: [driverRole],
       status: UserStatus.APPROVED,
       isActive: true,
@@ -449,6 +487,26 @@ export class UsersService {
     });
 
     await this.driverProfileRepository.save(profile);
+
+    // Send email notification with login credentials
+    try {
+      await this.notificationsService.send({
+        recipientIds: [savedUser.id],
+        title: 'Bienvenue sur Future Farm - Vos identifiants d’accès',
+        body: `Bonjour ${savedUser.firstName},\n\nVotre compte Chauffeur / Transporteur a été créé avec succès sur la plateforme Future Farm.\n\nVoici vos identifiants de connexion :\n- Email : ${savedUser.email}\n- Mot de passe temporaire : ${tempPassword}\n\nPour des raisons de sécurité, nous vous invitons à changer votre mot de passe dès votre première connexion.`,
+        channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          actionUrl: '/auth/login',
+          actionText: 'Se connecter',
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send welcome email to driver ${savedUser.email}:`,
+        error,
+      );
+    }
 
     (savedUser as any).temporaryPassword = tempPassword;
     return savedUser;

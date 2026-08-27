@@ -64,26 +64,26 @@ function AuctionBiddersPage() {
     {
       name: 'Acheteur_01',
       quantity: '250 Tons',
-      price: '€341.00',
+      price: '341.00 CDF',
       status: 'Bought',
     },
     {
       name: 'Acheteur_02',
       quantity: '100 Tons',
-      price: `€${livePrice.toFixed(2)}`,
+      price: `${livePrice.toFixed(2)} CDF`,
       status: 'Active',
       isUser: true,
     },
     {
       name: 'Acheteur_03',
       quantity: '500 Tons',
-      price: '€338.00',
+      price: '338.00 CDF',
       status: 'Waiting',
     },
     {
       name: 'Acheteur_04',
       quantity: '150 Tons',
-      price: '€340.50',
+      price: '340.50 CDF',
       status: 'Bought',
     },
   ];
@@ -93,14 +93,14 @@ function AuctionBiddersPage() {
       id: '1',
       icon: 'check',
       color: 'bg-[#004322]',
-      text: 'Acheteur_01 locked 250T at €341.00',
+      text: 'Acheteur_01 locked 250T at 341.00 CDF',
       time: '2 mins ago',
     },
     {
       id: '2',
       icon: 'trending_up',
       color: 'bg-[#ffa93d]',
-      text: `New highest bid by Acheteur_02: €${livePrice.toFixed(2)}`,
+      text: `New highest bid by Acheteur_02: ${livePrice.toFixed(2)} CDF`,
       time: 'Just now',
     },
     {
@@ -131,7 +131,7 @@ function AuctionBiddersPage() {
           <div className="text-right">
             <span className="block text-[11px] text-[#404941]">Live Price</span>
             <span className="block text-[18px] font-semibold text-[#885200]">
-              €{livePrice.toFixed(2)}
+              {livePrice.toFixed(2)} CDF
             </span>
           </div>
           <div className="w-10 h-10 rounded-full border border-[#c0c9be] overflow-hidden">

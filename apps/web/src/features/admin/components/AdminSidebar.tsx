@@ -1,6 +1,6 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth } from '@/features/auth/store/auth.store';
-import { useLocation, Link } from '@tanstack/react-router';
+import { useLocation, Link, useNavigate } from '@tanstack/react-router';
 import { Permission } from '@futurefarm/types';
 
 type NavLink = {
@@ -15,7 +15,7 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Expéditions', path: '/admin/logistics', icon: 'local_shipping', permission: Permission.DELIVERY_RUN_READ_ALL },
   { label: 'Utilisateurs & Rôles', path: '/admin/users', icon: 'group', permission: Permission.USER_READ },
   { label: 'Inspections & Qualité', path: '/admin/inspections', icon: 'verified', permission: Permission.INSPECTION_READ_ALL },
-  { label: 'Validation récoltes', path: '/admin/harvests', icon: 'rule', permission: Permission.HARVEST_VERIFY },
+  { label: 'Centres d’inspection', path: '/admin/inspection-centers', icon: 'corporate_fare', permission: Permission.INSPECTION_CENTER_READ },
   { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
   { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
   { label: 'Transactions', path: '/admin/transactions', icon: 'receipt_long', permission: Permission.ORDER_READ_ALL },
@@ -48,6 +48,7 @@ function NavLinkItem({ link }: { link: NavLink }) {
 
 export function AdminSidebar() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <aside className="fixed left-0 top-0 z-40 w-[240px] h-screen bg-[var(--admin-surface-container-lowest)] border-r border-[var(--admin-outline-variant)] flex flex-col justify-between">
@@ -82,8 +83,11 @@ export function AdminSidebar() {
           </div>
         )}
         <button
-          onClick={() => clearAuth()}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-error)] transition-colors rounded-xl text-sm font-medium"
+          onClick={() => {
+            clearAuth();
+            void navigate({ to: '/auth/login' });
+          }}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-error)] transition-colors rounded-xl text-sm font-medium cursor-pointer"
         >
           <span className="material-symbols-outlined text-[20px]">logout</span>
           <span>Déconnexion</span>

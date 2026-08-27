@@ -92,6 +92,9 @@ describe('InspectionsService', () => {
         {
           provide: getRepositoryToken(ProductEntity),
           useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
             createQueryBuilder: jest.fn(),
           },
         },
@@ -284,6 +287,7 @@ describe('InspectionsService', () => {
   describe('classifyHarvest', () => {
     it('should query vision provider and matching product', async () => {
       mockVisionProvider.classifyHarvestPhotos.mockResolvedValue({
+        isIdentified: true,
         suggestedName: 'Roma Tomatoes',
         category: ProductCategory.VEGETABLES,
         description: 'AI Description',
@@ -309,9 +313,73 @@ describe('InspectionsService', () => {
         additionalNotes: 'Check this',
       });
 
+      expect(res.isIdentified).toBe(true);
       expect(res.suggestedProductId).toBe('matching-prod-id');
       expect(res.suggestedName).toBe('Roma Tomatoes');
       expect(res.category).toBe(ProductCategory.VEGETABLES);
+    });
+
+    it('should auto-create and persist new ProductEntity if crop template is not found in database and isIdentified is true', async () => {
+      mockVisionProvider.classifyHarvestPhotos.mockResolvedValue({
+        isIdentified: true,
+        suggestedName: 'Manioc Doux',
+        category: ProductCategory.VEGETABLES,
+        description: 'Racines de manioc fraîches',
+        farmingMethods: 'Traditionnelle',
+        recommendedShelfLifeDays: 7,
+        estimatedQuantity: 500,
+        suggestedPricePerUnit: 400,
+        aiQualityScore: 9.0,
+      });
+
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        orWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      productRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      productRepo.create.mockImplementation((dto: any) => ({ id: 'new-manioc-id', ...dto }));
+      productRepo.save.mockImplementation((p: any) => Promise.resolve(p));
+
+      const res = await service.classifyHarvest({
+        photoUrls: ['http://test.com/manioc.jpg'],
+      });
+
+      expect(productRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Manioc Doux',
+          category: ProductCategory.VEGETABLES,
+        }),
+      );
+      expect(productRepo.save).toHaveBeenCalled();
+      expect(res.isIdentified).toBe(true);
+      expect(res.suggestedProductId).toBe('new-manioc-id');
+      expect(res.suggestedName).toBe('Manioc Doux');
+    });
+
+    it('should NOT create ProductEntity if isIdentified is false', async () => {
+      mockVisionProvider.classifyHarvestPhotos.mockResolvedValue({
+        isIdentified: false,
+        suggestedName: '',
+        category: ProductCategory.OTHER,
+        description: 'Culture non identifiée.',
+        farmingMethods: 'Biologique',
+        recommendedShelfLifeDays: 14,
+        estimatedQuantity: null,
+        suggestedPricePerUnit: null,
+        aiQualityScore: 8.0,
+      });
+
+      const res = await service.classifyHarvest({
+        photoUrls: ['http://test.com/blurry.jpg'],
+      });
+
+      expect(productRepo.create).not.toHaveBeenCalled();
+      expect(productRepo.save).not.toHaveBeenCalled();
+      expect(res.isIdentified).toBe(false);
+      expect(res.suggestedProductId).toBeNull();
+      expect(res.suggestedName).toBe('');
     });
   });
 

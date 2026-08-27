@@ -1,5 +1,6 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/products/$id')({
   component: ProductDetailPage,
@@ -303,7 +304,7 @@ function ProductDetailPage() {
                 </div>
                 <div>
                   <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Prix moyen</p>
-                  <p className="font-bold text-primary">3,45€/kg</p>
+                  <p className="font-bold text-primary">3,45CDF/kg</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Récoltes</p>
@@ -329,7 +330,7 @@ function ProductDetailPage() {
                 </div>
                 <div>
                   <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Prix moyen</p>
-                  <p className="font-bold">3,20€/kg</p>
+                  <p className="font-bold">3,20CDF/kg</p>
                 </div>
                 <div>
                   <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Récoltes</p>
@@ -342,36 +343,7 @@ function ProductDetailPage() {
       </main>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-outline-variant h-[64px] flex items-center justify-around px-4 z-50">
-        <Link
-          to="/farmer/stock"
-          className="flex flex-col items-center gap-1 text-primary cursor-pointer"
-        >
-          <span className="material-symbols-outlined">agriculture</span>
-          <span className="text-[10px] font-bold">Récoltes</span>
-        </Link>
-        <Link
-          to="/farmer/harvests/analyze"
-          className="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary cursor-pointer"
-        >
-          <span className="material-symbols-outlined">gavel</span>
-          <span className="text-[10px]">Enchères</span>
-        </Link>
-        <Link
-          to="/farmer/orders"
-          className="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary cursor-pointer"
-        >
-          <span className="material-symbols-outlined">shopping_cart</span>
-          <span className="text-[10px]">Commandes</span>
-        </Link>
-        <Link
-          to="/farmer/onboarding"
-          className="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary cursor-pointer"
-        >
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-[10px]">Profil</span>
-        </Link>
-      </nav>
+      <FarmerBottomNav />
     </div>
   );
 }

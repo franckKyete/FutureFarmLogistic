@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
 import { getFarmerProfileQuery } from '@/features/profile/api/profile.queries';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/dashboard')({
   component: DashboardPage,
@@ -30,8 +31,6 @@ function DashboardPage() {
   const averageQuality = approvedHarvests.length
     ? Math.round((approvedHarvests.reduce((sum, h) => sum + (h.qualityScore || 0), 0) / approvedHarvests.length) * 10)
     : 92; // default fallback metric if none
-
-  const strokeDashoffset = 226.19 * (1 - averageQuality / 100);
 
   const activeListingsCount = harvests
     ? harvests.filter((h) => h.status === 'APPROVED' || h.status === 'PENDING_APPROVAL').length
@@ -95,13 +94,21 @@ function DashboardPage() {
       >
         <div className="flex justify-between items-center h-16 px-4 max-w-[480px] mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border border-outline-variant overflow-hidden">
-              <img
-                alt={user?.firstName || 'Farmer'}
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGn2qT7QeTwtyfxgRosPmS-0nlUhtNydP7tpD9OEvVxH29WNqSqtWuVwNcqVu_hUb_yOBI53x1tTo1nkLvjpmNM0vUSZ92Hb9hPr3hWsRprzPYdcs_SYL-YuK1yl4dUcF9iO4SPv5sLazrYHxgoEaT72ro1fO99jzuShr5vtmd3qCkKaIiZAcNSahnL58pr1OULBwbh8LFZdHR6Wy3AvM9rygCGjRedCZBRdKoDGhmHZ0l1rd-Cj1dyzRn8FgRFA25wpp4Enzf5A4"
-              />
-            </div>
+            <Link to="/farmer/profile" className="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-[#1A5C35]/10 flex items-center justify-center cursor-pointer">
+              {profile?.avatarUrl ? (
+                <img
+                  alt={user?.firstName || 'Farmer'}
+                  className="w-full h-full object-cover"
+                  src={profile.avatarUrl}
+                />
+              ) : (
+                <img
+                  alt={user?.firstName || 'Farmer'}
+                  className="w-full h-full object-cover"
+                  src={user ? `https://ui-avatars.com/api/?name=${encodeURIComponent(`${user.firstName} ${user.lastName}`)}&background=1A5C35&color=fff&bold=true` : 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100'}
+                />
+              )}
+            </Link>
             <div>
               <div className="flex items-center gap-1">
                 <h1 className="text-sm font-bold text-on-surface">
@@ -142,7 +149,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs text-[#6B7280]">Revenu total</p>
               <p className="text-lg font-bold text-[#1C1C1C] tracking-tight">
-                {totalRevenue.toLocaleString()} <span className="text-[10px] font-normal">FCFA</span>
+                {totalRevenue.toLocaleString()} <span className="text-[10px] font-normal">CDF</span>
               </p>
               <p className="text-[9px] text-[#6B7280] mt-1">Revenus cumulés confirmés</p>
             </div>
@@ -150,23 +157,24 @@ function DashboardPage() {
 
           {/* Quality Gauge Card */}
           <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex flex-col items-center justify-center aspect-square text-center shadow-sm">
-            <div className="relative w-20 h-20 mb-2">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="40" cy="40" fill="transparent" r="36" stroke="#E5E7EB" strokeWidth="6"></circle>
+            <div className="relative w-20 h-20 mb-2 flex items-center justify-center">
+              <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90 block">
+                <circle cx="40" cy="40" fill="transparent" r="34" stroke="#E5E7EB" strokeWidth="6" />
                 <circle
                   className="text-[#1A5C35]"
                   cx="40"
                   cy="40"
                   fill="transparent"
-                  r="36"
+                  r="34"
                   stroke="currentColor"
-                  strokeDasharray="226.19"
-                  strokeDashoffset={strokeDashoffset}
+                  strokeDasharray="213.63"
+                  strokeDashoffset={213.63 * (1 - (averageQuality || 0) / 100)}
+                  strokeLinecap="round"
                   strokeWidth="6"
-                ></circle>
+                />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-base font-bold text-[#1C1C1C]">{averageQuality}%</span>
+                <span className="text-base font-bold text-[#1C1C1C] leading-none">{averageQuality}%</span>
               </div>
             </div>
             <p className="text-xs text-[#6B7280]">Score de qualité</p>
@@ -251,47 +259,7 @@ function DashboardPage() {
       </main>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E5E7EB]">
-        <div className="flex justify-around items-center h-16 px-2 max-w-[480px] mx-auto">
-          <Link
-            to="/farmer/dashboard"
-            className="flex flex-col items-center justify-center text-[#1A5C35] font-bold active:scale-90 transition-transform duration-150 cursor-pointer"
-          >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-              home
-            </span>
-            <span className="text-[10px] font-semibold">Accueil</span>
-          </Link>
-          <Link
-            to="/farmer/stock"
-            className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">grass</span>
-            <span className="text-[10px] font-semibold">Produits</span>
-          </Link>
-          <Link
-            to="/farmer/harvests/analyze"
-            className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">analytics</span>
-            <span className="text-[10px] font-semibold">Analyses</span>
-          </Link>
-          <Link
-            to="/farmer/orders"
-            className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">local_shipping</span>
-            <span className="text-[10px] font-semibold">Commandes</span>
-          </Link>
-          <Link
-            to="/farmer/profile"
-            className="flex flex-col items-center justify-center text-[#6B7280] hover:text-[#1A5C35] active:scale-90 transition-transform duration-150 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">person</span>
-            <span className="text-[10px] font-semibold">Profil</span>
-          </Link>
-        </div>
-      </nav>
+      <FarmerBottomNav />
     </div>
   );
 }

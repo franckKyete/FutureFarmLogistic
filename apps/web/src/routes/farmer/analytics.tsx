@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/analytics')({
   component: FarmerAnalyticsPage,
@@ -20,8 +21,8 @@ interface Stats {
 
 const statsByPeriod: Record<Period, Stats> = {
   'Ce mois': {
-    revenue: '14,250.00 €',
-    revenueVs: 'vs 12,660 € mois dernier',
+    revenue: '14,250.00 CDF',
+    revenueVs: 'vs 12,660 CDF mois dernier',
     orders: 128,
     ordersPending: 2,
     topProduct: 'Pommes Gala',
@@ -30,8 +31,8 @@ const statsByPeriod: Record<Period, Stats> = {
     qualityLabel: 'Excellent',
   },
   '3 mois': {
-    revenue: '38,610.00 €',
-    revenueVs: 'vs 36,400 € trimestre dernier',
+    revenue: '38,610.00 CDF',
+    revenueVs: 'vs 36,400 CDF trimestre dernier',
     orders: 347,
     ordersPending: 5,
     topProduct: 'Blé Tendre',
@@ -40,8 +41,8 @@ const statsByPeriod: Record<Period, Stats> = {
     qualityLabel: 'Très Bon',
   },
   '6 mois': {
-    revenue: '72,120.00 €',
-    revenueVs: 'vs 68,900 € sem. dernier',
+    revenue: '72,120.00 CDF',
+    revenueVs: 'vs 68,900 CDF sem. dernier',
     orders: 662,
     ordersPending: 8,
     topProduct: 'Pommes Gala',
@@ -50,8 +51,8 @@ const statsByPeriod: Record<Period, Stats> = {
     qualityLabel: 'Excellent',
   },
   'Cette année': {
-    revenue: '154,200.00 €',
-    revenueVs: 'vs 142,300 € année dernière',
+    revenue: '154,200.00 CDF',
+    revenueVs: 'vs 142,300 CDF année dernière',
     orders: 1424,
     ordersPending: 12,
     topProduct: 'Blé Tendre',
@@ -221,7 +222,7 @@ function FarmerAnalyticsPage() {
               <h3 className="text-[18px] font-semibold text-[#1a5c35]">Évolution des revenus</h3>
               <div className="flex items-center gap-2 text-[11px] font-semibold text-[#404941]">
                 <span className="w-3 h-3 bg-[#1a5c35] rounded-full"></span>
-                <span>Revenus Journaliers (€)</span>
+                <span>Revenus Journaliers (CDF)</span>
               </div>
             </div>
             <div className="h-64 w-full relative">
@@ -272,7 +273,7 @@ function FarmerAnalyticsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[14px] font-semibold text-[#0b1c30] truncate">Pommes Gala</span>
-                      <span className="text-[14px] font-semibold text-[#1a5c35]">4,820 €</span>
+                      <span className="text-[14px] font-semibold text-[#1a5c35]">4,820 CDF</span>
                     </div>
                     <div className="flex justify-between items-center text-[11px] text-[#404941] mb-1.5">
                       <span>2,450 kg vendus</span>
@@ -296,7 +297,7 @@ function FarmerAnalyticsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[14px] font-semibold text-[#0b1c30] truncate">Laitue Romaine</span>
-                      <span className="text-[14px] font-semibold text-[#1a5c35]">3,140 €</span>
+                      <span className="text-[14px] font-semibold text-[#1a5c35]">3,140 CDF</span>
                     </div>
                     <div className="flex justify-between items-center text-[11px] text-[#404941] mb-1.5">
                       <span>1,200 unités vendues</span>
@@ -320,7 +321,7 @@ function FarmerAnalyticsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[14px] font-semibold text-[#0b1c30] truncate">Blé Tendre</span>
-                      <span className="text-[14px] font-semibold text-[#1a5c35]">2,900 €</span>
+                      <span className="text-[14px] font-semibold text-[#1a5c35]">2,900 CDF</span>
                     </div>
                     <div className="flex justify-between items-center text-[11px] text-[#404941] mb-1.5">
                       <span>5,000 kg vendus</span>
@@ -433,11 +434,11 @@ function FarmerAnalyticsPage() {
                 </thead>
                 <tbody className="divide-y divide-[#c0c9be]">
                   {[
-                    { month: 'Mai 2024', orders: 128, qty: '12,450', revenue: '14,250 €', diff: '+12%', green: true },
-                    { month: 'Avril 2024', orders: 115, qty: '10,800', revenue: '12,660 €', diff: '+8%', green: true },
-                    { month: 'Mars 2024', orders: 98, qty: '9,200', revenue: '11,700 €', diff: '-3%', green: false },
-                    { month: 'Février 2024', orders: 104, qty: '10,100', revenue: '12,100 €', diff: '+5%', green: true },
-                    { month: 'Janvier 2024', orders: 92, qty: '8,700', revenue: '11,500 €', diff: '-', green: null },
+                    { month: 'Mai 2024', orders: 128, qty: '12,450', revenue: '14,250 CDF', diff: '+12%', green: true },
+                    { month: 'Avril 2024', orders: 115, qty: '10,800', revenue: '12,660 CDF', diff: '+8%', green: true },
+                    { month: 'Mars 2024', orders: 98, qty: '9,200', revenue: '11,700 CDF', diff: '-3%', green: false },
+                    { month: 'Février 2024', orders: 104, qty: '10,100', revenue: '12,100 CDF', diff: '+5%', green: true },
+                    { month: 'Janvier 2024', orders: 92, qty: '8,700', revenue: '11,500 CDF', diff: '-', green: null },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-white transition-colors">
                       <td className="px-6 py-4 text-[14px] font-semibold">{row.month}</td>
@@ -460,46 +461,8 @@ function FarmerAnalyticsPage() {
         </div>
       </main>
 
-      {/* Bottom Navigation Bar (Mobile only) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden flex justify-around items-center h-16 px-2 bg-[#f8f9ff] border-t border-[#c0c9be]">
-        <Link
-          to="/farmer/dashboard"
-          className="flex flex-col items-center justify-center text-[#404941] active:scale-90 transition-transform cursor-pointer"
-        >
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-[11px] font-semibold">Home</span>
-        </Link>
-        <Link
-          to="/farmer/stock"
-          className="flex flex-col items-center justify-center text-[#404941] active:scale-90 transition-transform cursor-pointer"
-        >
-          <span className="material-symbols-outlined">package_2</span>
-          <span className="text-[11px] font-semibold">Stock</span>
-        </Link>
-        <Link
-          to="/farmer/analytics"
-          className="flex flex-col items-center justify-center text-[#1A5C35] bg-[#1A5C35]/10 rounded-xl px-3 py-1 active:scale-90 transition-transform cursor-pointer"
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-            analytics
-          </span>
-          <span className="text-[11px] font-semibold">Analytics</span>
-        </Link>
-        <Link
-          to="/farmer/auctions"
-          className="flex flex-col items-center justify-center text-[#404941] active:scale-90 transition-transform cursor-pointer"
-        >
-          <span className="material-symbols-outlined">campaign</span>
-          <span className="text-[11px] font-semibold">Bids</span>
-        </Link>
-        <Link
-          to="/farmer/profile"
-          className="flex flex-col items-center justify-center text-[#404941] active:scale-90 transition-transform cursor-pointer"
-        >
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-[11px] font-semibold">Profile</span>
-        </Link>
-      </nav>
+      {/* Bottom Navigation Bar */}
+      <FarmerBottomNav />
     </div>
   );
 }

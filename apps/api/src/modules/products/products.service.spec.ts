@@ -24,11 +24,17 @@ describe('ProductsService', () => {
   let parcelRepository: any;
   let configService: any;
 
+  const mockProductQueryBuilder = {
+    where: jest.fn().mockReturnThis(),
+    orWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue(null),
+  };
+
   const mockProductRepository = {
     findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'mock-prod-id', ...dto })),
+    save: jest.fn().mockImplementation((p) => Promise.resolve({ id: 'mock-prod-id', ...p })),
+    createQueryBuilder: jest.fn().mockReturnValue(mockProductQueryBuilder),
   };
 
   const mockHarvestRepository = {
@@ -85,8 +91,12 @@ describe('ProductsService', () => {
     );
     parcelRepository = module.get(getRepositoryToken(ParcelEntity));
     configService = module.get(ConfigService);
-
     jest.clearAllMocks();
+
+    mockProductRepository.findOne.mockReset();
+    mockProductRepository.create.mockImplementation((dto: any) => ({ id: 'mock-prod-id', ...dto }));
+    mockProductRepository.save.mockImplementation((p: any) => Promise.resolve({ id: 'mock-prod-id', ...p }));
+    mockProductQueryBuilder.getOne.mockResolvedValue(null);
   });
 
   describe('createProduct', () => {

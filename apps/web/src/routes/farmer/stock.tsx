@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/stock')({
   component: StockPage,
@@ -105,7 +106,7 @@ function StockPage() {
       month: harvestMonth.charAt(0).toUpperCase() + harvestMonth.slice(1),
       quality: h.qualityScore ? Math.round(h.qualityScore * 10) : 0,
       stock: `${h.quantityInStock} ${h.unit}`,
-      avgPrice: `${Number(h.pricePerUnit).toLocaleString()} FCFA/${h.unit}`,
+      avgPrice: `${Number(h.pricePerUnit).toLocaleString()} CDF/${h.unit}`,
       status: h.status,
     });
   });
@@ -389,43 +390,7 @@ function StockPage() {
       </main>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center py-2 bg-white border-t border-outline-variant z-50 rounded-t-xl">
-        <Link
-          to="/farmer/dashboard"
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
-        >
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-[10px] font-bold">Accueil</span>
-        </Link>
-        <Link
-          to="/farmer/stock"
-          className="flex flex-col items-center justify-center text-primary font-bold hover:bg-surface-container-low transition-colors px-2 py-1 rounded-lg cursor-pointer"
-        >
-          <span className="material-symbols-outlined">inventory_2</span>
-          <span className="text-[10px] font-bold">Produits</span>
-        </Link>
-        <Link
-          to="/farmer/harvests/analyze"
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
-        >
-          <span className="material-symbols-outlined">analytics</span>
-          <span className="text-[10px] font-bold">Analyses</span>
-        </Link>
-        <Link
-          to="/farmer/orders"
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
-        >
-          <span className="material-symbols-outlined">shopping_cart</span>
-          <span className="text-[10px] font-bold">Commandes</span>
-        </Link>
-        <Link
-          to="/farmer/profile"
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded-lg cursor-pointer"
-        >
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-[10px] font-bold">Profil</span>
-        </Link>
-      </nav>
+      <FarmerBottomNav />
     </div>
   );
 }

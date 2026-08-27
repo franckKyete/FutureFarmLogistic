@@ -146,7 +146,7 @@ function AuctionsListPage() {
                       <div className="text-right">
                         <p className="text-[#404941] text-[10px] font-semibold uppercase">Prix actuel</p>
                         <p className="text-[#004322] text-[18px] font-bold">
-                          {auc.currentPrice.toLocaleString()} FCFA
+                          {auc.currentPrice.toLocaleString()} CDF
                         </p>
                       </div>
                     </div>
@@ -154,7 +154,7 @@ function AuctionsListPage() {
                     <div className="flex items-center justify-between text-[12px]">
                       <div className="flex items-center gap-1 text-[#707970]">
                         <span className="material-symbols-outlined text-[16px]">trending_down</span>
-                        <span>Départ: {auc.startingPrice.toLocaleString()} FCFA</span>
+                        <span>Départ: {auc.startingPrice.toLocaleString()} CDF</span>
                       </div>
                       {isActive && (
                         <div className="flex items-center gap-1 text-[#885200] font-semibold">

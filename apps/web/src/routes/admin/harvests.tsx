@@ -148,7 +148,7 @@ function HarvestValidationPage() {
       header: 'Prix unitaire',
       render: (h: AdminHarvestDto) => (
         <span className="font-bold text-xs text-[var(--admin-on-surface)]">
-          {Number(h.pricePerUnit).toLocaleString('fr-FR')} FCFA / {h.unit}
+          {Number(h.pricePerUnit).toLocaleString('fr-FR')} CDF / {h.unit}
         </span>
       ),
     },
@@ -325,7 +325,7 @@ function HarvestValidationPage() {
               <div>
                 <p className="text-[10px] uppercase font-bold text-[var(--admin-on-surface-variant)]/70">Prix unitaire de base</p>
                 <p className="text-sm font-bold text-[var(--admin-on-surface)]">
-                  {Number(selectedHarvest.pricePerUnit).toLocaleString('fr-FR')} FCFA
+                  {Number(selectedHarvest.pricePerUnit).toLocaleString('fr-FR')} CDF
                 </p>
               </div>
               <div>

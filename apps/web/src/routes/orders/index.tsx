@@ -61,7 +61,7 @@ function getStatusBadgeStyle(status: OrderStatus): string {
 }
 
 function formatPrice(amount: number): string {
-  return `${amount.toLocaleString()} FCFA`;
+  return `${amount.toLocaleString()} CDF`;
 }
 
 function formatDate(dateStr: string): string {

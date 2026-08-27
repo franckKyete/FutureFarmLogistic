@@ -381,13 +381,17 @@ export class ProductsService {
       );
     }
 
-    const promptText = `Analyze this description of a crop harvest: "${prompt}". Return a JSON object matching this schema:
+    const promptText = `You are an expert universal agricultural assistant and agronomist.
+Analyze this description of a crop harvest: "${prompt}".
+Accurately identify the exact agricultural crop or produce mentioned, without restraining yourself to any specific preset (e.g., Manioc / Cassava, Bananes Plantain, Maïs, Soja, Gombo, Tomates, Haricots, Arachides, Avocat, Ananas, Piments, Café, Cacao, etc.).
+
+Return a valid JSON object matching this schema:
 {
-  "suggestedName": string (e.g. "Medjool Dates" or "Organic Roma Tomatoes"),
-  "category": string (must be one of: "CEREALS", "FRUITS", "VEGETABLES", "DATES", "DAIRY", "MEAT", "OTHER"),
-  "description": string (detailed description of the product/crop),
-  "farmingMethods": string (inferred farming methods),
-  "recommendedShelfLifeDays": number (integer representing recommended shelf life in days)
+  "suggestedName": "The clean, natural French crop name (e.g. 'Manioc', 'Bananes Plantain', 'Maïs Jaune', 'Tomates Roma', 'Gombo Frais', 'Avocat Hass')",
+  "category": "One of: CEREALS, FRUITS, VEGETABLES, DATES, DAIRY, MEAT, OTHER",
+  "description": "Commercial description of the crop for marketplace buyers",
+  "farmingMethods": "e.g. 'Biologique', 'Conventionnelle', 'Agroécologie', or 'Sous serre'",
+  "recommendedShelfLifeDays": 14
 }
 Respond ONLY with the JSON object. Do not include markdown code block formatting or any other text.`;
 
@@ -463,6 +467,53 @@ Respond ONLY with the JSON object. Do not include markdown code block formatting
         result.category = ProductCategory.OTHER;
       }
 
+      // Check if product exists in database or auto-register it
+      let matchedProductId: string | null = null;
+      let cleanName = (result.suggestedName || '').trim();
+      if (cleanName) {
+        cleanName = cleanName.slice(0, 150);
+        let product = await this.productRepository
+          .createQueryBuilder('p')
+          .where('LOWER(p.name) = LOWER(:name)', { name: cleanName })
+          .getOne();
+
+        if (!product) {
+          product = await this.productRepository
+            .createQueryBuilder('p')
+            .where('LOWER(p.name) LIKE LOWER(:likeName)', {
+              likeName: `%${cleanName}%`,
+            })
+            .orWhere(':name LIKE LOWER(CONCAT(\'%\', p.name, \'%\'))', {
+              name: cleanName.toLowerCase(),
+            })
+            .getOne();
+        }
+
+        if (!product) {
+          try {
+            const newProduct = this.productRepository.create({
+              name: cleanName,
+              category: result.category,
+              description:
+                result.description ||
+                `Culture ${cleanName} suggérée automatiquement par l'IA.`,
+            });
+            product = await this.productRepository.save(newProduct);
+          } catch {
+            product = await this.productRepository.findOne({
+              where: { name: cleanName },
+            });
+          }
+        }
+
+        if (product) {
+          matchedProductId = product.id;
+          result.suggestedName = product.name;
+          result.category = product.category;
+        }
+      }
+
+      result.suggestedProductId = matchedProductId;
       return result;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);

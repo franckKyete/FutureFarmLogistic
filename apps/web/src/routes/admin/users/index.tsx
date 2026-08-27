@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { Permission, UserStatus } from '@futurefarm/types';
-import { useUsers, useUpdateUserStatus, useCreateInspector, useCreateDriver } from '@/features/admin/api/users.queries';
+import { useUsers, useUpdateUserStatus } from '@/features/admin/api/users.queries';
 import type { AdminUserDto } from '@/features/admin/types';
 import {
   StatCard,
@@ -14,10 +14,9 @@ import {
   AdminTabs,
   SidePanel,
   StatusBadge,
-  Modal,
 } from '@/features/admin/components';
 
-export const Route = createFileRoute('/admin/users')({
+export const Route = createFileRoute('/admin/users/')({
   beforeLoad: () => {
     requireAuth(Permission.USER_READ);
   },
@@ -59,132 +58,9 @@ function UsersListPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
 
-  // Invite Modal state
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [inviteType, setInviteType] = useState<'inspector' | 'driver'>('inspector');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteFirstName, setInviteFirstName] = useState('');
-  const [inviteLastName, setInviteLastName] = useState('');
-  const [invitePhone, setInvitePhone] = useState('');
-  const [invitePassword, setInvitePassword] = useState('');
-
-  // Inspector fields
-  const [licenseNumber, setLicenseNumber] = useState('');
-  const [agencyName, setAgencyName] = useState('');
-  const [specializations, setSpecializations] = useState<string[]>([]);
-
-  // Driver fields
-  const [driverLicenseNumber, setDriverLicenseNumber] = useState('');
-  const [licenseCategory, setLicenseCategory] = useState('B');
-  const [licenseExpiresAt, setLicenseExpiresAt] = useState('');
-
-  // Status message
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [tempPasswordShow, setTempPasswordShow] = useState<string | null>(null);
-
-  const createInspector = useCreateInspector();
-  const createDriver = useCreateDriver();
-
-  const handleInviteSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessMessage(null);
-    setTempPasswordShow(null);
-
-    const baseData: {
-      email: string;
-      firstName: string;
-      lastName: string;
-      phoneNumber?: string;
-      password?: string;
-    } = {
-      email: inviteEmail,
-      firstName: inviteFirstName,
-      lastName: inviteLastName,
-    };
-
-    if (invitePhone) baseData.phoneNumber = invitePhone;
-    if (invitePassword) baseData.password = invitePassword;
-
-    if (inviteType === 'inspector') {
-      const inspectorPayload: {
-        email: string;
-        firstName: string;
-        lastName: string;
-        phoneNumber?: string;
-        password?: string;
-        licenseNumber: string;
-        agencyName: string;
-        specializations?: string[];
-      } = {
-        ...baseData,
-        licenseNumber,
-        agencyName,
-      };
-
-      if (specializations.length > 0) {
-        inspectorPayload.specializations = specializations;
-      }
-
-      createInspector.mutate(inspectorPayload, {
-        onSuccess: (data: any) => {
-          setSuccessMessage(`L'inspecteur a été créé avec succès.`);
-          if (data.temporaryPassword) {
-            setTempPasswordShow(data.temporaryPassword);
-          }
-          resetInviteFormFields();
-          queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-        }
-      });
-    } else {
-      const driverPayload: {
-        email: string;
-        firstName: string;
-        lastName: string;
-        phoneNumber?: string;
-        password?: string;
-        licenseNumber: string;
-        licenseCategory: string;
-        licenseExpiresAt?: string;
-      } = {
-        ...baseData,
-        licenseNumber: driverLicenseNumber,
-        licenseCategory,
-      };
-
-      if (licenseExpiresAt) {
-        driverPayload.licenseExpiresAt = licenseExpiresAt;
-      }
-
-      createDriver.mutate(driverPayload, {
-        onSuccess: (data: any) => {
-          setSuccessMessage(`Le chauffeur a été créé avec succès.`);
-          if (data.temporaryPassword) {
-            setTempPasswordShow(data.temporaryPassword);
-          }
-          resetInviteFormFields();
-          queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-        }
-      });
-    }
-  };
-
-  const resetInviteFormFields = () => {
-    setInviteEmail('');
-    setInviteFirstName('');
-    setInviteLastName('');
-    setInvitePhone('');
-    setInvitePassword('');
-    setLicenseNumber('');
-    setAgencyName('');
-    setSpecializations([]);
-    setDriverLicenseNumber('');
-    setLicenseCategory('B');
-    setLicenseExpiresAt('');
-  };
-
-  // Slide panels & Verification state
   const [selectedUser, setSelectedUser] = useState<AdminUserDto | null>(null);
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
   const [verifyingUser, setVerifyingUser] = useState<AdminUserDto | null>(null);
 
@@ -195,7 +71,6 @@ function UsersListPage() {
     residence: false,
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const handleStatusChange = (id: string, newStatus: UserStatus) => {
@@ -363,19 +238,15 @@ function UsersListPage() {
             <span className="material-symbols-outlined text-sm">file_download</span>
             Exporter CSV
           </Button>
-          <Button
-            onClick={() => {
-              resetInviteFormFields();
-              setSuccessMessage(null);
-              setTempPasswordShow(null);
-              setIsInviteModalOpen(true);
-            }}
-            variant="primary"
-            className="bg-[var(--admin-primary)] hover:brightness-110 text-white px-6 py-2.5"
-          >
-            <span className="material-symbols-outlined text-sm">person_add</span>
-            Inviter un membre
-          </Button>
+          <Link to="/admin/users/new">
+            <Button
+              variant="primary"
+              className="bg-[var(--admin-primary)] hover:brightness-110 text-white px-6 py-2.5 flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <span className="material-symbols-outlined text-sm">person_add</span>
+              Nouvel agent terrain
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -693,229 +564,7 @@ function UsersListPage() {
         )}
       </SidePanel>
 
-      <Modal
-        open={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        title="Créer un nouveau membre de l'équipe"
-        className="max-w-xl"
-      >
-        <form onSubmit={handleInviteSubmit} className="space-y-4">
-          {successMessage && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <span className="material-symbols-outlined text-emerald-600">check_circle</span>
-                {successMessage}
-              </div>
-              {tempPasswordShow && (
-                <div className="text-xs mt-1 bg-white p-2.5 rounded-lg border border-emerald-100 flex justify-between items-center">
-                  <span>Mot de passe temporaire : <strong className="font-mono text-sm select-all">{tempPasswordShow}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(tempPasswordShow)}
-                    className="p-1 hover:bg-gray-100 rounded text-emerald-700"
-                    title="Copier le mot de passe"
-                  >
-                    <span className="material-symbols-outlined text-sm">content_copy</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
-          <div className="flex bg-[var(--admin-surface-container-low)] p-1 rounded-xl border border-[var(--admin-outline-variant)]/20 mb-4">
-            <button
-              type="button"
-              onClick={() => { setInviteType('inspector'); setSuccessMessage(null); setTempPasswordShow(null); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                inviteType === 'inspector'
-                  ? 'bg-white text-[var(--admin-primary)] shadow-sm'
-                  : 'text-[var(--admin-on-surface-variant)] hover:text-[var(--admin-primary)]'
-              }`}
-            >
-              Inspecteur de Qualité
-            </button>
-            <button
-              type="button"
-              onClick={() => { setInviteType('driver'); setSuccessMessage(null); setTempPasswordShow(null); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                inviteType === 'driver'
-                  ? 'bg-white text-[var(--admin-primary)] shadow-sm'
-                  : 'text-[var(--admin-on-surface-variant)] hover:text-[var(--admin-primary)]'
-              }`}
-            >
-              Chauffeur Logistique
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Prénom</label>
-              <input
-                type="text"
-                required
-                value={inviteFirstName}
-                onChange={(e) => setInviteFirstName(e.target.value)}
-                placeholder="Ex: Moussa"
-                className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Nom</label>
-              <input
-                type="text"
-                required
-                value={inviteLastName}
-                onChange={(e) => setInviteLastName(e.target.value)}
-                placeholder="Ex: Diallo"
-                className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Adresse Email</label>
-            <input
-              type="email"
-              required
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="email@futurefarm.local"
-              className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Téléphone (Optionnel)</label>
-              <input
-                type="text"
-                value={invitePhone}
-                onChange={(e) => setInvitePhone(e.target.value)}
-                placeholder="+221 77..."
-                className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Mot de passe (Optionnel)</label>
-              <input
-                type="password"
-                value={invitePassword}
-                onChange={(e) => setInvitePassword(e.target.value)}
-                placeholder="Auto-généré si vide"
-                className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-              />
-            </div>
-          </div>
-
-          {inviteType === 'inspector' ? (
-            <div className="space-y-4 border-t border-[var(--admin-outline-variant)]/20 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Numéro de licence</label>
-                  <input
-                    type="text"
-                    required
-                    value={licenseNumber}
-                    onChange={(e) => setLicenseNumber(e.target.value)}
-                    placeholder="Ex: LIC-INS-2026"
-                    className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Nom de l'agence</label>
-                  <input
-                    type="text"
-                    required
-                    value={agencyName}
-                    onChange={(e) => setAgencyName(e.target.value)}
-                    placeholder="Ex: Inspection Centre Dakar"
-                    className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Spécialisations (Produits)</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['DATES', 'CEREALS', 'FRUITS', 'VEGETABLES', 'DAIRY', 'MEAT', 'OTHER'].map((cat) => (
-                    <label key={cat} className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[var(--admin-on-surface)]">
-                      <input
-                        type="checkbox"
-                        checked={specializations.includes(cat)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSpecializations([...specializations, cat]);
-                          } else {
-                            setSpecializations(specializations.filter((s) => s !== cat));
-                          }
-                        }}
-                        className="rounded border-[var(--admin-outline-variant)]/60 text-[var(--admin-primary)] focus:ring-[var(--admin-primary)]"
-                      />
-                      {cat}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 border-t border-[var(--admin-outline-variant)]/20 pt-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1.5 col-span-1">
-                  <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">N° Permis</label>
-                  <input
-                    type="text"
-                    required
-                    value={driverLicenseNumber}
-                    onChange={(e) => setDriverLicenseNumber(e.target.value)}
-                    placeholder="Ex: LIC-DRV-123"
-                    className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5 col-span-1">
-                  <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Catégorie</label>
-                  <select
-                    value={licenseCategory}
-                    onChange={(e) => setLicenseCategory(e.target.value)}
-                    className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm bg-white focus:outline-none focus:border-[var(--admin-primary)]"
-                  >
-                    <option value="A">A (Moto)</option>
-                    <option value="B">B (Voiture)</option>
-                    <option value="C">C (Poids Lourd)</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5 col-span-1">
-                  <label className="text-xs font-bold text-[var(--admin-on-surface-variant)]">Expiration permis</label>
-                  <input
-                    type="date"
-                    required
-                    value={licenseExpiresAt}
-                    onChange={(e) => setLicenseExpiresAt(e.target.value)}
-                    className="px-3 py-2 border border-[var(--admin-outline-variant)]/60 rounded-xl text-sm focus:outline-none focus:border-[var(--admin-primary)]"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--admin-outline-variant)]/20">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsInviteModalOpen(false)}
-              className="border border-[var(--admin-outline-variant)]/40 hover:bg-gray-100"
-            >
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={createInspector.isPending || createDriver.isPending}
-              className="bg-[var(--admin-primary)] text-white hover:brightness-110"
-            >
-              {createInspector.isPending || createDriver.isPending ? 'Création...' : 'Créer le profil'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

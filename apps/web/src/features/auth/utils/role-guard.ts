@@ -6,10 +6,11 @@ const ROLE_HOMEPAGE: Record<string, string> = {
   Admin: '/admin/dashboard',
   Farmer: '/farmer/dashboard',
   Inspector: '/inspector/dashboard',
+  Driver: '/driver/runs',
   Buyer: '/marketplace',
 };
 
-const ROLE_PRIORITY = ['Admin', 'Farmer', 'Inspector', 'Buyer'] as const;
+const ROLE_PRIORITY = ['Admin', 'Farmer', 'Inspector', 'Driver', 'Buyer'] as const;
 
 export function findRoleHomepage(roles: string[]): string {
   for (const role of ROLE_PRIORITY) {

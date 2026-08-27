@@ -106,6 +106,8 @@ export interface VerifyHarvestDto {
 }
 
 export interface AiSuggestHarvestResponseDto {
+  isIdentified?: boolean;
+  suggestedProductId?: string | null;
   suggestedName: string;
   category: ProductCategory;
   description: string;

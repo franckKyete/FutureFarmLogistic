@@ -67,9 +67,9 @@ export interface CreateInspectorParams {
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
-  licenseNumber: string;
-  agencyName: string;
+  phoneNumber: string;
+  licenseNumber?: string;
+  agencyName?: string;
   specializations?: string[];
 }
 
@@ -77,7 +77,7 @@ export interface CreateDriverParams {
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
+  phoneNumber: string;
   licenseNumber: string;
   licenseCategory: string;
   licenseExpiresAt?: string;
@@ -88,7 +88,10 @@ export function useCreateInspector() {
 
   return useMutation({
     mutationFn: async (params: CreateInspectorParams) => {
-      const { data } = await apiClient.post<{ data: AdminUserDto }>('/users/register/inspector', params);
+      const { data } = await apiClient.post<{ data: AdminUserDto & { temporaryPassword?: string } }>(
+        '/users/register/inspector',
+        params,
+      );
       return data.data;
     },
     onSuccess: () => {
@@ -102,7 +105,10 @@ export function useCreateDriver() {
 
   return useMutation({
     mutationFn: async (params: CreateDriverParams) => {
-      const { data } = await apiClient.post<{ data: AdminUserDto }>('/users/register/driver', params);
+      const { data } = await apiClient.post<{ data: AdminUserDto & { temporaryPassword?: string } }>(
+        '/users/register/driver',
+        params,
+      );
       return data.data;
     },
     onSuccess: () => {

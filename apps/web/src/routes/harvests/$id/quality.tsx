@@ -289,7 +289,7 @@ function HarvestQualityPage() {
                 {harvest.product?.name ?? 'Produit'}
               </p>
               <p className="text-[12px] text-[#707970]">
-                {harvest.pricePerUnit.toFixed(2)} € /{' '}
+                {harvest.pricePerUnit.toFixed(2)} CDF /{' '}
                 {harvest.unit === 'KG' ? 'kg' : harvest.unit === 'TON' ? 'tonne' : 'pièce'}
               </p>
             </div>

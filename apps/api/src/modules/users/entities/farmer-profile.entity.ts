@@ -35,6 +35,9 @@ export class FarmerProfileEntity {
   @Column('text', { nullable: true })
   bio: string | null;
 
+  @Column({ name: 'avatar_url', type: 'text', nullable: true })
+  avatarUrl: string | null;
+
   @Column({ name: 'is_certified', default: false })
   isCertified: boolean;
 

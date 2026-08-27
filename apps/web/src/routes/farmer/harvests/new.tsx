@@ -1,17 +1,19 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
   getProductsQuery,
+  createProductMutation,
   createHarvestMutation,
   aiSuggestHarvestMutation,
 } from '@/features/harvests/api/harvests.queries';
-import { getFarmerParcelsQuery } from '@/features/profile/api/profile.queries';
+
 import { addToast } from '@/features/shared/store/toast.store';
-import { Permission, HarvestUnit } from '@futurefarm/types';
+import { Permission, HarvestUnit, ProductCategory } from '@futurefarm/types';
 
 export interface NewHarvestSearchParams {
+  isIdentified?: string;
   productId?: string;
   quantity?: string;
   pricePerUnit?: string;
@@ -24,6 +26,7 @@ export interface NewHarvestSearchParams {
 export const Route = createFileRoute('/farmer/harvests/new')({
   validateSearch: (search: Record<string, unknown>): NewHarvestSearchParams => {
     const res: NewHarvestSearchParams = {};
+    if (typeof search['isIdentified'] === 'string') res.isIdentified = search['isIdentified'];
     if (typeof search['productId'] === 'string') res.productId = search['productId'];
     if (typeof search['quantity'] === 'string') res.quantity = search['quantity'];
     if (typeof search['pricePerUnit'] === 'string') res.pricePerUnit = search['pricePerUnit'];
@@ -41,11 +44,18 @@ export const Route = createFileRoute('/farmer/harvests/new')({
 
 function AddHarvestPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
 
   // Form states initialized with search params if present (from AI analysis)
   const [productId, setProductId] = useState(search.productId || '');
-  const [parcelId, setParcelId] = useState('');
+  const [isCustomCrop, setIsCustomCrop] = useState(
+    search.isIdentified === 'false' || (!search.productId && search.isIdentified !== 'true'),
+  );
+  const [newCropName, setNewCropName] = useState('');
+  const [newCropCategory, setNewCropCategory] = useState<ProductCategory>(ProductCategory.VEGETABLES);
+  const [newCropDescription, setNewCropDescription] = useState('');
+
   const [quantity, setQuantity] = useState(search.quantity || '');
   const [pricePerUnit, setPricePerUnit] = useState(search.pricePerUnit || '');
   const [unit, setUnit] = useState<HarvestUnit>(HarvestUnit.KG);
@@ -60,9 +70,21 @@ function AddHarvestPage() {
 
   // Queries
   const { data: products } = useQuery(getProductsQuery());
-  const { data: parcels } = useQuery(getFarmerParcelsQuery());
+
+  useEffect(() => {
+    if (search.productId) {
+      setProductId(search.productId);
+      setIsCustomCrop(false);
+    } else if (search.isIdentified === 'false') {
+      setIsCustomCrop(true);
+    }
+  }, [search.productId, search.isIdentified]);
 
   // Mutations
+  const createProduct = useMutation({
+    ...createProductMutation(),
+  });
+
   const createHarvest = useMutation({
     ...createHarvestMutation(),
     onSuccess: () => {
@@ -77,16 +99,15 @@ function AddHarvestPage() {
   const aiSuggest = useMutation({
     ...aiSuggestHarvestMutation(),
     onSuccess: (data) => {
-      // Find matching product template by name or category
-      if (data.category && products) {
-        const match = products.find(
-          (p) =>
-            p.category === data.category ||
-            p.name.toLowerCase().includes((data.suggestedName || '').toLowerCase())
-        );
-        if (match) {
-          setProductId(match.id);
-        }
+      void queryClient.invalidateQueries({ queryKey: ['products'] });
+      if (data.suggestedProductId) {
+        setProductId(data.suggestedProductId);
+        setIsCustomCrop(false);
+      } else if (data.suggestedName) {
+        setIsCustomCrop(true);
+        setNewCropName(data.suggestedName);
+        if (data.category) setNewCropCategory(data.category);
+        if (data.description) setNewCropDescription(data.description);
       }
       if (data.recommendedShelfLifeDays) {
         setShelfLifeDays(String(data.recommendedShelfLifeDays));
@@ -109,10 +130,36 @@ function AddHarvestPage() {
     aiSuggest.mutate(aiPrompt);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!productId || !parcelId || !quantity || !pricePerUnit || !harvestDate) {
+    let finalProductId = productId;
+
+    if (isCustomCrop) {
+      if (!newCropName.trim()) {
+        addToast('Veuillez renseigner le nom de la nouvelle culture.', 'warning');
+        return;
+      }
+      try {
+        const newProduct = await createProduct.mutateAsync({
+          name: newCropName.trim(),
+          category: newCropCategory,
+          description:
+            newCropDescription.trim() ||
+            `Culture ${newCropName.trim()} ajoutée par le producteur.`,
+        });
+        finalProductId = newProduct.id;
+        await queryClient.invalidateQueries({ queryKey: ['products'] });
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Erreur lors de la création de la culture', 'error');
+        return;
+      }
+    } else if (!finalProductId) {
+      addToast('Veuillez sélectionner un produit ou créer une nouvelle culture.', 'warning');
+      return;
+    }
+
+    if (!quantity || !pricePerUnit || !harvestDate) {
       addToast('Veuillez remplir tous les champs obligatoires.', 'warning');
       return;
     }
@@ -123,8 +170,8 @@ function AddHarvestPage() {
     const expirationDate = expirationDateTime.toISOString();
 
     createHarvest.mutate({
-      productId,
-      parcelId: parcelId || null,
+      productId: finalProductId,
+      parcelId: null,
       quantityInStock: Number(quantity),
       unit,
       pricePerUnit: Number(pricePerUnit),
@@ -149,8 +196,25 @@ function AddHarvestPage() {
       </header>
 
       <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-6">
+        {/* Unidentified Crop Warning Banner */}
+        {search.isIdentified === 'false' && (
+          <section className="bg-[#fff8e1] border border-[#ffe082] p-4 rounded-xl flex items-center gap-3 shadow-sm">
+            <span className="material-symbols-outlined text-amber-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              info
+            </span>
+            <div className="text-xs">
+              <p className="font-bold text-amber-800">
+                Culture non identifiée par l'IA
+              </p>
+              <p className="text-amber-900/80 mt-0.5">
+                Veuillez renseigner le nom et la catégorie de votre produit ci-dessous. Il sera enregistré lors de la validation.
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* Prefilled AI Banner */}
-        {search.qualityScore && (
+        {search.qualityScore && search.isIdentified !== 'false' && (
           <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl flex items-center gap-3 shadow-sm">
             <span className="material-symbols-outlined text-[#1a5c35]" style={{ fontVariationSettings: "'FILL' 1" }}>
               stars
@@ -198,41 +262,78 @@ function AddHarvestPage() {
 
         {/* Harvest Creation Form */}
         <form onSubmit={handleSubmit} className="space-y-4 bg-white border border-[#c0c9be] p-5 rounded-2xl shadow-sm">
-          {/* Product Crop Template */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-[#404941] block">Produit / Culture *</label>
-            <select
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              className="w-full bg-[#f8f9ff] border border-[#c0c9be] rounded-lg p-3 text-[13px] outline-none focus:border-[#004322]"
-              required
-            >
-              <option value="">Sélectionnez un produit...</option>
-              {products?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.category})
-                </option>
-              ))}
-            </select>
+          {/* Product Mode Selection Header */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-[11px] font-bold text-[#404941] block">Produit / Culture *</label>
+              <button
+                type="button"
+                onClick={() => setIsCustomCrop(!isCustomCrop)}
+                className="text-[11px] text-[#004322] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[13px]">
+                  {isCustomCrop ? 'list' : 'add_circle'}
+                </span>
+                {isCustomCrop ? 'Choisir un produit existant' : '+ Créer une nouvelle culture'}
+              </button>
+            </div>
+
+            {isCustomCrop ? (
+              <div className="space-y-3 bg-[#f8f9ff] border border-[#c0c9be] p-3.5 rounded-xl">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#404941] block">Nom de la nouvelle culture *</label>
+                  <input
+                    value={newCropName}
+                    onChange={(e) => setNewCropName(e.target.value)}
+                    className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
+                    placeholder="Ex: Manioc Doux, Bananes Plantain..."
+                    required={isCustomCrop}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#404941] block">Catégorie de produit *</label>
+                  <select
+                    value={newCropCategory}
+                    onChange={(e) => setNewCropCategory(e.target.value as ProductCategory)}
+                    className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
+                  >
+                    <option value={ProductCategory.VEGETABLES}>Légumes & Tubercules (VEGETABLES)</option>
+                    <option value={ProductCategory.FRUITS}>Fruits (FRUITS)</option>
+                    <option value={ProductCategory.CEREALS}>Céréales & Légumineuses (CEREALS)</option>
+                    <option value={ProductCategory.DATES}>Dattes (DATES)</option>
+                    <option value={ProductCategory.DAIRY}>Produits Laitiers (DAIRY)</option>
+                    <option value={ProductCategory.MEAT}>Viandes & Volailles (MEAT)</option>
+                    <option value={ProductCategory.OTHER}>Autre / Cultures de rente (OTHER)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#404941] block">Description du produit (Optionnel)</label>
+                  <input
+                    value={newCropDescription}
+                    onChange={(e) => setNewCropDescription(e.target.value)}
+                    className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[12px] outline-none focus:border-[#004322]"
+                    placeholder="Description commerciale pour les acheteurs..."
+                  />
+                </div>
+              </div>
+            ) : (
+              <select
+                value={productId}
+                onChange={(e) => setProductId(e.target.value)}
+                className="w-full bg-[#f8f9ff] border border-[#c0c9be] rounded-lg p-3 text-[13px] outline-none focus:border-[#004322]"
+                required={!isCustomCrop}
+              >
+                <option value="">Sélectionnez un produit...</option>
+                {products?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.category})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Land Parcel */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-[#404941] block">Parcelle de terre *</label>
-            <select
-              value={parcelId}
-              onChange={(e) => setParcelId(e.target.value)}
-              className="w-full bg-[#f8f9ff] border border-[#c0c9be] rounded-lg p-3 text-[13px] outline-none focus:border-[#004322]"
-              required
-            >
-              <option value="">Sélectionnez une parcelle...</option>
-              {parcels?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.cadastralNumber} ({p.sizeHectares} ha)
-                </option>
-              ))}
-            </select>
-          </div>
+
 
           {/* Quantity & Unit */}
           <div className="grid grid-cols-2 gap-3">
@@ -264,7 +365,7 @@ function AddHarvestPage() {
 
           {/* Price per unit */}
           <div className="space-y-1">
-            <label className="text-[11px] font-bold text-[#404941] block">Prix unitaire (FCFA / unité) *</label>
+            <label className="text-[11px] font-bold text-[#404941] block">Prix unitaire (CDF / unité) *</label>
             <input
               value={pricePerUnit}
               onChange={(e) => setPricePerUnit(e.target.value)}

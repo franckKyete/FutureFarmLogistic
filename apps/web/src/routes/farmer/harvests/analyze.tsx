@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useRef } from 'react';
 import { useCamera } from '@/hooks/useCamera';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { aiClassifyHarvestMutation, mediaUploadMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
@@ -16,6 +16,7 @@ export const Route = createFileRoute('/farmer/harvests/analyze')({
 
 function AnalyzePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [images, setImages] = useState<string[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
@@ -32,6 +33,7 @@ function AnalyzePage() {
     ...aiClassifyHarvestMutation(),
     onSuccess: (data) => {
       setClassifiedData(data);
+      void queryClient.invalidateQueries({ queryKey: ['products'] });
       addToast('Analyse de récolte terminée !', 'success');
     },
     onError: (err) => {
@@ -108,6 +110,7 @@ function AnalyzePage() {
     void navigate({
       to: '/farmer/harvests/new',
       search: {
+        isIdentified: classifiedData.isIdentified ? 'true' : 'false',
         productId: classifiedData.suggestedProductId || '',
         quantity: classifiedData.estimatedQuantity ? String(classifiedData.estimatedQuantity) : '',
         pricePerUnit: classifiedData.suggestedPricePerUnit ? String(classifiedData.suggestedPricePerUnit) : '',
@@ -194,22 +197,43 @@ function AnalyzePage() {
           {classify.isPending ? (
             <div className="space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
-              <p className="text-sm font-semibold tracking-wide">Analyse IA de la qualité en cours...</p>
+              <p className="text-sm font-semibold tracking-wide">Analyse IA de la récolte en cours...</p>
             </div>
           ) : (
             <div className="space-y-6 max-w-sm bg-white text-[#0b1c30] p-6 rounded-2xl shadow-xl w-full">
               <div className="flex flex-col items-center text-center">
-                <span className="material-symbols-outlined text-[#004322] text-[56px] mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  stars
+                <span
+                  className={`material-symbols-outlined text-[56px] mb-2 ${
+                    classifiedData.isIdentified ? 'text-[#004322]' : 'text-amber-600'
+                  }`}
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  {classifiedData.isIdentified ? 'stars' : 'help'}
                 </span>
-                <h3 className="font-display text-lg font-bold text-[#004322] tracking-tight">Rapport d'Analyse IA</h3>
+                <h3 className="font-display text-lg font-bold text-[#004322] tracking-tight">
+                  {classifiedData.isIdentified ? "Culture Identifiée par l'IA" : "Culture Non Identifiée"}
+                </h3>
               </div>
 
               <div className="space-y-3 text-left border-y border-[#c0c9be] py-4 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#707970] font-semibold">Produit détecté :</span>
-                  <span className="font-bold text-[#0b1c30]">{classifiedData.suggestedName || 'Inconnu'}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[#707970] font-semibold">Statut identification :</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                      classifiedData.isIdentified
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {classifiedData.isIdentified ? 'Identifié ✓' : 'À renseigner manuellement'}
+                  </span>
                 </div>
+                {classifiedData.isIdentified && (
+                  <div className="flex justify-between">
+                    <span className="text-[#707970] font-semibold">Culture détectée :</span>
+                    <span className="font-bold text-[#0b1c30]">{classifiedData.suggestedName}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-[#707970] font-semibold">Qualité IA estimée :</span>
                   <span className="font-bold text-[#1a5c35]">
@@ -225,11 +249,13 @@ function AnalyzePage() {
                 <div className="flex justify-between">
                   <span className="text-[#707970] font-semibold">Prix suggéré :</span>
                   <span className="font-bold text-[#004322]">
-                    {classifiedData.suggestedPricePerUnit ? `${classifiedData.suggestedPricePerUnit.toLocaleString()} FCFA/Kg` : 'Non estimé'}
+                    {classifiedData.suggestedPricePerUnit ? `${classifiedData.suggestedPricePerUnit.toLocaleString()} CDF/Kg` : 'Non estimé'}
                   </span>
                 </div>
                 <div className="pt-2 text-[10px] text-[#404941] italic">
-                  Note : {classifiedData.description || 'Aucune note descriptive.'}
+                  {classifiedData.isIdentified
+                    ? `Note : ${classifiedData.description || 'Culture enregistrée automatiquement.'}`
+                    : "Note : L'IA n'a pas pu reconnaître la culture sur les photos. Vous pourrez spécifier le nom et la catégorie lors de la saisie."}
                 </div>
               </div>
 

@@ -48,6 +48,10 @@ describe('findRoleHomepage', () => {
     expect(findRoleHomepage(['Farmer', 'Buyer'])).toBe('/farmer/dashboard');
   });
 
+  it('returns /driver/runs for Driver only', () => {
+    expect(findRoleHomepage(['Driver'])).toBe('/driver/runs');
+  });
+
   it('returns /marketplace for Buyer only', () => {
     expect(findRoleHomepage(['Buyer'])).toBe('/marketplace');
   });

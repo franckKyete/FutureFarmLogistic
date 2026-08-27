@@ -100,6 +100,7 @@ export interface AiClassifyHarvestDto {
 }
 
 export interface AiClassifyHarvestResponseDto {
+  isIdentified: boolean;
   suggestedProductId?: string | null;
   suggestedName: string;
   category: ProductCategory;

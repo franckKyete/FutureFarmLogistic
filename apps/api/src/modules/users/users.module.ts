@@ -8,6 +8,7 @@ import { BuyerProfileEntity } from './entities/buyer-profile.entity';
 import { ParcelEntity } from './entities/parcel.entity';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -22,6 +23,7 @@ import { UsersService } from './users.service';
       InspectorProfileEntity,
       DriverProfileEntity,
     ]),
+    NotificationsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

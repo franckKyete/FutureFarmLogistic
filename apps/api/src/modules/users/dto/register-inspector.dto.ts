@@ -25,17 +25,17 @@ export class RegisterInspectorDto {
   @IsString()
   lastName: string;
 
+  @IsNotEmpty()
+  @IsString()
+  phoneNumber: string;
+
   @IsOptional()
   @IsString()
-  phoneNumber?: string;
+  licenseNumber?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  licenseNumber: string;
-
-  @IsNotEmpty()
-  @IsString()
-  agencyName: string;
+  agencyName?: string;
 
   @IsOptional()
   @IsArray()

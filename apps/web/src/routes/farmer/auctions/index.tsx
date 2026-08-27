@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import { getAuctionsQuery } from '@/features/auctions/api/auctions.queries';
 import { AuctionStatus } from '@futurefarm/types';
+import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/auctions/')({
   component: MyAuctionsPage,
@@ -200,7 +201,7 @@ function MyAuctionsPage() {
                         <div className="text-right">
                           <p className="text-[#404941] text-[12px] font-semibold">Prix actuel</p>
                           <p className="text-[#004322] text-[18px] font-semibold">
-                            {currentPrice.toLocaleString()} FCFA
+                            {currentPrice.toLocaleString()} CDF
                           </p>
                         </div>
                       </div>
@@ -237,7 +238,7 @@ function MyAuctionsPage() {
                       </span>
                       <h4 className="text-[18px] font-semibold text-[#0b1c30]">Lot #{auc.id.slice(0, 4)}</h4>
                       <p className="text-xs text-[#404941]">
-                        Départ : {auc.startingPrice.toLocaleString()} FCFA — Réserve : {auc.reservePrice.toLocaleString()} FCFA
+                        Départ : {auc.startingPrice.toLocaleString()} CDF — Réserve : {auc.reservePrice.toLocaleString()} CDF
                       </p>
                     </div>
                     <Link
@@ -256,45 +257,7 @@ function MyAuctionsPage() {
       </main>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#f8f9ff] border-t border-[#c0c9be] flex justify-around items-center h-16 max-w-[480px] mx-auto px-2">
-        <Link
-          to="/farmer/dashboard"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-90 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-[12px] font-semibold">Accueil</span>
-        </Link>
-        <Link
-          to="/farmer/stock"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-90 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined">grass</span>
-          <span className="text-[12px] font-semibold">Stock</span>
-        </Link>
-        <Link
-          to="/farmer/auctions"
-          className="flex flex-col items-center justify-center text-[#004322] font-bold hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-90 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-            gavel
-          </span>
-          <span className="text-[12px] font-semibold">Enchères</span>
-        </Link>
-        <Link
-          to="/farmer/orders"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-90 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined">local_shipping</span>
-          <span className="text-[12px] font-semibold">Commandes</span>
-        </Link>
-        <Link
-          to="/farmer/profile"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-90 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-[12px] font-semibold">Profil</span>
-        </Link>
-      </nav>
+      <FarmerBottomNav />
     </div>
   );
 }

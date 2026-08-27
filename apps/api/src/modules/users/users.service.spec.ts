@@ -7,6 +7,9 @@ import { RoleEntity } from '../roles/entities/role.entity';
 import { FarmerProfileEntity } from './entities/farmer-profile.entity';
 import { BuyerProfileEntity } from './entities/buyer-profile.entity';
 import { ParcelEntity } from './entities/parcel.entity';
+import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   ConflictException,
   NotFoundException,
@@ -69,6 +72,26 @@ describe('UsersService', () => {
     save: jest.fn(),
   };
 
+  const mockInspectorProfileRepository = {
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockDriverProfileRepository = {
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockNotificationsService = {
+    sendEmail: jest.fn().mockResolvedValue(true),
+    sendSms: jest.fn().mockResolvedValue(true),
+    sendPush: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -92,6 +115,18 @@ describe('UsersService', () => {
         {
           provide: getRepositoryToken(ParcelEntity),
           useValue: mockParcelRepository,
+        },
+        {
+          provide: getRepositoryToken(InspectorProfileEntity),
+          useValue: mockInspectorProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(DriverProfileEntity),
+          useValue: mockDriverProfileRepository,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
         },
       ],
     }).compile();

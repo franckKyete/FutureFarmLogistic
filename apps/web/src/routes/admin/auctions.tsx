@@ -20,7 +20,7 @@ export const Route = createFileRoute('/admin/auctions')({
 });
 
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
+  return new Intl.NumberFormat('fr-FR').format(price) + ' CDF';
 }
 
 function formatRemainingTime(endAt: string): string {

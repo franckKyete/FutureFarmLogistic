@@ -62,7 +62,7 @@ function formatAmount(amount: number): string {
   return new Intl.NumberFormat('fr-FR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount) + ' FCFA';
+  }).format(amount) + ' CDF';
 }
 
 function truncateId(id: string): string {

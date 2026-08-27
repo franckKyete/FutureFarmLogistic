@@ -13,6 +13,10 @@ export class UpdateFarmerProfileDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
 }
 
 export class UpdateBuyerProfileDto {

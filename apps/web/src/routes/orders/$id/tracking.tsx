@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { getOrderDetailsQuery } from '@/features/orders/api/buyer-orders.queries';
+import { useDeliveryRuns } from '@/features/admin/api/logistics.queries';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
-import { useState, useEffect } from 'react';
+import { useDeliveryMap } from '@/features/shared/hooks/useDeliveryMap';
+import { DeliveryMap, MapStop } from '@/features/shared/components/DeliveryMap';
+import { useMemo } from 'react';
 
 export const Route = createFileRoute('/orders/$id/tracking')({
   beforeLoad: () => {
@@ -10,13 +13,6 @@ export const Route = createFileRoute('/orders/$id/tracking')({
   },
   component: OrderTrackingPage,
 });
-
-const SIMULATED_LOCATION = {
-  lat: 5.359951,
-  lon: -3.981409,
-  heading: 45,
-  speedKmh: 32,
-};
 
 function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString('fr-FR', {
@@ -28,19 +24,43 @@ function formatDate(isoString: string): string {
 
 function OrderTrackingPage() {
   const { id } = Route.useParams();
-  const { data: order, isLoading, isError } = useQuery(getOrderDetailsQuery(id));
+  const { data: order, isLoading: orderLoading, isError } = useQuery(getOrderDetailsQuery(id));
+  const { data: runs = [] } = useDeliveryRuns();
 
-  const [timestamp, setTimestamp] = useState(new Date());
-  const isConnected = true;
+  // Find delivery run that contains stops for any line of this order
+  const matchedRun = useMemo(() => {
+    if (!order || !order.lines || runs.length === 0) return null;
+    const orderLineIds = new Set(order.lines.map((l) => l.id));
+    return runs.find((r) => r.stops?.some((s) => orderLineIds.has(s.orderLineId))) || null;
+  }, [order, runs]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimestamp(new Date());
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { location, isConnected } = useDeliveryMap(matchedRun?.id);
 
-  if (isLoading) {
+  const stops: MapStop[] = useMemo(() => {
+    if (!matchedRun?.stops) {
+      // Fallback destination pin if order address is known
+      return [
+        {
+          id: 'dest',
+          lat: 5.359951,
+          lon: -3.981409,
+          label: order?.deliveryAddress?.city || 'Destination',
+          type: 'DELIVERY',
+        },
+      ];
+    }
+
+    return matchedRun.stops.map((s) => ({
+      id: s.id,
+      lat: s.address.lat,
+      lon: s.address.lon,
+      label: s.address.city || s.address.street || 'Arrêt',
+      type: s.type as 'COLLECTION' | 'DELIVERY',
+      status: s.status,
+    }));
+  }, [matchedRun, order]);
+
+  if (orderLoading) {
     return (
       <div className="px-4 space-y-4 animate-pulse">
         <div className="bg-gray-200 rounded-xl h-64 w-full" />
@@ -73,71 +93,29 @@ function OrderTrackingPage() {
     );
   }
 
-  const location = SIMULATED_LOCATION;
-
   return (
     <div className="px-4 space-y-4 pb-8">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-            <span className="text-xs font-bold text-emerald-700">
-              Mise à jour en direct
+            <span className={`text-xs font-bold ${isConnected ? 'text-emerald-700' : 'text-gray-500'}`}>
+              {isConnected ? 'Mise à jour en direct' : 'En attente de connexion'}
             </span>
           </div>
         </div>
         <span className="text-[10px] text-gray-500 font-semibold">
-          {formatDate(timestamp.toISOString())}
+          {formatDate(location?.recordedAt || new Date().toISOString())}
         </span>
       </div>
 
-      <div className="relative bg-gray-200 rounded-xl h-64 w-full overflow-hidden border border-[#E5E7EB] shadow-inner">
-        <div className="absolute inset-0 opacity-10">
-          <div className="grid grid-cols-6 grid-rows-6 h-full w-full">
-            {Array.from({ length: 36 }).map((_, i) => (
-              <div key={i} className="border border-gray-600/30" />
-            ))}
-          </div>
-        </div>
-
-        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-orange-300/40 -translate-x-1/2" />
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-orange-300/40 -translate-y-1/2" />
-
-        <div className="absolute bottom-6 right-6 flex flex-col items-center">
-          <span className="material-symbols-outlined text-2xl text-[#1a5c35]">location_on</span>
-          <span className="text-[9px] font-bold text-[#1a5c35] bg-white/90 px-1.5 py-0.5 rounded shadow-sm mt-0.5">
-            Destination
-          </span>
-        </div>
-
-        <div
-          className="absolute flex flex-col items-center transition-all duration-1000"
-          style={{ top: '35%', left: '55%' }}
-        >
-          <span className="material-symbols-outlined text-3xl text-[#004322] drop-shadow-lg">
-            directions_car
-          </span>
-          <span className="text-[9px] font-bold text-white bg-[#004322]/90 px-1.5 py-0.5 rounded shadow-sm mt-0.5">
-            Livreur
-          </span>
-        </div>
-
-        <div className="absolute top-6 left-6 flex flex-col items-center opacity-60">
-          <span className="material-symbols-outlined text-xl text-gray-600">store</span>
-          <span className="text-[9px] font-bold text-gray-600 bg-white/90 px-1.5 py-0.5 rounded shadow-sm mt-0.5">
-            Départ
-          </span>
-        </div>
-
-        <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
-          <span
-            className="material-symbols-outlined text-base text-[#0b1c30] block"
-            style={{ transform: `rotate(${location.heading}deg)` }}
-          >
-            near_me
-          </span>
-        </div>
-      </div>
+      {/* Real Interactive Leaflet Map */}
+      <DeliveryMap
+        driverPosition={location ? { lat: location.lat, lon: location.lon, heading: location.heading } : null}
+        driverName={matchedRun?.driver ? `${matchedRun.driver.firstName} ${matchedRun.driver.lastName}` : 'Livreur'}
+        stops={stops}
+        className="h-72 w-full rounded-xl overflow-hidden border border-[#E5E7EB] shadow-sm relative z-0"
+      />
 
       <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
@@ -146,29 +124,33 @@ function OrderTrackingPage() {
           </h2>
           <span className={`flex items-center gap-1 text-[10px] font-bold ${isConnected ? 'text-emerald-600' : 'text-gray-400'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-            {isConnected ? 'Connecté' : 'Déconnecté'}
+            {isConnected ? 'Connecté (Temps réel)' : 'Dernière position connue'}
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-[#f8f9ff] rounded-lg p-3">
             <p className="text-[10px] text-gray-500 font-semibold">Latitude</p>
-            <p className="text-sm font-bold text-[#0b1c30] font-mono">{location.lat.toFixed(4)}°</p>
+            <p className="text-sm font-bold text-[#0b1c30] font-mono">
+              {location ? `${location.lat.toFixed(4)}°` : '—'}
+            </p>
           </div>
           <div className="bg-[#f8f9ff] rounded-lg p-3">
             <p className="text-[10px] text-gray-500 font-semibold">Longitude</p>
-            <p className="text-sm font-bold text-[#0b1c30] font-mono">{location.lon.toFixed(4)}°</p>
+            <p className="text-sm font-bold text-[#0b1c30] font-mono">
+              {location ? `${location.lon.toFixed(4)}°` : '—'}
+            </p>
           </div>
           <div className="bg-[#f8f9ff] rounded-lg p-3">
             <p className="text-[10px] text-gray-500 font-semibold">Vitesse</p>
             <p className="text-sm font-bold text-[#0b1c30]">
-              {location.speedKmh} <span className="text-[10px] font-normal text-gray-500">km/h</span>
+              {location?.speedKmh ?? 0} <span className="text-[10px] font-normal text-gray-500">km/h</span>
             </p>
           </div>
           <div className="bg-[#f8f9ff] rounded-lg p-3">
             <p className="text-[10px] text-gray-500 font-semibold">Cap</p>
             <p className="text-sm font-bold text-[#0b1c30]">
-              {location.heading}° <span className="text-[10px] font-normal text-gray-500">NNE</span>
+              {location?.heading ?? 0}° <span className="text-[10px] font-normal text-gray-500">Direction</span>
             </p>
           </div>
         </div>
@@ -176,7 +158,13 @@ function OrderTrackingPage() {
         <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EB]">
           <p className="text-[10px] text-gray-500 font-semibold">Dernière mise à jour</p>
           <p className="text-xs font-bold text-[#0b1c30]">
-            {timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            {location?.recordedAt
+              ? new Date(location.recordedAt).toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })
+              : 'En attente de signal'}
           </p>
         </div>
       </div>
@@ -187,7 +175,7 @@ function OrderTrackingPage() {
           <div>
             <p className="text-sm font-bold text-[#0b1c30]">#{order.id.slice(0, 8)}</p>
             <p className="text-xs text-gray-500">
-              {order.lines.length} article{order.lines.length !== 1 ? 's' : ''}
+              {order.lines.length} article{order.lines.length !== 1 ? 's' : ''} • Statut : {order.status}
             </p>
           </div>
           <Link to="/orders/$id" params={{ id }} className="text-xs text-[#1a5c35] font-bold underline">
@@ -196,15 +184,18 @@ function OrderTrackingPage() {
         </div>
       </div>
 
-      <div className="bg-[#eff4ff] rounded-xl border border-blue-100 p-3">
-        <div className="flex items-start gap-2">
-          <span className="material-symbols-outlined text-sm text-blue-600 mt-0.5">info</span>
-          <p className="text-[10px] text-blue-800 leading-relaxed">
-            Le suivi en direct sera actif une fois que le livreur aura démarré la tournée.
-            Les données de localisation sont mises à jour toutes les 30 secondes.
-          </p>
+      {matchedRun && (
+        <div className="bg-[#eff4ff] rounded-xl border border-blue-100 p-3">
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm text-blue-600 mt-0.5">local_shipping</span>
+            <p className="text-[10px] text-blue-800 leading-relaxed">
+              Tournée #{matchedRun.id.slice(0, 8)} en cours avec {matchedRun.stops?.length || 0} arrêts prévus.
+              Chauffeur : {matchedRun.driver ? `${matchedRun.driver.firstName} ${matchedRun.driver.lastName}` : 'Assigné'}.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+

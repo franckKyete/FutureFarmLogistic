@@ -25,6 +25,7 @@ export interface FarmerProfileDto {
   companyName: string;
   address: string;
   bio?: string;
+  avatarUrl?: string | null;
   isCertified: boolean;
 }
 

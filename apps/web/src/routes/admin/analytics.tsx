@@ -138,7 +138,7 @@ function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon="payments"
-          value={gmvTotal.toLocaleString('fr-FR') + ' FCFA'}
+          value={gmvTotal.toLocaleString('fr-FR') + ' CDF'}
           label="GMV Total"
           trend={growthRate >= 0 ? 'up' : 'down'}
           trendLabel={`${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}% vs mois dernier`}
@@ -156,7 +156,7 @@ function AnalyticsPage() {
         />
         <StatCard
           icon="percent"
-          value={commissionsTotal.toLocaleString('fr-FR') + ' FCFA'}
+          value={commissionsTotal.toLocaleString('fr-FR') + ' CDF'}
           label="Commissions (Total)"
           trend="up"
           trendLabel="+5.0% commission fixe"

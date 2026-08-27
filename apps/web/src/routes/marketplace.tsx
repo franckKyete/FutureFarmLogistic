@@ -204,7 +204,7 @@ function HarvestCard({
                 {harvest.product?.name || 'Produit'}
               </h3>
               <p className="text-[12px] font-semibold text-[#1a5c35] mt-0.5">
-                {displayPrice} <span className="text-[#707970] font-normal">FCFA / {unitLabel(harvest.unit)}</span>
+                {displayPrice} <span className="text-[#707970] font-normal">CDF / {unitLabel(harvest.unit)}</span>
               </p>
             </div>
             <div className="relative w-10 h-10 shrink-0" title={`Qualité: ${qualityScore}/100`}>

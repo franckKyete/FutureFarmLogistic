@@ -7,10 +7,11 @@ type Tab = {
 };
 
 const TABS: Tab[] = [
-  { label: 'Tableau de bord', path: '/inspector/dashboard', icon: 'dashboard' },
-  { label: 'Producteurs', path: '/inspector/accounts', icon: 'group' },
+  { label: 'Accueil', path: '/inspector/dashboard', icon: 'dashboard' },
   { label: 'Qualité', path: '/inspector/validate', icon: 'verified' },
   { label: 'Planning', path: '/inspector/planning', icon: 'calendar_month' },
+  { label: 'Terrain', path: '/inspector/proxy', icon: 'handshake' },
+  { label: 'Station', path: '/inspector/my-center', icon: 'corporate_fare' },
 ];
 
 export function InspectorBottomNav() {

@@ -13,6 +13,7 @@ import { LogisticsService } from '../logistics/logistics.service';
 import { InspectionsService } from '../inspections/inspections.service';
 import { OrdersService } from '../orders/orders.service';
 import { DisputesService } from '../disputes/disputes.service';
+import { ProductsService } from '../products/products.service';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -22,6 +23,7 @@ describe('AdminService', () => {
   let mockInspectionsService: any;
   let mockOrdersService: any;
   let mockDisputesService: any;
+  let mockProductsService: any;
 
   beforeEach(async () => {
     mockUsersService = { findAll: jest.fn() };
@@ -30,6 +32,7 @@ describe('AdminService', () => {
     mockInspectionsService = { listAllReports: jest.fn() };
     mockOrdersService = { listAllOrdersAdmin: jest.fn() };
     mockDisputesService = { findAll: jest.fn() };
+    mockProductsService = { findAllHarvests: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,6 +43,7 @@ describe('AdminService', () => {
         { provide: InspectionsService, useValue: mockInspectionsService },
         { provide: OrdersService, useValue: mockOrdersService },
         { provide: DisputesService, useValue: mockDisputesService },
+        { provide: ProductsService, useValue: mockProductsService },
       ],
     }).compile();
 
@@ -54,6 +58,7 @@ describe('AdminService', () => {
     mockInspectionsService.listAllReports.mockReset();
     mockOrdersService.listAllOrdersAdmin.mockReset();
     mockDisputesService.findAll.mockReset();
+    mockProductsService.findAllHarvests.mockReset();
   });
 
   it('should be defined', () => {
@@ -63,8 +68,11 @@ describe('AdminService', () => {
   describe('getDashboardStats', () => {
     it('should return dashboard stats with correct shape', async () => {
       mockUsersService.findAll
-        .mockResolvedValueOnce({ data: [{ id: '1' }], meta: { total: 5 } })
-        .mockResolvedValueOnce({ data: [], meta: { total: 2 } });
+        .mockResolvedValue({ data: [{ id: '1' }], meta: { total: 5 } });
+      mockProductsService.findAllHarvests.mockResolvedValue([
+        { id: 'h1' },
+        { id: 'h2' },
+      ]);
       mockAuctionsService.listAuctions.mockResolvedValue({
         data: [],
         meta: { total: 3 },
@@ -112,6 +120,7 @@ describe('AdminService', () => {
     it('should handle empty data gracefully', async () => {
       mockUsersService.findAll
         .mockResolvedValue({ data: [], meta: { total: 0 } });
+      mockProductsService.findAllHarvests.mockResolvedValue([]);
       mockAuctionsService.listAuctions.mockResolvedValue({ data: [], meta: { total: 0 } });
       mockLogisticsService.listAllRuns.mockResolvedValue({ data: [], total: 0 });
       mockInspectionsService.listAllReports.mockResolvedValue([]);
@@ -135,6 +144,7 @@ describe('AdminService', () => {
 
     it('should handle service errors gracefully', async () => {
       mockUsersService.findAll.mockRejectedValue(new Error('DB error'));
+      mockProductsService.findAllHarvests.mockRejectedValue(new Error('DB error'));
       mockAuctionsService.listAuctions.mockRejectedValue(new Error('DB error'));
       mockLogisticsService.listAllRuns.mockRejectedValue(new Error('DB error'));
       mockInspectionsService.listAllReports.mockRejectedValue(new Error('DB error'));

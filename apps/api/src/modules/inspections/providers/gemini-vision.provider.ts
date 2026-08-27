@@ -134,45 +134,78 @@ The JSON object must match this schema:
     additionalNotes?: string,
   ): Promise<ClassificationResult> {
     const getFallbackClassification = (): ClassificationResult => {
-      const notes = (additionalNotes || '').toLowerCase();
-      const firstUrl = (photoUrls[0] || '').toLowerCase();
+      const text = `${additionalNotes || ''} ${photoUrls.join(' ')}`.toLowerCase();
 
-      if (notes.includes('tomate') || notes.includes('tomato') || firstUrl.includes('tomato') || firstUrl.includes('542838132')) {
+      // Universal & regional crop keyword mapping for resilient offline/fallback matching
+      const CROP_FALLBACKS: Array<{
+        keywords: string[];
+        name: string;
+        category: ProductCategory;
+        shelfLife: number;
+        price: number;
+        qty: number;
+      }> = [
+        { keywords: ['manioc', 'cassava', 'yucca'], name: 'Manioc', category: ProductCategory.VEGETABLES, shelfLife: 7, price: 400, qty: 500 },
+        { keywords: ['plantain', 'banane plantain'], name: 'Bananes Plantain', category: ProductCategory.FRUITS, shelfLife: 10, price: 1200, qty: 300 },
+        { keywords: ['banane', 'banana'], name: 'Bananes', category: ProductCategory.FRUITS, shelfLife: 10, price: 1000, qty: 250 },
+        { keywords: ['tomate', 'tomato', '542838132'], name: 'Tomates', category: ProductCategory.VEGETABLES, shelfLife: 14, price: 600, qty: 150 },
+        { keywords: ['maïs', 'corn', 'mais', '574323347'], name: 'Maïs', category: ProductCategory.CEREALS, shelfLife: 21, price: 450, qty: 1200 },
+        { keywords: ['soja', 'soybean', 'soy'], name: 'Soja', category: ProductCategory.CEREALS, shelfLife: 180, price: 800, qty: 2000 },
+        { keywords: ['haricot', 'bean'], name: 'Haricots', category: ProductCategory.VEGETABLES, shelfLife: 90, price: 1500, qty: 800 },
+        { keywords: ['gombo', 'okra'], name: 'Gombo', category: ProductCategory.VEGETABLES, shelfLife: 7, price: 700, qty: 100 },
+        { keywords: ['avocat', 'avocado'], name: 'Avocat', category: ProductCategory.FRUITS, shelfLife: 12, price: 1800, qty: 200 },
+        { keywords: ['ananas', 'pineapple'], name: 'Ananas', category: ProductCategory.FRUITS, shelfLife: 14, price: 2000, qty: 150 },
+        { keywords: ['piment', 'pepper', 'chili'], name: 'Piment', category: ProductCategory.VEGETABLES, shelfLife: 14, price: 1500, qty: 80 },
+        { keywords: ['arachide', 'peanut', 'groundnut'], name: 'Arachides', category: ProductCategory.CEREALS, shelfLife: 120, price: 1200, qty: 600 },
+        { keywords: ['riz', 'rice', 'paddy'], name: 'Riz', category: ProductCategory.CEREALS, shelfLife: 365, price: 900, qty: 3000 },
+        { keywords: ['patate', 'sweet potato'], name: 'Patates Douces', category: ProductCategory.VEGETABLES, shelfLife: 30, price: 500, qty: 400 },
+        { keywords: ['igname', 'yam'], name: 'Igname', category: ProductCategory.VEGETABLES, shelfLife: 60, price: 800, qty: 350 },
+        { keywords: ['café', 'coffee'], name: 'Café', category: ProductCategory.OTHER, shelfLife: 180, price: 3500, qty: 500 },
+        { keywords: ['cacao', 'cocoa'], name: 'Cacao', category: ProductCategory.OTHER, shelfLife: 180, price: 4000, qty: 500 },
+      ];
+
+      for (const item of CROP_FALLBACKS) {
+        if (item.keywords.some((k) => text.includes(k))) {
+          return {
+            isIdentified: true,
+            suggestedName: item.name,
+            category: item.category,
+            description: `${item.name} récoltés localement en excellent état de fraîcheur.`,
+            farmingMethods: 'Biologique',
+            recommendedShelfLifeDays: item.shelfLife,
+            estimatedQuantity: item.qty,
+            suggestedPricePerUnit: item.price,
+            aiQualityScore: 8.8,
+          };
+        }
+      }
+
+      // If additional notes has custom text from farmer
+      if (additionalNotes && additionalNotes.trim().length > 1) {
+        const customName = additionalNotes.trim().slice(0, 100);
         return {
-          suggestedName: 'Tomates',
+          isIdentified: true,
+          suggestedName: customName.charAt(0).toUpperCase() + customName.slice(1),
           category: ProductCategory.VEGETABLES,
-          description: 'Tomates fraîches récoltées en excellent état.',
+          description: `Récolte de ${customName} déclarée par le producteur.`,
           farmingMethods: 'Biologique',
-          recommendedShelfLifeDays: 14,
-          estimatedQuantity: 150,
-          suggestedPricePerUnit: 600,
-          aiQualityScore: 8.8,
+          recommendedShelfLifeDays: 20,
+          estimatedQuantity: 200,
+          suggestedPricePerUnit: 1000,
+          aiQualityScore: 8.5,
         };
       }
 
-      if (notes.includes('maïs') || notes.includes('corn') || firstUrl.includes('corn') || firstUrl.includes('574323347')) {
-        return {
-          suggestedName: 'Maïs',
-          category: ProductCategory.CEREALS,
-          description: 'Épis de maïs doux jaunes et sucrés.',
-          farmingMethods: 'Conventionnelle',
-          recommendedShelfLifeDays: 21,
-          estimatedQuantity: 1200,
-          suggestedPricePerUnit: 450,
-          aiQualityScore: 9.0,
-        };
-      }
-
-      // Default Soybean fallback
       return {
-        suggestedName: 'Soja',
-        category: ProductCategory.CEREALS,
-        description: 'Graines de soja de haute qualité, idéales pour la transformation ou la vente.',
+        isIdentified: false,
+        suggestedName: '',
+        category: ProductCategory.OTHER,
+        description: 'Culture non identifiée sur les photos fournies.',
         farmingMethods: 'Biologique',
-        recommendedShelfLifeDays: 180,
-        estimatedQuantity: 5000,
-        suggestedPricePerUnit: 800,
-        aiQualityScore: 9.4,
+        recommendedShelfLifeDays: 14,
+        estimatedQuantity: null,
+        suggestedPricePerUnit: null,
+        aiQualityScore: 8.0,
       };
     };
 
@@ -190,22 +223,31 @@ The JSON object must match this schema:
     );
 
     const notesPrompt = additionalNotes
-      ? `\nAdditional farmer description: "${additionalNotes}"`
+      ? `\nAdditional farmer notes/description: "${additionalNotes}"`
       : '';
 
-    const promptText = `You are an expert crop classifier.
-Analyze these attached photos of a harvest batch. ${notesPrompt}
-Infer crop parameters to pre-fill a harvest listing.
-Respond ONLY with a JSON object. Do not include markdown code block formatting or any other text.
-The JSON object must match this schema:
+    const promptText = `You are an expert universal agricultural crop classifier and agronomist.
+Analyze the attached photos of a harvest batch. ${notesPrompt}
+
+CRITICAL INSTRUCTIONS:
+1. Determine whether the attached image(s) show an identifiable agricultural crop, produce, fruit, vegetable, cereal, tuber, spice, grain, or harvest.
+   - If the crop is identifiable with reasonable confidence, set "isIdentified": true.
+   - If the image does not show an agricultural product, is too blurry, or the crop cannot be identified, set "isIdentified": false.
+2. DO NOT restrict yourself to any predefined subset of crops. If a crop is present, you MUST recognize ANY crop, whether common, tropical, regional, or exotic (e.g., Manioc / Cassava, Bananes Plantain, Maïs, Soja, Haricots, Arachides, Gombo, Avocat, Tomates, Ananas, Papaye, Piments, Pommes de terre, Patates douces, Ignames, Café, Cacao, Riz, Noix de palme, Légumes feuilles, etc.).
+3. If isIdentified is true, formulate the "suggestedName" as a clean, natural French crop name (with specific variety or cultivar if discernible, e.g. "Manioc", "Bananes Plantain", "Maïs Jaune", "Tomates Roma", "Gombo Frais", "Avocat Hass", "Piment Habanero", "Papaye Solo", "Soja", "Haricots Rouges"). If isIdentified is false, leave "suggestedName" as "".
+4. Select the most accurate category from: "CEREALS", "FRUITS", "VEGETABLES", "DATES", "DAIRY", "MEAT", "OTHER" (use VEGETABLES for tubers/roots like manioc, igname, patates, gombo, piments; use FRUITS for plantain, bananes, avocat, ananas, agrumes, mangue; use CEREALS for maïs, riz, blé, soja, arachides, sorgho; use OTHER for café, cacao, épices, etc.).
+5. Provide realistic marketplace estimate values (estimated quantity in Kg, suggested price per unit in CDF / Congolese Francs, recommended shelf life in days, and farming methods).
+
+Respond ONLY with a valid JSON object matching this schema without markdown fences:
 {
-  "suggestedName": "Crop variety name (e.g. 'Medjool Dates', 'Roma Tomatoes')",
-  "category": "One of: CEREALS, FRUITS, VEGETABLES, DATES, DAIRY, MEAT, OTHER",
-  "description": "Short marketing-ready description for the marketplace",
-  "farmingMethods": "e.g. 'Organic', 'Greenhouse', 'Hydroponic', or 'Conventional'",
+  "isIdentified": true, // boolean: true if the crop in the photo was recognized with reasonable confidence, false otherwise
+  "suggestedName": "The specific French name of the detected crop (or empty string if not identified)",
+  "category": "CEREALS | FRUITS | VEGETABLES | DATES | DAIRY | MEAT | OTHER",
+  "description": "Engaging, professional French commercial description of this harvest batch for buyers",
+  "farmingMethods": "Biologique | Conventionnelle | Agroécologie | Sous serre",
   "recommendedShelfLifeDays": 14, // integer number of days
   "estimatedQuantity": 250, // estimated volume/weight value based on crates/boxes or null if not inferable
-  "suggestedPricePerUnit": 4.5, // recommended price or null
+  "suggestedPricePerUnit": 1200, // recommended price in CDF or null
   "aiQualityScore": 8.5 // estimated quality rating from 0.00 to 10.00
 }`;
 
@@ -250,6 +292,9 @@ The JSON object must match this schema:
       }
 
       const parsed = this.cleanAndParseJson<ClassificationResult>(text);
+      if (typeof parsed.isIdentified !== 'boolean') {
+        parsed.isIdentified = Boolean(parsed.suggestedName && parsed.suggestedName.trim().length > 0);
+      }
       if (!Object.values(ProductCategory).includes(parsed.category)) {
         parsed.category = ProductCategory.OTHER;
       }

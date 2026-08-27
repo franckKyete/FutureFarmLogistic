@@ -83,6 +83,11 @@ export class AuthService {
     }
 
     // Verify account status
+    if (user.status === UserStatus.PENDING_VALIDATION) {
+      throw new ForbiddenException(
+        'Your account is pending validation by an administrator.',
+      );
+    }
     if (user.status === UserStatus.SUSPENDED) {
       throw new ForbiddenException('Your account has been suspended.');
     }

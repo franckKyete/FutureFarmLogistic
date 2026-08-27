@@ -39,7 +39,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 };
 
 function formatPrice(amount: number): string {
-  return `${amount.toLocaleString()} FCFA`;
+  return `${amount.toLocaleString()} CDF`;
 }
 
 function formatDate(dateStr: string): string {

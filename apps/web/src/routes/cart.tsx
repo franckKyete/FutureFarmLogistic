@@ -91,7 +91,7 @@ function CartLine({
               {productName}
             </h3>
             <p className="text-[13px] font-semibold text-[#1a5c35] mt-0.5">
-              {unitPrice.toLocaleString()} FCFA / {line.harvest?.unit || 'unité'}
+              {unitPrice.toLocaleString()} CDF / {line.harvest?.unit || 'unité'}
             </p>
           </div>
           {/* Delete button */}
@@ -140,7 +140,7 @@ function CartLine({
             </button>
           </div>
           <span className="text-[14px] font-bold text-[#0b1c30]">
-            {subtotal.toLocaleString()} FCFA
+            {subtotal.toLocaleString()} CDF
           </span>
         </div>
       </div>
@@ -202,7 +202,7 @@ function CartPage() {
                   Total
                 </span>
                 <span className="text-[18px] font-bold text-[#004322]">
-                  {totalPrice.toLocaleString()} FCFA
+                  {totalPrice.toLocaleString()} CDF
                 </span>
               </div>
             </div>
