@@ -1,6 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/products/$id')({
   component: ProductDetailPage,
@@ -14,9 +13,6 @@ const PHOTOS = [
 ];
 
 function ProductDetailPage() {
-  const navigate = useNavigate();
-  const { id } = Route.useParams();
-
   // Interactive gallery state
   const [activePhoto, setActivePhoto] = useState(PHOTOS[0]);
 
@@ -56,30 +52,9 @@ function ProductDetailPage() {
   };
 
   return (
-    <div className="bg-surface font-sans text-on-surface min-h-screen pb-24 relative">
-      {/* TopNavBar */}
-      <header className="h-[56px] fixed top-0 left-0 right-0 bg-white border-b border-outline-variant flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => void navigate({ to: '/farmer/stock' })}
-            className="text-on-surface-variant cursor-pointer p-1 hover:bg-surface-container-low rounded-full"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="font-display text-base font-bold text-on-surface">Détails Produit</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => alert(`Product ID: ${id}`)}
-            className="text-on-surface-variant cursor-pointer p-1 hover:bg-surface-container-low rounded-full"
-          >
-            <span className="material-symbols-outlined">more_vert</span>
-          </button>
-        </div>
-      </header>
-
+    <div className="bg-surface font-sans text-on-surface min-h-screen relative">
       {/* Main Content Canvas */}
-      <main className="mt-[56px] p-4 flex flex-col gap-4 max-w-[480px] mx-auto">
+      <main className="p-4 flex flex-col gap-4 max-w-[480px] mx-auto">
         {/* Header Section */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -341,9 +316,6 @@ function ProductDetailPage() {
           </div>
         </section>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }

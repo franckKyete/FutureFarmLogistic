@@ -71,20 +71,7 @@ function DutchAuctionNewPage() {
 
   return (
     <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen pb-40 relative font-sans">
-      {/* Header / TopAppBar */}
-      <header className="bg-[#f8f9ff] fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-16 max-w-[480px] mx-auto border-b border-[#c0c9be] shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => void navigate({ to: '/farmer/auctions' })}
-            className="material-symbols-outlined text-[#004322] active:scale-95 duration-100 cursor-pointer"
-          >
-            arrow_back
-          </button>
-          <h1 className="text-[18px] font-semibold text-[#004322] truncate">Créer une enchère</h1>
-        </div>
-      </header>
-
-      <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-6">
+      <main className="pt-4 px-4 max-w-[480px] mx-auto space-y-6">
         <form onSubmit={handleCreate} className="space-y-6">
           {/* Intro Section */}
           <section className="space-y-1">

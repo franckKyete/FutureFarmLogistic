@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/analytics')({
   component: FarmerAnalyticsPage,
@@ -68,19 +67,7 @@ function FarmerAnalyticsPage() {
 
   return (
     <div className="bg-[#F7F8F5] text-[#0b1c30] min-h-screen font-sans">
-      {/* Top App Bar */}
-      <header className="w-full sticky top-0 z-40 bg-[#f8f9ff] border-b border-[#c0c9be] flex items-center justify-between px-4 h-16 max-w-full mx-auto">
-        <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined text-[#1a5c35] cursor-pointer">menu</span>
-          <h1 className="text-[18px] font-bold text-[#1a5c35]">Analytiques &amp; revenus</h1>
-        </div>
-        <div className="flex items-center gap-3 text-[#404941]">
-          <span className="material-symbols-outlined cursor-pointer">search</span>
-          <span className="material-symbols-outlined text-[#1a5c35] cursor-pointer">account_circle</span>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-6 pb-24 md:flex md:gap-6">
+      <main className="max-w-7xl mx-auto px-4 py-4 md:flex md:gap-6">
         {/* Navigation Drawer (Desktop Sidebar) */}
         <aside className="w-64 hidden md:flex flex-col shrink-0 p-4 border-r border-[#c0c9be] bg-[#e5eeff] rounded-xl self-start space-y-4">
           <nav className="space-y-2">
@@ -460,9 +447,6 @@ function FarmerAnalyticsPage() {
           </section>
         </div>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }
