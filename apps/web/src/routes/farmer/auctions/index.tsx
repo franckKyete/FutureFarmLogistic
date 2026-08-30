@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import { getAuctionsQuery } from '@/features/auctions/api/auctions.queries';
 import { AuctionStatus } from '@futurefarm/types';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/auctions/')({
   component: MyAuctionsPage,
@@ -129,20 +128,7 @@ function MyAuctionsPage() {
   const filtered = getFilteredAuctions();
 
   return (
-    <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen pb-24 font-sans">
-      {/* Top AppBar */}
-      <header className="w-full top-0 sticky z-40 bg-[#f8f9ff] border-b border-[#c0c9be] flex items-center justify-between px-4 py-3 max-w-[480px] mx-auto">
-        <div className="flex items-center gap-2">
-          <span
-            className="material-symbols-outlined text-[#004322]"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            agriculture
-          </span>
-          <h1 className="text-[20px] font-bold text-[#004322]">Future Farm</h1>
-        </div>
-      </header>
-
+    <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen font-sans">
       <main className="max-w-[480px] mx-auto px-4 pt-4">
         {/* Title */}
         <div className="mb-4">
@@ -255,9 +241,6 @@ function MyAuctionsPage() {
           )}
         </div>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -185,17 +185,7 @@ function AddHarvestPage() {
 
   return (
     <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen pb-20 font-sans">
-      {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 bg-[#f8f9ff] border-b border-[#c0c9be] h-16 flex justify-between items-center px-4 max-w-[480px] mx-auto left-0 right-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link to="/farmer/stock" className="material-symbols-outlined text-[#004322] cursor-pointer">
-            arrow_back
-          </Link>
-          <h1 className="text-[18px] font-bold text-[#004322]">Nouvelle récolte</h1>
-        </div>
-      </header>
-
-      <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-6">
+      <main className="pt-4 px-4 max-w-[480px] mx-auto space-y-6">
         {/* Unidentified Crop Warning Banner */}
         {search.isIdentified === 'false' && (
           <section className="bg-[#fff8e1] border border-[#ffe082] p-4 rounded-xl flex items-center gap-3 shadow-sm">

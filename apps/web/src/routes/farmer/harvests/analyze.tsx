@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { aiClassifyHarvestMutation, mediaUploadMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
 import { Permission } from '@futurefarm/types';
 
 export const Route = createFileRoute('/farmer/harvests/analyze')({
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/farmer/harvests/analyze')({
 });
 
 function AnalyzePage() {
+  useFarmerLayout({ hideTopBar: true, hideBottomNav: true });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [images, setImages] = useState<string[]>([]);

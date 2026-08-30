@@ -1,4 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router';
+import { farmerLayoutStore } from '../store/farmer-layout.store';
+import { useStore } from '@tanstack/react-store';
 
 interface NavItem {
   label: string;
@@ -17,7 +19,10 @@ const NAV_ITEMS: NavItem[] = [
 
 export function FarmerBottomNav() {
   const location = useLocation();
+  const override = useStore(farmerLayoutStore);
   const currentPath = location.pathname;
+
+  if (override.hideBottomNav) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-[#E5E7EB] flex justify-around items-center h-16 max-w-[480px] mx-auto px-2 shadow-sm">

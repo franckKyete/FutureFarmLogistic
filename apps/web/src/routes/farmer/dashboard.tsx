@@ -1,24 +1,19 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
-import { getFarmerProfileQuery } from '@/features/profile/api/profile.queries';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/dashboard')({
   component: DashboardPage,
 });
 
 function DashboardPage() {
-  const { user } = useAuth();
   const [alertOpen, setAlertOpen] = useState(true);
 
   // Queries
   const { data: harvests } = useQuery(getFarmerHarvestsQuery());
   const { data: orders } = useQuery(getSellerOrdersQuery());
-  const { data: profile } = useQuery(getFarmerProfileQuery());
 
   // Stats calculations
   const totalRevenue = orders
@@ -70,7 +65,7 @@ function DashboardPage() {
     <div className="bg-background text-[#1C1C1C] min-h-screen pb-24 relative">
       {/* Alert Banner */}
       {alertOpen && harvests?.some((h) => h.status === 'REJECTED') && (
-        <div className="fixed top-0 left-0 right-0 z-[60] bg-secondary-container text-on-secondary-container px-4 py-3 flex items-center gap-3 animate-pulse shadow-sm">
+        <div className="bg-secondary-container text-on-secondary-container px-4 py-3 flex items-center gap-3 animate-pulse shadow-sm max-w-[480px] mx-auto rounded-xl mt-2 mb-2">
           <span className="material-symbols-outlined shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
             warning
           </span>
@@ -86,61 +81,8 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Top App Bar */}
-      <header
-        className={`fixed left-0 right-0 z-50 bg-white border-b border-[#E5E7EB] transition-all duration-300 ${
-          alertOpen && harvests?.some((h) => h.status === 'REJECTED') ? 'top-12' : 'top-0'
-        }`}
-      >
-        <div className="flex justify-between items-center h-16 px-4 max-w-[480px] mx-auto">
-          <div className="flex items-center gap-3">
-            <Link to="/farmer/profile" className="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-[#1A5C35]/10 flex items-center justify-center cursor-pointer">
-              {profile?.avatarUrl ? (
-                <img
-                  alt={user?.firstName || 'Farmer'}
-                  className="w-full h-full object-cover"
-                  src={profile.avatarUrl}
-                />
-              ) : (
-                <img
-                  alt={user?.firstName || 'Farmer'}
-                  className="w-full h-full object-cover"
-                  src={user ? `https://ui-avatars.com/api/?name=${encodeURIComponent(`${user.firstName} ${user.lastName}`)}&background=1A5C35&color=fff&bold=true` : 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100'}
-                />
-              )}
-            </Link>
-            <div>
-              <div className="flex items-center gap-1">
-                <h1 className="text-sm font-bold text-on-surface">
-                  {user?.firstName} {user?.lastName}
-                </h1>
-                <span
-                  className="material-symbols-outlined text-[16px] text-primary"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  shield_with_heart
-                </span>
-              </div>
-              <p className="text-[10px] font-semibold text-outline">
-                {profile?.companyName || 'Producteur Premium'}
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/notifications"
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </Link>
-        </div>
-      </header>
-
       {/* Main Content */}
-      <main
-        className={`px-4 max-w-[480px] mx-auto space-y-6 transition-all duration-300 ${
-          alertOpen && harvests?.some((h) => h.status === 'REJECTED') ? 'pt-32' : 'pt-20'
-        }`}
-      >
+      <main className="px-4 max-w-[480px] mx-auto space-y-6 pt-4">
         {/* KPI Bento Grid */}
         <section className="grid grid-cols-2 gap-4">
           {/* Revenue Card */}
@@ -257,9 +199,6 @@ function DashboardPage() {
           </div>
         </section>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }
