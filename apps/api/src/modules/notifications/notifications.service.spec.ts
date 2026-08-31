@@ -7,8 +7,8 @@ import { PushSubscriptionEntity } from './entities/push-subscription.entity';
 import { NotificationPreferencesEntity } from './entities/notification-preferences.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { getQueueToken } from '@nestjs/bull';
-import { NotFoundException } from '@nestjs/common';
-import { NotificationPriority, NotificationChannel } from '@futurefarm/types';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { NotificationPriority, NotificationChannel, NotificationStatus } from '@futurefarm/types';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -148,6 +148,17 @@ describe('NotificationsService', () => {
         expect.any(Object),
         expect.any(Object),
       );
+    });
+
+    it('should throw ServiceUnavailableException and mark notification as FAILED if queue fails', async () => {
+      userRepository.existsBy.mockResolvedValue(true);
+      const mockSaved = { id: 'notif-id', status: NotificationStatus.PENDING };
+      notificationRepository.save.mockResolvedValue(mockSaved);
+      notificationsQueue.add.mockRejectedValue(new Error('Redis connection failed'));
+
+      await expect(service.send(dto)).rejects.toThrow(ServiceUnavailableException);
+      expect(mockSaved.status).toBe(NotificationStatus.FAILED);
+      expect(notificationRepository.save).toHaveBeenCalledWith(mockSaved);
     });
   });
 

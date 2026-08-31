@@ -126,6 +126,16 @@ export class UsersController {
     return this.usersService.registerDriver(dto);
   }
 
+  @Post(':id/resend-welcome')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.USER_CREATE)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Admin: Resend welcome / activation notification to user' })
+  resendWelcomeNotification(@Param('id') id: string) {
+    return this.usersService.resendWelcomeNotification(id);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.USER_READ)

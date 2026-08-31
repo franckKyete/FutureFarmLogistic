@@ -1,16 +1,16 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   getFarmerProfileQuery,
-  updateFarmerProfileMutation,
   uploadMediaFile,
 } from '@/features/profile/api/profile.queries';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
-import { clearAuth } from '@/features/auth/store/auth.store';
+import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
+import { useUpdateUser } from '@/features/admin/api/users.queries';
 import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/profile')({
@@ -24,8 +24,14 @@ function FarmerProfilePage() {
 
   // Profile editable state
   const [isEditing, setIsEditing] = useState(false);
+  const [tempFirstName, setTempFirstName] = useState('');
+  const [tempLastName, setTempLastName] = useState('');
+  const [tempEmail, setTempEmail] = useState('');
+  const [tempPhone, setTempPhone] = useState('');
   const [tempName, setTempName] = useState('');
+  const [tempAddress, setTempAddress] = useState('');
   const [tempBio, setTempBio] = useState('');
+  const [tempIsCertified, setTempIsCertified] = useState(false);
   const [tempAvatarUrl, setTempAvatarUrl] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -33,28 +39,23 @@ function FarmerProfilePage() {
   const { data: profile, refetch: refetchProfile } = useQuery(getFarmerProfileQuery());
   const { data: harvests } = useQuery(getFarmerHarvestsQuery());
   const { data: orders } = useQuery(getSellerOrdersQuery());
+  const updateUserMutation = useUpdateUser();
 
   useEffect(() => {
+    if (user) {
+      setTempFirstName(user.firstName || '');
+      setTempLastName(user.lastName || '');
+      setTempEmail(user.email || '');
+      setTempPhone((user as any).phone || (user as any).phoneNumber || '');
+    }
     if (profile) {
       setTempName(profile.companyName || '');
+      setTempAddress(profile.address || '');
       setTempBio(profile.bio || '');
+      setTempIsCertified(!!profile.isCertified);
       setTempAvatarUrl(profile.avatarUrl || null);
     }
-  }, [profile]);
-
-  // Mutations
-  const updateProfile = useMutation({
-    ...updateFarmerProfileMutation(),
-    onSuccess: () => {
-      addToast('Profil mis à jour avec succès.', 'success');
-      setIsEditing(false);
-      void refetchProfile();
-    },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message || 'Erreur lors de la mise à jour du profil';
-      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
-    },
-  });
+  }, [profile, user]);
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,21 +71,15 @@ function FarmerProfilePage() {
       const uploadedUrl = await uploadMediaFile(file);
       setTempAvatarUrl(uploadedUrl);
 
-      // Save directly to profile
-      const payload: {
-        companyName: string;
-        address: string;
-        bio?: string;
-        avatarUrl?: string;
-      } = {
-        companyName: profile?.companyName || `${user?.firstName || 'Farmer'} ${user?.lastName || ''}`.trim(),
-        address: profile?.address || '',
-        avatarUrl: uploadedUrl,
-      };
-      if (profile?.bio) payload.bio = profile.bio;
-
-      await updateProfile.mutateAsync(payload);
-      addToast('Photo de profil mise à jour !', 'success');
+      // Save avatar to profile
+      if (user?.id) {
+        await updateUserMutation.mutateAsync({
+          id: user.id,
+          avatarUrl: uploadedUrl,
+        });
+        addToast('Photo de profil mise à jour !', 'success');
+        void refetchProfile();
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Erreur lors du téléchargement de l'image";
       addToast(msg, 'error');
@@ -99,17 +94,38 @@ function FarmerProfilePage() {
       addToast("Le nom de l'exploitation est requis.", 'warning');
       return;
     }
-    const payload: {
-      companyName: string;
-      bio?: string;
-      avatarUrl?: string;
-    } = {
-      companyName: tempName.trim(),
-    };
-    if (tempBio.trim()) payload.bio = tempBio.trim();
-    if (tempAvatarUrl) payload.avatarUrl = tempAvatarUrl;
+    if (!user?.id) return;
 
-    updateProfile.mutate(payload);
+    updateUserMutation.mutate(
+      {
+        id: user.id,
+        firstName: tempFirstName.trim(),
+        lastName: tempLastName.trim(),
+        email: tempEmail.trim(),
+        phoneNumber: tempPhone.trim(),
+        companyName: tempName.trim(),
+        address: tempAddress.trim() || undefined,
+        bio: tempBio.trim() || undefined,
+        isCertified: tempIsCertified,
+        avatarUrl: tempAvatarUrl || undefined,
+      },
+      {
+        onSuccess: () => {
+          addToast('Profil mis à jour avec succès.', 'success');
+          updateAuthUser({
+            firstName: tempFirstName.trim(),
+            lastName: tempLastName.trim(),
+            email: tempEmail.trim(),
+          });
+          setIsEditing(false);
+          void refetchProfile();
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Erreur lors de la mise à jour du profil';
+          addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+        },
+      },
+    );
   };
 
   // Calculations
@@ -320,15 +336,27 @@ function FarmerProfilePage() {
       {/* Edit Profile Modal */}
       {isEditing && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-[400px] p-6 space-y-4 shadow-xl">
-            <h3 className="text-[18px] font-semibold text-[#004322]">Modifier le profil</h3>
+          <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-[18px] font-bold text-[#004322] flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#004322]">edit_note</span>
+                Modifier le profil
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
 
             {/* Avatar upload in modal */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
               <img
                 src={tempAvatarUrl || currentAvatarSrc}
                 alt="Avatar preview"
-                className="w-14 h-14 rounded-full object-cover border-2 border-emerald-600 shrink-0"
+                className="w-14 h-14 rounded-full object-cover border-2 border-[#004322] shrink-0"
               />
               <div className="flex-1">
                 <p className="text-xs font-bold text-gray-800">Photo de profil</p>
@@ -343,37 +371,110 @@ function FarmerProfilePage() {
               </div>
             </div>
 
+            {/* General Info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-[#404941] block">Prénom</label>
+                <input
+                  className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+                  value={tempFirstName}
+                  onChange={(e) => setTempFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-[#404941] block">Nom</label>
+                <input
+                  className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+                  value={tempLastName}
+                  onChange={(e) => setTempLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-[#404941] block">Email</label>
+                <input
+                  type="email"
+                  className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+                  value={tempEmail}
+                  onChange={(e) => setTempEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-[#404941] block">Téléphone</label>
+                <input
+                  type="tel"
+                  placeholder="+221..."
+                  className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+                  value={tempPhone}
+                  onChange={(e) => setTempPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Farm Info */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-[#404941] block">Nom de l'exploitation</label>
               <input
-                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-3 text-[14px] outline-none"
+                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
                 value={tempName}
                 onChange={(e) => setTempName(e.target.value)}
                 required
               />
             </div>
+
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-[#404941] block">Bio / Description</label>
+              <label className="text-[11px] font-bold text-[#404941] block">Adresse de la ferme / Localisation</label>
+              <input
+                placeholder="Ex: Région de Thiès, Sénégal"
+                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+                value={tempAddress}
+                onChange={(e) => setTempAddress(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-[#404941] block">Bio / Présentation</label>
               <textarea
-                rows={3}
-                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-3 text-[14px] outline-none"
+                rows={2}
+                placeholder="Décrivez brièvement votre exploitation..."
+                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
                 value={tempBio}
                 onChange={(e) => setTempBio(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-3 pt-2">
+
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={tempIsCertified}
+                onChange={(e) => setTempIsCertified(e.target.checked)}
+                className="rounded border-[#c0c9be] text-[#004322] focus:ring-[#004322]"
+              />
+              <span className="text-[12px] font-semibold text-[#0b1c30]">
+                Exploitation certifiée Bio (Label vérifié)
+              </span>
+            </label>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
               <button
+                type="button"
                 onClick={() => setIsEditing(false)}
                 className="px-4 py-2 border border-[#707970] rounded-lg text-[12px] font-semibold text-[#404941] hover:bg-[#eff4ff] cursor-pointer"
               >
                 Annuler
               </button>
               <button
+                type="button"
                 onClick={handleSave}
-                disabled={updateProfile.isPending}
-                className="px-4 py-2 bg-[#004322] text-white rounded-lg text-[12px] font-semibold hover:bg-[#004322]/90 cursor-pointer disabled:opacity-50"
+                disabled={updateUserMutation.isPending}
+                className="px-5 py-2 bg-[#004322] text-white rounded-lg text-[12px] font-bold hover:bg-[#004322]/90 cursor-pointer disabled:opacity-50 shadow-sm"
               >
-                {updateProfile.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                {updateUserMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
           </div>

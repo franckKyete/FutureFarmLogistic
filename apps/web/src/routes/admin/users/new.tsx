@@ -63,7 +63,6 @@ function CreateFieldAgentPage() {
     name: string;
     email: string;
     role: string;
-    temporaryPassword?: string;
   } | null>(null);
 
   const toggleSpecialization = (spec: string) => {
@@ -90,13 +89,12 @@ function CreateFieldAgentPage() {
       };
 
       createInspectorMutation.mutate(payload, {
-        onSuccess: (data) => {
-          addToast("Inspecteur créé ! Un email avec son mot de passe lui a été envoyé.", 'success');
+        onSuccess: () => {
+          addToast("Inspecteur créé ! Un email d'activation avec son mot de passe lui a été envoyé.", 'success');
           setCreatedAgentResult({
             name: `${firstName} ${lastName}`,
             email,
             role: 'Inspecteur Qualité Certifié',
-            temporaryPassword: data.temporaryPassword || 'Généré et envoyé par email',
           });
         },
         onError: (err: any) => {
@@ -129,13 +127,12 @@ function CreateFieldAgentPage() {
       if (licenseExpiresAt) payload.licenseExpiresAt = licenseExpiresAt;
 
       createDriverMutation.mutate(payload, {
-        onSuccess: (data) => {
-          addToast('Chauffeur enregistré ! Un email avec son mot de passe lui a été envoyé.', 'success');
+        onSuccess: () => {
+          addToast("Chauffeur enregistré ! Un email d'activation avec son mot de passe lui a été envoyé.", 'success');
           setCreatedAgentResult({
             name: `${firstName} ${lastName}`,
             email,
             role: `Chauffeur Transporteur (Permis ${licenseCategory})`,
-            temporaryPassword: data.temporaryPassword || 'Généré et envoyé par email',
           });
         },
         onError: (err: any) => {
@@ -144,13 +141,6 @@ function CreateFieldAgentPage() {
         },
       });
     }
-  };
-
-  const handleCopyCredentials = () => {
-    if (!createdAgentResult) return;
-    const text = `Identifiants Future Farm :\nEmail: ${createdAgentResult.email}\nMot de passe temporaire: ${createdAgentResult.temporaryPassword}\nRôle: ${createdAgentResult.role}\nConnexion: ${window.location.origin}/auth/login`;
-    void navigator.clipboard.writeText(text);
-    addToast('Identifiants copiés dans le presse-papier !', 'success');
   };
 
   const handleResetForm = () => {
@@ -548,9 +538,9 @@ function CreateFieldAgentPage() {
             </div>
 
             <div className="text-center space-y-1">
-              <h3 className="font-bold text-xl text-gray-900">Collaborateur Enregistré !</h3>
+              <h3 className="font-bold text-xl text-gray-900">Utilisateur créé avec succès</h3>
               <p className="text-xs text-gray-500">
-                Le compte de <strong className="text-gray-800">{createdAgentResult.name}</strong> a été créé et un email d'activation lui a été transmis.
+                Le compte de <strong className="text-gray-800">{createdAgentResult.name}</strong> a été créé et l'email avec les identifiants est en cours d'envoi.
               </p>
             </div>
 
@@ -561,39 +551,36 @@ function CreateFieldAgentPage() {
               </div>
 
               <div>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Mot de passe temporaire généré</p>
-                <p className="text-base font-bold font-mono text-[#004322] bg-white p-2.5 rounded-xl border border-emerald-300 text-center tracking-widest mt-1">
-                  {createdAgentResult.temporaryPassword}
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Rôle attribué</p>
+                <p className="text-sm font-semibold text-gray-800">{createdAgentResult.role}</p>
+              </div>
+
+              <div className="pt-2 border-t border-gray-200">
+                <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mb-1">
+                  <span className="material-symbols-outlined text-sm">mark_email_read</span>
+                  Notification envoyée
+                </div>
+                <p className="text-[11px] text-gray-600 leading-relaxed">
+                  Un email contenant les instructions et les identifiants de connexion a été envoyé au collaborateur.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={handleCopyCredentials}
-                className="w-full py-3 bg-[#004322] text-white rounded-xl text-xs font-bold hover:bg-[#00331a] active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                onClick={handleResetForm}
+                className="py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm">content_copy</span>
-                Copier les identifiants d'accès
+                Inscrire un autre agent
               </button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleResetForm}
-                  className="py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Inscrire un autre agent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void navigate({ to: '/admin/users' })}
-                  className="py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Voir les utilisateurs
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => void navigate({ to: '/admin/users' })}
+                className="py-3 bg-[#004322] hover:bg-[#00331a] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+              >
+                Voir les utilisateurs
+              </button>
             </div>
           </div>
         </div>

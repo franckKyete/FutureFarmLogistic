@@ -16,3 +16,14 @@ export class ResetPasswordDto {
   @MinLength(8)
   newPassword: string;
 }
+
+export class ChangePasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  currentPassword: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
+}

@@ -152,7 +152,12 @@ export function LoginPage() {
 
                 {activeError && (
                   <div className="rounded-lg bg-error-container border border-error px-4 py-3 text-xs text-on-error-container">
-                    {activeError instanceof Error ? activeError.message : 'Code invalide.'}
+                    {(() => {
+                      const axiosErr = activeError as any;
+                      const msg = axiosErr?.response?.data?.message;
+                      if (msg) return Array.isArray(msg) ? msg[0] : msg;
+                      return 'Code invalide.';
+                    })()}
                   </div>
                 )}
 
@@ -253,8 +258,20 @@ export function LoginPage() {
                 </div>
 
                 {activeError && (
-                  <div className="rounded-lg bg-error-container border border-error px-4 py-3 text-xs text-on-error-container">
-                    {activeError instanceof Error ? activeError.message : 'Identifiants invalides.'}
+                  <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-700 font-semibold flex items-center gap-2.5 shadow-xs animate-slide-in">
+                    <span className="material-symbols-outlined text-red-600 text-lg shrink-0">error</span>
+                    <span className="flex-1 leading-relaxed">
+                      {(() => {
+                        const axiosErr = activeError as any;
+                        const msg = axiosErr?.response?.data?.message;
+                        if (msg) return Array.isArray(msg) ? msg[0] : msg;
+                        if (axiosErr?.response?.status === 401) return 'Identifiants invalides.';
+                        if (activeError instanceof Error && !activeError.message.includes('status code')) {
+                          return activeError.message;
+                        }
+                        return 'Identifiants invalides.';
+                      })()}
+                    </span>
                   </div>
                 )}
 

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
@@ -71,6 +72,11 @@ import { Route as AuctionsIdAutoBidRouteImport } from './routes/auctions/$id/aut
 import { Route as AdminUsersNewRouteImport } from './routes/admin/users/new'
 import { Route as FarmerAuctionsIdBiddersRouteImport } from './routes/farmer/auctions/$id.bidders'
 
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -388,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -449,6 +456,7 @@ export interface FileRoutesByTo {
   '/farmer': typeof FarmerRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
+  '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -513,6 +521,7 @@ export interface FileRoutesById {
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -578,6 +587,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
     | '/admin/dashboard'
@@ -639,6 +649,7 @@ export interface FileRouteTypes {
     | '/farmer'
     | '/marketplace'
     | '/notifications'
+    | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
     | '/admin/dashboard'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
     | '/admin/dashboard'
@@ -766,6 +778,7 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
+  ProfileRoute: typeof ProfileRoute
   AuctionsIdRoute: typeof AuctionsIdRouteWithChildren
   AuctionsStoryRoute: typeof AuctionsStoryRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
@@ -779,6 +792,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
@@ -1379,6 +1399,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
+  ProfileRoute: ProfileRoute,
   AuctionsIdRoute: AuctionsIdRouteWithChildren,
   AuctionsStoryRoute: AuctionsStoryRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,

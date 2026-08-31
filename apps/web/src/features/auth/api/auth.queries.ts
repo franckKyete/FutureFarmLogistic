@@ -111,3 +111,21 @@ export function registerBuyerMutation() {
     },
   };
 }
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export function changePasswordMutation() {
+  return {
+    mutationKey: ['auth', 'changePassword'] as const,
+    mutationFn: async (payload: ChangePasswordPayload): Promise<{ success: boolean; message: string }> => {
+      const { data } = await apiClient.post<{ data: { success: boolean; message: string } }>(
+        '/auth/change-password',
+        payload,
+      );
+      return data.data;
+    },
+  };
+}

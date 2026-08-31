@@ -1,7 +1,6 @@
 import {
   Injectable,
   UnauthorizedException,
-  ForbiddenException,
   BadRequestException,
   NotFoundException,
   Logger,
@@ -22,12 +21,13 @@ import type {
 } from '@futurefarm/types';
 import {
   UserStatus,
+  NotificationChannel,
   NotificationPriority,
 } from '@futurefarm/types';
 
 import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionEntity } from './entities/user-session.entity';
-import { EmailChannel } from '../notifications/channels/email.channel';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -45,7 +45,7 @@ export class AuthService {
     private readonly sessionRepository: Repository<UserSessionEntity>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
-    private readonly emailChannel: EmailChannel,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async login(
@@ -57,7 +57,7 @@ export class AuthService {
     | { require2fa: true; tempToken: string }
   > {
     const user = await this.usersRepository.findOne({
-      where: { email: dto.email, isActive: true },
+      where: { email: dto.email },
       relations: ['roles'],
       select: [
         'id',
@@ -67,31 +67,39 @@ export class AuthService {
         'password',
         'isActive',
         'status',
+        'mustChangePassword',
         'isTwoFactorEnabled',
         'twoFactorSecret',
       ],
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
     const isPasswordValid = await user.validatePassword(dto.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
     // Verify account status
     if (user.status === UserStatus.PENDING_VALIDATION) {
-      throw new ForbiddenException(
-        'Your account is pending validation by an administrator.',
+      throw new UnauthorizedException(
+        'Votre compte est en cours de validation par un administrateur.',
       );
     }
-    if (user.status === UserStatus.SUSPENDED) {
-      throw new ForbiddenException('Your account has been suspended.');
+    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BANNED) {
+      throw new UnauthorizedException(
+        'Accès refusé : votre compte a été suspendu par un administrateur.',
+      );
     }
-    if (user.status === UserStatus.BANNED) {
-      throw new ForbiddenException('Your account has been banned.');
+
+    // Automatically activate user on first successful login
+    if (!user.isActive) {
+      user.isActive = true;
+      user.status = UserStatus.APPROVED;
+      await this.usersRepository.save(user);
+      this.logger.log(`User ${user.email} activated on first login.`);
     }
 
     if (user.isTwoFactorEnabled) {
@@ -114,6 +122,7 @@ export class AuthService {
       lastName: user.lastName,
       permissions,
       roles: user.roles.map((r) => r.name),
+      mustChangePassword: user.mustChangePassword,
     };
 
     const tokens = await this.generateTokens(authUser, userAgent, ipAddress);
@@ -150,6 +159,7 @@ export class AuthService {
         'lastName',
         'isActive',
         'status',
+        'mustChangePassword',
         'isTwoFactorEnabled',
         'twoFactorSecret',
       ],
@@ -178,6 +188,7 @@ export class AuthService {
       lastName: user.lastName,
       permissions,
       roles: user.roles.map((r) => r.name),
+      mustChangePassword: user.mustChangePassword,
     };
 
     const tokens = await this.generateTokens(authUser, userAgent, ipAddress);
@@ -274,11 +285,11 @@ export class AuthService {
     const actionUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     try {
-      await this.emailChannel.send({
-        userId: user.id,
-        userEmail: user.email,
+      await this.notificationsService.send({
+        recipientIds: [user.id],
         title: 'Reset Your Password - FutureFarm',
         body: `To reset your password, please click the link below. If you did not request this, please ignore this email.`,
+        channels: [NotificationChannel.EMAIL],
         priority: NotificationPriority.HIGH,
         metadata: {
           actionUrl,
@@ -319,8 +330,30 @@ export class AuthService {
     userInstance.password = newPassword;
     userInstance.resetPasswordToken = null;
     userInstance.resetPasswordExpires = null;
+    userInstance.mustChangePassword = false;
 
     await this.usersRepository.save(userInstance);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'password', 'mustChangePassword'],
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+    const isValid = await user.validatePassword(currentPassword);
+    if (!isValid) {
+      throw new BadRequestException('Mot de passe actuel incorrect.');
+    }
+    user.password = newPassword;
+    user.mustChangePassword = false;
+    await this.usersRepository.save(user);
   }
 
   async getSessions(userId: string): Promise<UserSessionEntity[]> {

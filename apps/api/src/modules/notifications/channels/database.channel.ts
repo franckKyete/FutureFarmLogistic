@@ -22,6 +22,9 @@ export class DatabaseChannel implements INotificationChannel {
   ) {}
 
   async send(payload: NotificationPayload): Promise<void> {
+    if (!payload.notificationId) {
+      return;
+    }
     try {
       const notification = await this.notificationRepository.findOneBy({
         id: payload.notificationId,

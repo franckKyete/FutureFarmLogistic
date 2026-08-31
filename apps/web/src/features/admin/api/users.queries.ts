@@ -88,7 +88,7 @@ export function useCreateInspector() {
 
   return useMutation({
     mutationFn: async (params: CreateInspectorParams) => {
-      const { data } = await apiClient.post<{ data: AdminUserDto & { temporaryPassword?: string } }>(
+      const { data } = await apiClient.post<{ data: AdminUserDto }>(
         '/users/register/inspector',
         params,
       );
@@ -105,7 +105,7 @@ export function useCreateDriver() {
 
   return useMutation({
     mutationFn: async (params: CreateDriverParams) => {
-      const { data } = await apiClient.post<{ data: AdminUserDto & { temporaryPassword?: string } }>(
+      const { data } = await apiClient.post<{ data: AdminUserDto }>(
         '/users/register/driver',
         params,
       );
@@ -113,6 +113,58 @@ export function useCreateDriver() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
+export function useResendWelcomeNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await apiClient.post<{ message: string }>(
+        `/users/${userId}/resend-welcome`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
+export interface UpdateUserParams {
+  id: string;
+  email?: string | undefined;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+  phoneNumber?: string | undefined;
+  licenseNumber?: string | undefined;
+  licenseCategory?: string | undefined;
+  isAvailable?: boolean | undefined;
+  agencyName?: string | undefined;
+  specializations?: string[] | undefined;
+  companyName?: string | undefined;
+  address?: string | undefined;
+  bio?: string | undefined;
+  vatNumber?: string | undefined;
+  billingAddress?: string | undefined;
+  shippingAddress?: string | undefined;
+  isCertified?: boolean | undefined;
+  avatarUrl?: string | undefined;
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...params }: UpdateUserParams) => {
+      const { data } = await apiClient.patch<{ data: AdminUserDto }>(`/users/${id}`, params);
+      return data.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users', variables.id] });
     },
   });
 }

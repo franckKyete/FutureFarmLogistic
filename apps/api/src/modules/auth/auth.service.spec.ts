@@ -6,10 +6,10 @@ import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionEntity } from './entities/user-session.entity';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { EmailChannel } from '../notifications/channels/email.channel';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   UnauthorizedException,
-  ForbiddenException,
+  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { UserStatus } from '@futurefarm/types';
@@ -20,7 +20,7 @@ describe('AuthService', () => {
   let sessionRepository: any;
   let jwtService: any;
   let configService: any;
-  let emailChannel: any;
+  let notificationsService: any;
 
   const mockUsersRepository = {
     findOne: jest.fn(),
@@ -45,9 +45,9 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
-  const mockEmailChannel = {
+  const mockNotificationsService = {
     send: jest.fn(),
-    isConfigured: jest.fn(),
+    broadcast: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -71,8 +71,8 @@ describe('AuthService', () => {
           useValue: mockConfigService,
         },
         {
-          provide: EmailChannel,
-          useValue: mockEmailChannel,
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
         },
       ],
     }).compile();
@@ -82,7 +82,7 @@ describe('AuthService', () => {
     sessionRepository = module.get(getRepositoryToken(UserSessionEntity));
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
-    emailChannel = module.get(EmailChannel);
+    notificationsService = module.get(NotificationsService);
 
     jest.clearAllMocks();
   });
@@ -113,7 +113,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw ForbiddenException if user status is PENDING_VALIDATION', async () => {
+    it('should throw UnauthorizedException if user status is PENDING_VALIDATION', async () => {
       const mockUser = {
         validatePassword: jest.fn().mockResolvedValue(true),
         isActive: true,
@@ -121,7 +121,18 @@ describe('AuthService', () => {
         roles: [],
       };
       usersRepository.findOne.mockResolvedValue(mockUser);
-      await expect(service.login(loginDto)).rejects.toThrow(ForbiddenException);
+      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException if user status is SUSPENDED', async () => {
+      const mockUser = {
+        validatePassword: jest.fn().mockResolvedValue(true),
+        isActive: true,
+        status: UserStatus.SUSPENDED,
+        roles: [],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should return require2fa: true and a temporary token if 2FA is enabled', async () => {
@@ -143,6 +154,29 @@ describe('AuthService', () => {
         { sub: 'user-id', isTemp: true },
         { expiresIn: '5m' },
       );
+    });
+
+    it('should activate inactive user on first successful login', async () => {
+      const mockUser = {
+        id: 'user-id',
+        email: 'test@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        validatePassword: jest.fn().mockResolvedValue(true),
+        isActive: false,
+        status: UserStatus.APPROVED,
+        isTwoFactorEnabled: false,
+        roles: [],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+      usersRepository.save.mockResolvedValue(mockUser);
+      jwtService.signAsync.mockResolvedValue('jwt-token');
+      sessionRepository.save.mockResolvedValue({});
+
+      const result = await service.login(loginDto);
+      expect(mockUser.isActive).toBe(true);
+      expect(usersRepository.save).toHaveBeenCalledWith(mockUser);
+      expect(result).toBeDefined();
     });
 
     it('should return tokens and user profile if login is successful and 2FA is disabled', async () => {
@@ -269,7 +303,7 @@ describe('AuthService', () => {
         await expect(
           service.forgotPassword('none@example.com'),
         ).resolves.not.toThrow();
-        expect(emailChannel.send).not.toHaveBeenCalled();
+        expect(notificationsService.send).not.toHaveBeenCalled();
       });
 
       it('should generate token and send recovery email if user exists', async () => {
@@ -280,10 +314,10 @@ describe('AuthService', () => {
 
         await service.forgotPassword('test@example.com');
         expect(usersRepository.update).toHaveBeenCalled();
-        expect(emailChannel.send).toHaveBeenCalledWith(
+        expect(notificationsService.send).toHaveBeenCalledWith(
           expect.objectContaining({
-            userId: 'user-id',
-            userEmail: 'test@example.com',
+            recipientIds: ['user-id'],
+            title: 'Reset Your Password - FutureFarm',
           }),
         );
       });
@@ -293,7 +327,7 @@ describe('AuthService', () => {
         usersRepository.findOneBy.mockResolvedValue(mockUser);
         usersRepository.update.mockResolvedValue({});
         configService.get.mockReturnValue('http://localhost:3001');
-        emailChannel.send.mockRejectedValue(new Error('SMTP Connection Failed'));
+        notificationsService.send.mockRejectedValue(new Error('SMTP Connection Failed'));
 
         await expect(
           service.forgotPassword('test@example.com'),
@@ -320,6 +354,40 @@ describe('AuthService', () => {
 
         await service.resetPassword('good-token', 'newPass123');
         expect(usersRepository.save).toHaveBeenCalled();
+      });
+    });
+
+    describe('changePassword', () => {
+      it('should throw NotFoundException if user not found', async () => {
+        usersRepository.findOne.mockResolvedValue(null);
+        await expect(
+          service.changePassword('user-id', 'oldPass', 'newPass123'),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('should throw BadRequestException if current password is incorrect', async () => {
+        const mockUser = {
+          id: 'user-id',
+          validatePassword: jest.fn().mockResolvedValue(false),
+        };
+        usersRepository.findOne.mockResolvedValue(mockUser);
+        await expect(
+          service.changePassword('user-id', 'wrongOldPass', 'newPass123'),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('should update password and reset mustChangePassword', async () => {
+        const mockUser = {
+          id: 'user-id',
+          validatePassword: jest.fn().mockResolvedValue(true),
+          mustChangePassword: true,
+        };
+        usersRepository.findOne.mockResolvedValue(mockUser);
+        usersRepository.save.mockResolvedValue({});
+
+        await service.changePassword('user-id', 'correctOldPass', 'newPass123');
+        expect(mockUser.mustChangePassword).toBe(false);
+        expect(usersRepository.save).toHaveBeenCalledWith(mockUser);
       });
     });
   });
