@@ -16,6 +16,7 @@ export enum HarvestStatus {
   PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  FLAGGED_PHYSICAL = 'FLAGGED_PHYSICAL',
   ARCHIVED = 'ARCHIVED',
 }
 
@@ -100,7 +101,7 @@ export interface UpdateHarvestDto {
 }
 
 export interface VerifyHarvestDto {
-  status: HarvestStatus.APPROVED | HarvestStatus.REJECTED;
+  status: HarvestStatus.APPROVED | HarvestStatus.REJECTED | HarvestStatus.FLAGGED_PHYSICAL;
   qualityScore?: number;
   rejectionReason?: string;
 }

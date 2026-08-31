@@ -51,6 +51,9 @@ export interface DashboardStatsDto {
   pendingHarvestsCount: number;
   todayVisitsCount: number;
   monthlyValidationsCount: number;
+  regionalFarmersCount?: number;
+  orderVolume?: number;
+  averageQualityScore?: number;
   priorityAlerts: {
     overdueVisits: number;
     suspiciousHarvests: number;

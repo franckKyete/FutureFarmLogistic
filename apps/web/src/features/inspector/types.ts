@@ -5,6 +5,9 @@ export interface DashboardStats {
   pendingHarvestsCount: number;
   todayVisitsCount: number;
   monthlyValidationsCount: number;
+  regionalFarmersCount?: number;
+  orderVolume?: number;
+  averageQualityScore?: number;
   priorityAlerts: {
     overdueVisits: number;
     suspiciousHarvests: number;
@@ -72,12 +75,17 @@ export interface ProducerFilter {
 
 export interface HarvestDto {
   id: string;
+  productId?: string;
+  farmerProfileId?: string;
   productName: string;
   producerName: string;
   quantity: number;
   unit: string;
-  qualityScore?: number;
+  qualityScore?: number | null | undefined;
   status: string;
   harvestDate: string;
-  images?: string[];
+  images?: string[] | undefined;
+  parcelId?: string | undefined;
+  farmingMethods?: string | undefined;
+  rejectionReason?: string | null | undefined;
 }

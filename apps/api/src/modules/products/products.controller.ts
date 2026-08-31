@@ -182,14 +182,19 @@ export class ProductsController {
     @Query('category') category?: ProductCategory,
     @Query('productId') productId?: string,
     @Query('farmerProfileId') farmerProfileId?: string,
+    @Query('centerId') centerId?: string,
+    @Query('radiusKm') radiusKm?: number,
   ) {
     const user = req.user as AuthUser | undefined;
-    const hasReadAll = user?.permissions?.includes(Permission.HARVEST_READ_ALL) ?? false;
+    const hasReadAll =
+      user?.permissions?.includes(Permission.HARVEST_READ_ALL) ?? false;
     return this.productsService.findAllHarvests({
       status: hasReadAll ? status : HarvestStatus.APPROVED,
       category,
       productId,
       farmerProfileId,
+      centerId,
+      radiusKm: radiusKm !== undefined ? Number(radiusKm) : undefined,
       isPublicView: !hasReadAll,
     });
   }

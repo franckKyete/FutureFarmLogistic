@@ -1,10 +1,11 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { changePasswordMutation } from '@/features/auth/api/auth.queries';
 import { useUser, useUpdateUser } from '@/features/admin/api/users.queries';
+import { useMyCenter } from '@/features/admin/api/inspections.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { Button } from '@/features/admin/components';
 
@@ -30,6 +31,7 @@ function UnifiedProfilePage() {
   const queryClient = useQueryClient();
 
   const { data: userDetails, refetch: refetchUser } = useUser(user?.id || '');
+  const { data: myCenter } = useMyCenter();
   const updateUser = useUpdateUser();
 
   // Form states
@@ -339,7 +341,7 @@ function UnifiedProfilePage() {
               )}
 
               {primaryRole === 'Inspector' && (
-                <div className="pt-4 border-t border-gray-100 space-y-4">
+                <div className="pt-4 border-t border-gray-100 space-y-5">
                   <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#004322]">verified_user</span>
                     Informations Inspecteur
@@ -365,6 +367,48 @@ function UnifiedProfilePage() {
                         className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
                       />
                     </div>
+                  </div>
+
+                  {/* Assigned Inspection Center Card */}
+                  <div className="bg-[#f8f9ff] border border-gray-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#004322] text-xl">corporate_fare</span>
+                        <h4 className="text-xs font-bold text-gray-900">Station d'Inspection Assignée</h4>
+                      </div>
+                      {myCenter && (
+                        <span className="text-[10px] font-bold bg-emerald-100 text-[#004322] px-2 py-0.5 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </div>
+
+                    {myCenter ? (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-gray-700">
+                          <span className="font-semibold">{myCenter.name}</span>
+                          <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-[#004322] font-bold">
+                            {myCenter.code}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-[11px] flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">location_on</span>
+                          {myCenter.address} ({myCenter.regionName})
+                        </p>
+                        <div className="pt-2 border-t border-gray-200/60 flex justify-end">
+                          <Link
+                            to="/inspector/my-center"
+                            className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1"
+                          >
+                            Voir les détails de la station →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">
+                        Aucun centre d'inspection assigné pour le moment.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

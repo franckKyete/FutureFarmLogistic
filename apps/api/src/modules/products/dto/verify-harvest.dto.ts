@@ -12,12 +12,23 @@ import { HarvestStatus } from '@futurefarm/types';
 
 export class VerifyHarvestDto {
   @ApiProperty({
-    enum: [HarvestStatus.APPROVED, HarvestStatus.REJECTED],
+    enum: [
+      HarvestStatus.APPROVED,
+      HarvestStatus.REJECTED,
+      HarvestStatus.FLAGGED_PHYSICAL,
+    ],
     example: HarvestStatus.APPROVED,
   })
   @IsNotEmpty()
-  @IsEnum([HarvestStatus.APPROVED, HarvestStatus.REJECTED])
-  status: HarvestStatus.APPROVED | HarvestStatus.REJECTED;
+  @IsEnum([
+    HarvestStatus.APPROVED,
+    HarvestStatus.REJECTED,
+    HarvestStatus.FLAGGED_PHYSICAL,
+  ])
+  status:
+    | HarvestStatus.APPROVED
+    | HarvestStatus.REJECTED
+    | HarvestStatus.FLAGGED_PHYSICAL;
 
   @ApiPropertyOptional({
     example: 8.5,

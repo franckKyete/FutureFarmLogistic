@@ -1,6 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useDashboardStats } from '../../features/inspector/api/dashboard.queries';
-import type { DashboardStats, VisitDto } from '../../features/inspector/types';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useDashboardStats } from '@/features/inspector/api/dashboard.queries';
+import { usePendingHarvests } from '@/features/inspector/api/harvests.queries';
+import { useMyCenter } from '@/features/admin/api/inspections.queries';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { DashboardStats, VisitDto, HarvestDto } from '@/features/inspector/types';
 import { VisitReason } from '@futurefarm/types';
 
 export const Route = createFileRoute('/inspector/dashboard')({
@@ -19,67 +22,345 @@ const REASON_STYLES: Record<VisitReason, string> = {
   [VisitReason.FIRST_INSPECTION]: 'bg-purple-100 text-purple-700',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  PLANNED: 'Planifiée',
-  COMPLETED: 'Terminée',
-  CANCELLED: 'Annulée',
-  MISSED: 'Manquée',
-};
-
 function DashboardPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { data: myCenter } = useMyCenter();
   const { data: stats, isLoading, isError, refetch } = useDashboardStats();
+  const { data: pendingHarvests = [], isLoading: pendingLoading } = usePendingHarvests(
+    'PENDING_APPROVAL',
+    myCenter?.id
+  );
 
   return (
-    <div className="pb-24">
-      <Header />
+    <div className="min-h-screen bg-[#f8f9ff] pb-24 font-sans">
+      {/* Header with Inspector & Assigned Center Badge */}
+      <Header user={user} center={myCenter} />
 
-      <div className="p-4">
+      <div className="p-4 space-y-6 max-w-5xl mx-auto">
+        {/* Quick Action CTAs */}
+        <QuickActions onNavigate={(path) => void navigate({ to: path as any })} />
+
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
           <ErrorState onRetry={() => refetch()} />
         ) : stats ? (
           <>
-            <StatsGrid stats={stats} />
-            <PriorityAlerts alerts={stats.priorityAlerts} />
-            <TodayVisits visits={stats.todayVisits} />
+            {/* Key Metric Cards */}
+            <MetricsSection stats={stats} />
+
+            {/* Actionable Queues: 2-column on desktop, single-column on mobile */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pending Harvests Queue (FIFO - Oldest First) */}
+              <PendingHarvestsQueue
+                harvests={pendingHarvests}
+                isLoading={pendingLoading}
+                onSelect={(id) => void navigate({ to: '/inspector/reports/$id', params: { id } })}
+                onSeeMore={() => void navigate({ to: '/inspector/validate' })}
+              />
+
+              {/* Scheduled Inspections Queue */}
+              <ScheduledInspectionsQueue
+                visits={stats.todayVisits}
+                onPlanning={() => void navigate({ to: '/inspector/planning' })}
+              />
+            </div>
           </>
         ) : null}
       </div>
-
     </div>
   );
 }
 
-function Header() {
+function Header({ user, center }: { user: any; center: any }) {
   return (
-    <div className="p-4 pb-0">
-      <h1 className="text-xl font-bold text-[#1a5c35]">Tableau de bord</h1>
-      <p className="text-gray-500 mt-1">Bonjour, Inspecteur</p>
+    <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30 shadow-2xs">
+      <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            {center ? (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-[#1a5c35] bg-[#1a5c35]/10 px-2 py-0.5 rounded-full">
+                <span className="material-symbols-outlined text-xs">location_on</span>
+                {center.code} • {center.regionName}
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Espace Inspecteur
+              </span>
+            )}
+          </div>
+          <h1 className="text-lg font-bold text-[#0b1c30] mt-0.5">
+            Bonjour, {user ? `${user.firstName} ${user.lastName}` : 'Inspecteur'} 👋
+          </h1>
+        </div>
+
+        <Link
+          to="/profile"
+          className="w-10 h-10 rounded-full bg-[#1a5c35] text-white font-bold flex items-center justify-center text-sm shadow-xs hover:opacity-90 transition-opacity"
+          title="Mon Profil"
+        >
+          {user?.firstName?.charAt(0) || 'I'}
+          {user?.lastName?.charAt(0) || ''}
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function QuickActions({ onNavigate }: { onNavigate: (path: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <button
+        onClick={() => onNavigate('/inspector/proxy')}
+        className="flex items-center justify-center gap-2.5 py-3.5 px-4 bg-[#1a5c35] text-white rounded-2xl font-bold text-sm shadow-sm hover:bg-[#144a2a] active:scale-98 transition-all cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-xl">add_circle</span>
+        Nouvelle Inspection Terrain
+      </button>
+
+      <button
+        onClick={() => onNavigate('/inspector/accounts')}
+        className="flex items-center justify-center gap-2.5 py-3.5 px-4 bg-white text-[#1a5c35] border border-[#1a5c35]/30 rounded-2xl font-bold text-sm shadow-2xs hover:bg-[#1a5c35]/5 active:scale-98 transition-all cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-xl">person_add</span>
+        Enrôler un Producteur
+      </button>
+    </div>
+  );
+}
+
+function MetricsSection({ stats }: { stats: DashboardStats }) {
+  const cards = [
+    {
+      label: 'Producteurs région',
+      value: `${stats.regionalFarmersCount ?? stats.pendingAccountsCount}`,
+      trend: `${stats.pendingAccountsCount} en attente`,
+      icon: 'groups',
+      iconColor: 'text-emerald-700',
+      bgColor: 'bg-emerald-50',
+    },
+    {
+      label: 'Commandes traitées',
+      value: `${stats.orderVolume ?? 0}`,
+      trend: 'Activité globale',
+      icon: 'local_shipping',
+      iconColor: 'text-blue-700',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      label: 'Audits validés (mois)',
+      value: `${stats.monthlyValidationsCount || 0}`,
+      trend: `${stats.pendingHarvestsCount} en attente`,
+      icon: 'fact_check',
+      iconColor: 'text-purple-700',
+      bgColor: 'bg-purple-50',
+    },
+    {
+      label: 'Score qualité moyen',
+      value: stats.averageQualityScore ? `${Number(stats.averageQualityScore).toFixed(1)} / 10` : '8.5 / 10',
+      trend: 'Conformité certifiée',
+      icon: 'verified',
+      iconColor: 'text-amber-700',
+      bgColor: 'bg-amber-50',
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className="bg-white rounded-2xl p-4 shadow-2xs border border-gray-200 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className={`w-10 h-10 ${card.bgColor} rounded-xl flex items-center justify-center`}>
+              <span className={`material-symbols-outlined text-xl ${card.iconColor}`}>
+                {card.icon}
+              </span>
+            </div>
+          </div>
+          <div>
+            <p className="text-xl font-bold text-gray-900 font-mono">{card.value}</p>
+            <p className="text-xs font-medium text-gray-500 mt-0.5">{card.label}</p>
+            <p className="text-[10px] font-semibold text-emerald-800 mt-1">{card.trend}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PendingHarvestsQueue({
+  harvests,
+  isLoading,
+  onSelect,
+  onSeeMore,
+}: {
+  harvests: HarvestDto[];
+  isLoading: boolean;
+  onSelect: (id: string) => void;
+  onSeeMore: () => void;
+}) {
+  const topHarvests = harvests.slice(0, 3);
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs space-y-4 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-bold text-[#0b1c30] flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[#1a5c35] text-lg">hourglass_top</span>
+              File des Récoltes (FIFO)
+            </h2>
+            <p className="text-[11px] text-gray-500">Lots non vérifiés — triés par ancienneté</p>
+          </div>
+          <span className="text-xs font-bold text-[#1a5c35] bg-[#1a5c35]/10 px-2 py-0.5 rounded-full">
+            {harvests.length} en attente
+          </span>
+        </div>
+
+        <div className="space-y-3 pt-3">
+          {isLoading ? (
+            <div className="space-y-2.5 animate-pulse">
+              <div className="h-16 bg-gray-100 rounded-xl" />
+              <div className="h-16 bg-gray-100 rounded-xl" />
+            </div>
+          ) : topHarvests.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 space-y-1">
+              <span className="material-symbols-outlined text-3xl">task_alt</span>
+              <p className="text-xs font-medium text-gray-500">Tous les lots ont été vérifiés !</p>
+            </div>
+          ) : (
+            topHarvests.map((harvest) => (
+              <div
+                key={harvest.id}
+                onClick={() => onSelect(harvest.id)}
+                className="p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-emerald-50/40 hover:border-emerald-200 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-gray-900 truncate">
+                      {harvest.productName}
+                    </h3>
+                    <span className="text-[9px] font-mono text-gray-400">
+                      {harvest.quantity} {harvest.unit}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                    {harvest.producerName}
+                  </p>
+                  <p className="text-[10px] text-[#1a5c35] font-medium mt-0.5">
+                    Récolté le {new Date(harvest.harvestDate).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+
+                <span className="text-xs font-bold text-[#1a5c35] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform shrink-0">
+                  Traiter
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={onSeeMore}
+        className="w-full py-2.5 mt-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors cursor-pointer text-center"
+      >
+        Voir toute la file d'attente ({harvests.length}) →
+      </button>
+    </div>
+  );
+}
+
+function ScheduledInspectionsQueue({
+  visits,
+  onPlanning,
+}: {
+  visits: VisitDto[];
+  onPlanning: () => void;
+}) {
+  const displayVisits = visits.slice(0, 3);
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs space-y-4 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-bold text-[#0b1c30] flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[#1a5c35] text-lg">event_available</span>
+              Visites Planifiées
+            </h2>
+            <p className="text-[11px] text-gray-500">Prochaines visites terrain programmées</p>
+          </div>
+          <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+            {visits.length} visite{visits.length > 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="space-y-3 pt-3">
+          {displayVisits.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 space-y-1">
+              <span className="material-symbols-outlined text-3xl">event_busy</span>
+              <p className="text-xs font-medium text-gray-500">Aucune visite programmée aujourd'hui</p>
+            </div>
+          ) : (
+            displayVisits.map((visit) => (
+              <div
+                key={visit.id}
+                onClick={onPlanning}
+                className="p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50/40 hover:border-blue-200 transition-all cursor-pointer flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700">
+                      {visit.plannedTime || '09:00'}
+                    </span>
+                    <h3 className="text-xs font-bold text-gray-900 truncate">
+                      {visit.producerName || 'Producteur'}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                    {visit.producerFarmName || 'Exploitation agricole'}
+                  </p>
+                </div>
+
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    REASON_STYLES[visit.reason as VisitReason] || 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {REASON_LABELS[visit.reason as VisitReason] || visit.reason}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={onPlanning}
+        className="w-full py-2.5 mt-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors cursor-pointer text-center"
+      >
+        Ouvrir le calendrier complet →
+      </button>
     </div>
   );
 }
 
 function LoadingState() {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-gray-100 rounded-xl p-4 animate-pulse">
-            <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3" />
-            <div className="h-8 w-16 bg-gray-200 rounded mb-2" />
-            <div className="h-4 w-24 bg-gray-200 rounded" />
-          </div>
+          <div key={i} className="h-28 bg-white rounded-2xl border border-gray-200" />
         ))}
       </div>
-      <div className="space-y-3 mt-6">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-gray-100 rounded-xl p-4 animate-pulse">
-            <div className="h-4 w-20 bg-gray-200 rounded mb-2" />
-            <div className="h-5 w-32 bg-gray-200 rounded mb-2" />
-            <div className="h-4 w-16 bg-gray-200 rounded" />
-          </div>
-        ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="h-56 bg-white rounded-2xl border border-gray-200" />
+        <div className="h-56 bg-white rounded-2xl border border-gray-200" />
       </div>
     </div>
   );
@@ -87,195 +368,15 @@ function LoadingState() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <span className="material-symbols-outlined text-5xl text-red-400 mb-4">
-        error_outline
-      </span>
-      <p className="text-gray-600 text-lg font-medium mb-1">
-        Erreur de chargement
-      </p>
-      <p className="text-gray-400 text-sm mb-6">
-        Impossible de récupérer les données du tableau de bord
-      </p>
+    <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
+      <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+      <p className="text-sm font-bold text-gray-800">Impossible de charger le tableau de bord</p>
       <button
         onClick={onRetry}
-        className="px-6 py-2.5 bg-[#1a5c35] text-white rounded-lg font-medium hover:bg-[#144a2a] transition-colors active:scale-95"
+        className="text-xs bg-[#1a5c35] text-white px-4 py-2 rounded-xl font-bold cursor-pointer hover:bg-[#144a2a]"
       >
         Réessayer
       </button>
-    </div>
-  );
-}
-
-function StatsGrid({ stats }: { stats: DashboardStats }) {
-  const cards = [
-    {
-      label: 'Comptes en attente',
-      value: stats.pendingAccountsCount,
-      icon: 'person_pin',
-      iconColor: 'text-orange-500',
-      bgColor: 'bg-orange-50',
-    },
-    {
-      label: 'Récoltes à valider',
-      value: stats.pendingHarvestsCount,
-      icon: 'eco',
-      iconColor: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-    },
-    {
-      label: "Visites aujourd'hui",
-      value: stats.todayVisitsCount,
-      icon: 'today',
-      iconColor: 'text-emerald-500',
-      bgColor: 'bg-emerald-50',
-    },
-    {
-      label: 'Validations du mois',
-      value: stats.monthlyValidationsCount,
-      icon: 'assignment_turned_in',
-      iconColor: 'text-purple-500',
-      bgColor: 'bg-purple-50',
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
-        >
-          <div
-            className={`w-10 h-10 ${card.bgColor} rounded-lg flex items-center justify-center mb-3`}
-          >
-            <span className={`material-symbols-outlined text-2xl ${card.iconColor}`}>
-              {card.icon}
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{card.value}</p>
-          <p className="text-sm text-gray-500 mt-0.5">{card.label}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PriorityAlerts({
-  alerts,
-}: {
-  alerts: DashboardStats['priorityAlerts'];
-}) {
-  const hasAny = alerts.overdueVisits > 0 || alerts.suspiciousHarvests > 0;
-  if (!hasAny) return null;
-
-  return (
-    <div className="mt-6 space-y-3">
-      <h2 className="text-base font-semibold text-gray-800">
-        Alertes prioritaires
-      </h2>
-
-      {alerts.overdueVisits > 0 && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <span className="material-symbols-outlined text-2xl text-amber-500 mt-0.5">
-            warning
-          </span>
-          <div>
-            <p className="font-semibold text-amber-800">
-              {alerts.overdueVisits} visite
-              {alerts.overdueVisits > 1 ? 's' : ''} en retard
-            </p>
-            <p className="text-sm text-amber-600 mt-0.5">
-              {alerts.overdueVisits > 1
-                ? 'Ces visites nécessitent une attention immédiate.'
-                : 'Cette visite nécessite une attention immédiate.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {alerts.suspiciousHarvests > 0 && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <span className="material-symbols-outlined text-2xl text-red-500 mt-0.5">
-            gpp_bad
-          </span>
-          <div>
-            <p className="font-semibold text-red-800">
-              {alerts.suspiciousHarvests} récolte
-              {alerts.suspiciousHarvests > 1 ? 's' : ''} suspecte
-              {alerts.suspiciousHarvests > 1 ? 's' : ''}
-            </p>
-            <p className="text-sm text-red-600 mt-0.5">
-              {alerts.suspiciousHarvests > 1
-                ? 'Ces récoltes ont été signalées pour inspection.'
-                : 'Cette récolte a été signalée pour inspection.'}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TodayVisits({ visits }: { visits: VisitDto[] }) {
-  return (
-    <div className="mt-6">
-      <h2 className="text-base font-semibold text-gray-800 mb-3">
-        Visites du jour
-      </h2>
-
-      {visits.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl">
-          <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">
-            event
-          </span>
-          <p className="text-gray-500 text-sm">
-            Aucune visite prévue aujourd'hui
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {visits.map((visit) => (
-            <VisitCard key={visit.id} visit={visit} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function VisitCard({ visit }: { visit: VisitDto }) {
-  const timeDisplay = visit.plannedTime || 'Toute la journée';
-
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2 py-1 rounded-md">
-            {timeDisplay}
-          </div>
-          <p className="font-semibold text-gray-900 mt-2 truncate">
-            {visit.producerName || 'Producteur inconnu'}
-          </p>
-          {visit.producerFarmName && (
-            <p className="text-sm text-gray-500 truncate mt-0.5">
-              {visit.producerFarmName}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <span
-            className={`text-xs font-medium px-2 py-1 rounded-full ${
-              REASON_STYLES[visit.reason as VisitReason] || 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            {REASON_LABELS[visit.reason as VisitReason] || visit.reason}
-          </span>
-          <span className="text-xs text-gray-500">
-            {STATUS_LABELS[visit.status] || visit.status}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

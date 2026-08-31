@@ -18,12 +18,59 @@ import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
+
+export function parseCoordinates(
+  coordStr: string | null | undefined,
+): { lat: number; lon: number } | null {
+  if (!coordStr) return null;
+  const trimmed = coordStr.trim();
+  try {
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        const lat = Number(parsed[0]);
+        const lon = Number(parsed[1]);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+      } else if (parsed && typeof parsed === 'object') {
+        const lat = Number(parsed.lat ?? parsed.latitude);
+        const lon = Number(parsed.lon ?? parsed.lng ?? parsed.longitude);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+      }
+    }
+  } catch {}
+
+  const parts = trimmed.split(',').map((p) => parseFloat(p.trim()));
+  if (parts.length >= 2 && !isNaN(parts[0]!) && !isNaN(parts[1]!)) {
+    return { lat: parts[0]!, lon: parts[1]! };
+  }
+  return null;
+}
+
+export function calculateHaversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 @Injectable()
 export class ProductsService {
@@ -36,6 +83,8 @@ export class ProductsService {
     private readonly farmerProfileRepository: Repository<FarmerProfileEntity>,
     @InjectRepository(ParcelEntity)
     private readonly parcelRepository: Repository<ParcelEntity>,
+    @InjectRepository(InspectionCenterEntity)
+    private readonly inspectionCenterRepository: Repository<InspectionCenterEntity>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -236,10 +285,15 @@ export class ProductsService {
     productId?: string | undefined;
     farmerProfileId?: string | undefined;
     isPublicView?: boolean | undefined;
+    centerId?: string | undefined;
+    radiusKm?: number | undefined;
   }): Promise<HarvestEntity[]> {
     const qb = this.harvestRepository.createQueryBuilder('harvest');
     qb.leftJoinAndSelect('harvest.product', 'product');
     qb.leftJoinAndSelect('harvest.farmerProfile', 'farmerProfile');
+    qb.leftJoinAndSelect('farmerProfile.user', 'farmerUser');
+    qb.leftJoinAndSelect('harvest.parcel', 'parcel');
+    qb.leftJoinAndSelect('farmerProfile.parcels', 'farmerParcels');
 
     if (options.isPublicView) {
       // Public search only sees approved items
@@ -273,7 +327,44 @@ export class ProductsService {
       });
     }
 
-    const harvests = await qb.orderBy('harvest.createdAt', 'DESC').getMany();
+    // Sort order: FIFO (Oldest First ASC) for pending approvals, DESC for general views
+    const sortOrder =
+      options.status === HarvestStatus.PENDING_APPROVAL ? 'ASC' : 'DESC';
+    let harvests = await qb.orderBy('harvest.createdAt', sortOrder).getMany();
+
+    // Geospatial filtering by inspection center
+    if (options.centerId) {
+      const center = await this.inspectionCenterRepository.findOne({
+        where: { id: options.centerId },
+      });
+      if (center && center.latitude != null && center.longitude != null) {
+        const centerLat = Number(center.latitude);
+        const centerLon = Number(center.longitude);
+        const maxRadius = options.radiusKm ?? 50;
+
+        harvests = harvests.filter((harvest) => {
+          let coords = parseCoordinates(harvest.parcel?.locationCoordinates);
+          if (!coords && harvest.farmerProfile?.parcels?.length) {
+            for (const p of harvest.farmerProfile.parcels) {
+              const parsed = parseCoordinates(p.locationCoordinates);
+              if (parsed) {
+                coords = parsed;
+                break;
+              }
+            }
+          }
+
+          if (!coords) return false;
+          const distance = calculateHaversineDistanceKm(
+            centerLat,
+            centerLon,
+            coords.lat,
+            coords.lon,
+          );
+          return distance <= maxRadius;
+        });
+      }
+    }
 
     // Map public views to apply the stock safety margin buffer
     if (options.isPublicView) {
@@ -310,10 +401,14 @@ export class ProductsService {
     if (dto.status === HarvestStatus.APPROVED) {
       harvest.qualityScore = dto.qualityScore ?? null;
       harvest.rejectionReason = null;
-    } else {
+    } else if (dto.status === HarvestStatus.REJECTED) {
       harvest.qualityScore = null;
       harvest.rejectionReason =
         dto.rejectionReason ?? 'Rejected by inspector without comments.';
+    } else if (dto.status === HarvestStatus.FLAGGED_PHYSICAL) {
+      harvest.qualityScore = dto.qualityScore ?? null;
+      harvest.rejectionReason =
+        dto.rejectionReason ?? 'Flagged for physical on-site inspection.';
     }
 
     return this.harvestRepository.save(harvest);

@@ -15,6 +15,7 @@ import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -52,6 +53,11 @@ describe('ProductsService', () => {
     findOne: jest.fn(),
   };
 
+  const mockInspectionCenterRepository = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+
   const mockConfigService = {
     get: jest.fn(),
   };
@@ -77,6 +83,10 @@ describe('ProductsService', () => {
           useValue: mockParcelRepository,
         },
         {
+          provide: getRepositoryToken(InspectionCenterEntity),
+          useValue: mockInspectionCenterRepository,
+        },
+        {
           provide: ConfigService,
           useValue: mockConfigService,
         },
@@ -90,7 +100,7 @@ describe('ProductsService', () => {
       getRepositoryToken(FarmerProfileEntity),
     );
     parcelRepository = module.get(getRepositoryToken(ParcelEntity));
-    configService = module.get(ConfigService);
+    configService = module.get<ConfigService>(ConfigService);
     jest.clearAllMocks();
 
     mockProductRepository.findOne.mockReset();
@@ -451,6 +461,114 @@ describe('ProductsService', () => {
 
       const result = await service.findFarmerOwnHarvests('farmer-user-1');
       expect(result).toEqual([]);
+    });
+
+    it('should filter harvests by geospatial center radius', async () => {
+      const centerId = 'center-abidjan-1';
+      mockInspectionCenterRepository.findOne.mockResolvedValue({
+        id: centerId,
+        latitude: 5.359951,
+        longitude: -3.981409,
+      });
+
+      // Harvest 1: in Abidjan (~5 km away)
+      const nearbyHarvest = {
+        id: 'harvest-nearby',
+        parcel: { locationCoordinates: '5.380000, -3.950000' },
+        farmerProfile: { parcels: [] },
+      };
+
+      // Harvest 2: in Bouake (~300 km away)
+      const distantHarvest = {
+        id: 'harvest-distant',
+        parcel: { locationCoordinates: '7.690000, -5.030000' },
+        farmerProfile: { parcels: [] },
+      };
+
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([nearbyHarvest, distantHarvest]),
+      };
+      harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      const result = await service.findAllHarvests({
+        centerId,
+        radiusKm: 50,
+      });
+
+      expect(result.length).toBe(1);
+      expect(result[0]!.id).toBe('harvest-nearby');
+    });
+  });
+
+  describe('verifyHarvest', () => {
+    it('should flag a harvest for physical inspection', async () => {
+      const harvest = {
+        id: 'h-123',
+        status: HarvestStatus.PENDING_APPROVAL,
+        qualityScore: null,
+        rejectionReason: null,
+      };
+      harvestRepository.findOne.mockResolvedValue(harvest);
+      harvestRepository.save.mockImplementation((saved: any) =>
+        Promise.resolve(saved),
+      );
+
+      const res = await service.verifyHarvest('h-123', 'inspector-user-1', {
+        status: HarvestStatus.FLAGGED_PHYSICAL,
+        rejectionReason: 'Necessite audit sur parcelle',
+      });
+
+      expect(res.status).toBe(HarvestStatus.FLAGGED_PHYSICAL);
+      expect(res.rejectionReason).toBe('Necessite audit sur parcelle');
+      expect(res.approvedById).toBe('inspector-user-1');
+      expect(res.approvedAt).toBeInstanceOf(Date);
+    });
+
+    it('should approve a harvest with quality score', async () => {
+      const harvest = {
+        id: 'h-123',
+        status: HarvestStatus.PENDING_APPROVAL,
+        qualityScore: null,
+        rejectionReason: null,
+      };
+      harvestRepository.findOne.mockResolvedValue(harvest);
+      harvestRepository.save.mockImplementation((saved: any) =>
+        Promise.resolve(saved),
+      );
+
+      const res = await service.verifyHarvest('h-123', 'inspector-user-1', {
+        status: HarvestStatus.APPROVED,
+        qualityScore: 8.5,
+      });
+
+      expect(res.status).toBe(HarvestStatus.APPROVED);
+      expect(res.qualityScore).toBe(8.5);
+      expect(res.rejectionReason).toBeNull();
+    });
+
+    it('should reject a harvest with reason', async () => {
+      const harvest = {
+        id: 'h-123',
+        status: HarvestStatus.PENDING_APPROVAL,
+        qualityScore: null,
+        rejectionReason: null,
+      };
+      harvestRepository.findOne.mockResolvedValue(harvest);
+      harvestRepository.save.mockImplementation((saved: any) =>
+        Promise.resolve(saved),
+      );
+
+      const res = await service.verifyHarvest('h-123', 'inspector-user-1', {
+        status: HarvestStatus.REJECTED,
+        rejectionReason: 'Non conformite calibrage',
+      });
+
+      expect(res.status).toBe(HarvestStatus.REJECTED);
+      expect(res.rejectionReason).toBe('Non conformite calibrage');
     });
   });
 });

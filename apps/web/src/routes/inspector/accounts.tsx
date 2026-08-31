@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useProducers } from '../../features/inspector/api/accounts.queries';
+import { useMyCenter } from '@/features/admin/api/inspections.queries';
 import { CreateProducerModal } from '../../features/inspector/components/CreateProducerModal';
 import type { ProducerDto, ProducerFilter } from '../../features/inspector/types';
 
@@ -63,6 +64,8 @@ function SkeletonCard() {
 }
 
 function AccountsPage() {
+  const navigate = useNavigate();
+  const { data: myCenter } = useMyCenter();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
@@ -87,11 +90,24 @@ function AccountsPage() {
   } = useProducers(filter);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white px-4 py-4 border-b border-gray-100 sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-3xl text-[#1a5c35]">search</span>
-          <h1 className="text-xl font-bold text-[#1a5c35]">Gestion des comptes</h1>
+    <div className="min-h-screen bg-[#f8f9ff] font-sans pb-28">
+      <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-30 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div>
+            {myCenter && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a5c35] block mb-0.5">
+                {myCenter.code} • {myCenter.regionName}
+              </span>
+            )}
+            <h1 className="text-lg font-bold text-[#0b1c30]">Producteurs de la juridiction</h1>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">person_add</span>
+            <span>Enrôler</span>
+          </button>
         </div>
       </div>
 
@@ -165,7 +181,7 @@ function AccountsPage() {
             return (
               <div
                 key={producer.id}
-                className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+                className="bg-white rounded-2xl p-4 shadow-2xs border border-gray-200 hover:border-emerald-300 transition-all space-y-3"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -180,17 +196,38 @@ function AccountsPage() {
                         {producer.firstName} {producer.lastName}
                       </span>
                       {producer.farmName && (
-                        <span className="text-sm text-gray-400 font-medium">· {producer.farmName}</span>
+                        <span className="text-xs text-gray-400 font-medium">· {producer.farmName}</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 truncate mt-0.5">{producer.email}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{producer.email}</p>
+                    {producer.phone && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">{producer.phone}</p>
+                    )}
                   </div>
 
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${statusConfig.className}`}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${statusConfig.className}`}
                   >
                     {statusConfig.label}
                   </span>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-[11px] text-gray-500 font-medium">
+                    Exploitation agricole
+                  </span>
+                  <button
+                    onClick={() =>
+                      void navigate({
+                        to: '/inspector/proxy' as any,
+                        search: { farmerId: producer.id } as any,
+                      })
+                    }
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#1a5c35] border border-emerald-200 rounded-xl text-xs font-bold hover:bg-[#1a5c35] hover:text-white transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">add_photo_alternate</span>
+                    <span>Inspecter</span>
+                  </button>
                 </div>
               </div>
             );

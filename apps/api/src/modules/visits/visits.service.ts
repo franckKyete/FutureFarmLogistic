@@ -236,6 +236,29 @@ export class VisitsService {
        WHERE quality_score IS NOT NULL AND quality_score < 4`,
     );
 
+    // Total regional registered farmers
+    const [totalFarmersRow] = await this.userRepo.query(
+      `SELECT COUNT(*)::int as count FROM users u
+       INNER JOIN user_roles ur ON ur.user_id = u.id
+       INNER JOIN roles r ON r.id = ur.role_id
+       WHERE r.name = 'Farmer'`,
+    );
+
+    // Total order volume
+    let orderVolume = 0;
+    try {
+      const [orderVolumeRow] = await this.userRepo.query(
+        `SELECT COUNT(*)::int as count FROM orders`,
+      );
+      orderVolume = Number(orderVolumeRow?.count || 0);
+    } catch {}
+
+    // Average quality score of approved harvests
+    const [avgScoreRow] = await this.harvestRepo.query(
+      `SELECT COALESCE(AVG(quality_score), 0)::numeric(10,1) as avg FROM harvests
+       WHERE quality_score IS NOT NULL AND status = 'APPROVED'`,
+    );
+
     // Today's visits list
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
@@ -267,13 +290,16 @@ export class VisitsService {
     );
 
     return {
-      pendingAccountsCount: pendingAccountsRow.count,
-      pendingHarvestsCount: pendingHarvestsRow.count,
-      todayVisitsCount: todayVisitsCountRow.count,
-      monthlyValidationsCount: monthlyValidationsRow.count,
+      pendingAccountsCount: Number(pendingAccountsRow?.count || 0),
+      pendingHarvestsCount: Number(pendingHarvestsRow?.count || 0),
+      todayVisitsCount: Number(todayVisitsCountRow?.count || 0),
+      monthlyValidationsCount: Number(monthlyValidationsRow?.count || 0),
+      regionalFarmersCount: Number(totalFarmersRow?.count || 0),
+      orderVolume,
+      averageQualityScore: Number(avgScoreRow?.avg || 0),
       priorityAlerts: {
-        overdueVisits: overdueVisitsRow.count,
-        suspiciousHarvests: suspiciousHarvestsRow.count,
+        overdueVisits: Number(overdueVisitsRow?.count || 0),
+        suspiciousHarvests: Number(suspiciousHarvestsRow?.count || 0),
       },
       todayVisits: todayVisits.map((v) => ({
         id: v.id,

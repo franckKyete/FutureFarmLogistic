@@ -11,7 +11,6 @@ import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { useUpdateUser } from '@/features/admin/api/users.queries';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/profile')({
   component: FarmerProfilePage,
