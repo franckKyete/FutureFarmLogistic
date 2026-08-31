@@ -3,12 +3,12 @@ import { NotificationChannel, NotificationPriority } from '@futurefarm/types';
 export interface NotificationPayload {
   userId: string;
   userEmail: string;
-  userPhone: string | null;
+  userPhone?: string | null;
   title: string;
   body: string;
   priority: NotificationPriority;
-  metadata: Record<string, unknown>;
-  notificationId: string;
+  metadata?: Record<string, unknown>;
+  notificationId?: string;
 }
 
 export interface INotificationChannel {

@@ -39,8 +39,10 @@ import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
 import { Route as DriverProfileRouteImport } from './routes/driver/profile'
 import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
 import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
 import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
@@ -219,6 +221,11 @@ const AuthUnauthorizedRoute = AuthUnauthorizedRouteImport.update({
   path: '/auth/unauthorized',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRegisterRoute = AuthRegisterRouteImport.update({
   id: '/auth/register',
   path: '/auth/register',
@@ -227,6 +234,11 @@ const AuthRegisterRoute = AuthRegisterRouteImport.update({
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuctionsStoryRoute = AuctionsStoryRouteImport.update({
@@ -388,8 +400,10 @@ export interface FileRoutesByFullPath {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -447,8 +461,10 @@ export interface FileRoutesByTo {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -509,8 +525,10 @@ export interface FileRoutesById {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -572,8 +590,10 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
     | '/farmer/analytics'
@@ -631,8 +651,10 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
     | '/farmer/analytics'
@@ -692,8 +714,10 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
     | '/farmer/analytics'
@@ -744,8 +768,10 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRouteWithChildren
   AuctionsIdRoute: typeof AuctionsIdRouteWithChildren
   AuctionsStoryRoute: typeof AuctionsStoryRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthUnauthorizedRoute: typeof AuthUnauthorizedRoute
   HarvestsIdRoute: typeof HarvestsIdRouteWithChildren
   AuctionsIndexRoute: typeof AuctionsIndexRoute
@@ -963,6 +989,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthUnauthorizedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/register': {
       id: '/auth/register'
       path: '/auth/register'
@@ -975,6 +1008,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auctions/story': {
@@ -1341,8 +1381,10 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRouteWithChildren,
   AuctionsIdRoute: AuctionsIdRouteWithChildren,
   AuctionsStoryRoute: AuctionsStoryRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthUnauthorizedRoute: AuthUnauthorizedRoute,
   HarvestsIdRoute: HarvestsIdRouteWithChildren,
   AuctionsIndexRoute: AuctionsIndexRoute,

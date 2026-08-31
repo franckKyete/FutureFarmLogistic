@@ -1,9 +1,17 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { clearAuth } from '@/features/auth/store/auth.store';
+import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 export function AdminHeader() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'main' | 'management' | 'finance' | 'system'>('management');
+
+  const handleLogout = () => {
+    clearAuth();
+    void navigate({ to: '/auth/login' });
+  };
 
   return (
     <header className="fixed top-0 right-0 h-[60px] left-[240px] bg-[var(--admin-surface-container-lowest)] border-b border-[var(--admin-outline-variant)]/40 flex justify-between items-center px-6 z-40">
@@ -60,6 +68,13 @@ export function AdminHeader() {
             <div className="w-10 h-10 rounded-full bg-[var(--admin-primary-container)]/10 flex items-center justify-center border border-[var(--admin-primary)]/10 overflow-hidden">
               <span className="material-symbols-outlined text-xl text-[var(--admin-primary)]">person</span>
             </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-[var(--admin-on-surface-variant)] hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors cursor-pointer"
+              title="Déconnexion"
+            >
+              <span className="material-symbols-outlined text-[20px]">logout</span>
+            </button>
           </div>
 
         </div>

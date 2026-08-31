@@ -22,13 +22,12 @@ import type {
 } from '@futurefarm/types';
 import {
   UserStatus,
-  NotificationChannel,
   NotificationPriority,
 } from '@futurefarm/types';
 
 import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionEntity } from './entities/user-session.entity';
-import { NotificationsService } from '../notifications/notifications.service';
+import { EmailChannel } from '../notifications/channels/email.channel';
 import type { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -46,7 +45,7 @@ export class AuthService {
     private readonly sessionRepository: Repository<UserSessionEntity>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
-    private readonly notificationsService: NotificationsService,
+    private readonly emailChannel: EmailChannel,
   ) {}
 
   async login(
@@ -267,7 +266,7 @@ export class AuthService {
       },
     );
 
-    // Send recovery email via NotificationsModule
+    // Send recovery email
     const frontendUrl = this.config.get<string>(
       'CORS_ORIGINS',
       'http://localhost:3001',
@@ -275,11 +274,11 @@ export class AuthService {
     const actionUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     try {
-      await this.notificationsService.send({
-        recipientIds: [user.id],
+      await this.emailChannel.send({
+        userId: user.id,
+        userEmail: user.email,
         title: 'Reset Your Password - FutureFarm',
         body: `To reset your password, please click the link below. If you did not request this, please ignore this email.`,
-        channels: [NotificationChannel.EMAIL],
         priority: NotificationPriority.HIGH,
         metadata: {
           actionUrl,
@@ -290,6 +289,9 @@ export class AuthService {
       this.logger.error(
         `Failed to send password recovery email to ${user.email}`,
         err,
+      );
+      throw new BadRequestException(
+        "Impossible d'envoyer l'email de réinitialisation. Veuillez réessayer.",
       );
     }
   }

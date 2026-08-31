@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyDriverProfileQuery, updateDriverAvailabilityMutation } from '@/features/tracking/api/tracking.queries';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -10,6 +10,7 @@ export const Route = createFileRoute('/driver/profile')({
 });
 
 function DriverProfilePage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useQuery(getMyDriverProfileQuery());
@@ -130,7 +131,10 @@ function DriverProfilePage() {
         {/* Action Buttons */}
         <div className="pt-4 space-y-2">
           <button
-            onClick={() => clearAuth()}
+            onClick={() => {
+              clearAuth();
+              void navigate({ to: '/auth/login' });
+            }}
             className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">logout</span>

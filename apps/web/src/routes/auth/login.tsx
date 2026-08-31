@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { loginMutation } from '@/features/auth/api/auth.queries';
+import { loginMutation, authenticate2faMutation } from '@/features/auth/api/auth.queries';
 import { setAuth } from '@/features/auth/store/auth.store';
 
 export const Route = createFileRoute('/auth/login')({
@@ -16,21 +16,47 @@ export const Route = createFileRoute('/auth/login')({
   component: LoginPage,
 });
 
-function LoginPage() {
+export function LoginPage() {
   const navigate = useNavigate();
   const { redirect: redirectPath } = Route.useSearch();
   const [showPassword, setShowPassword] = useState(false);
-  const [enable2FA, setEnable2FA] = useState(false);
 
-  const { mutate: login, isPending, error } = useMutation({
+  // 2FA state
+  const [twoFactorTempToken, setTwoFactorTempToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+
+  // Primary login mutation
+  const {
+    mutate: login,
+    isPending: isLoginPending,
+    error: loginError,
+  } = useMutation({
     ...loginMutation(),
+    onSuccess: (data) => {
+      if (data.require2fa) {
+        setTwoFactorTempToken(data.tempToken);
+        setTwoFactorCode('');
+      } else {
+        setAuth(data.user, data.tokens);
+        void navigate({ to: redirectPath || '/' });
+      }
+    },
+  });
+
+  // 2FA verification mutation
+  const {
+    mutate: verify2fa,
+    isPending: is2faPending,
+    error: twoFactorError,
+  } = useMutation({
+    ...authenticate2faMutation(),
     onSuccess: (data) => {
       setAuth(data.user, data.tokens);
       void navigate({ to: redirectPath || '/' });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     login({
@@ -38,6 +64,18 @@ function LoginPage() {
       password: form.get('password') as string,
     });
   };
+
+  const handle2faSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!twoFactorTempToken || !twoFactorCode) return;
+    verify2fa({
+      tempToken: twoFactorTempToken,
+      code: twoFactorCode.trim(),
+    });
+  };
+
+  const isPending = isLoginPending || is2faPending;
+  const activeError = twoFactorTempToken ? twoFactorError : loginError;
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative px-4 py-8 bg-[#f8f9ff]">
@@ -56,159 +94,196 @@ function LoginPage() {
       <main className="w-full max-w-[480px] flex flex-col gap-6">
         {/* Header / Logo */}
         <header className="text-center">
-          <h1 className="font-display text-4xl font-semibold text-[#004322] mb-2 tracking-tight">Future Farm</h1>
+          <Link to="/" className="inline-block">
+            <h1 className="font-display text-4xl font-semibold text-[#004322] mb-2 tracking-tight">
+              Future Farm
+            </h1>
+          </Link>
           <p className="font-body-md text-on-surface-variant text-sm">
-            Precision agriculture &amp; fintech excellence.
+            Plateforme agricole &amp; logistique de précision.
           </p>
         </header>
 
         {/* Login Card */}
         <section className="bg-surface-container-lowest rounded-2xl border border-[#c0c9be] p-8 flex flex-col gap-6 shadow-sm transition-all">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-2xl font-bold text-on-surface tracking-tight">Welcome Back</h2>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-[10px] font-bold tracking-wider uppercase">
-                <span className="material-symbols-outlined text-[14px]">agriculture</span>
-                Modern Farmer
-              </span>
-              <p className="text-[10px] text-on-surface-variant">Role auto-selected from preferences</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* Email Field */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-on-surface-variant px-1" htmlFor="email">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                  mail
-                </span>
-                <input
-                  className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
-                  id="email"
-                  name="email"
-                  placeholder="farmer@futurefarm.com"
-                  type="email"
-                  required
-                />
+          {twoFactorTempToken ? (
+            /* 2FA Challenge View */
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <div className="w-12 h-12 rounded-full bg-[#004322]/10 flex items-center justify-center text-[#004322] mb-1">
+                  <span className="material-symbols-outlined text-2xl">verified_user</span>
+                </div>
+                <h2 className="text-2xl font-bold text-on-surface tracking-tight">
+                  Authentification à deux facteurs
+                </h2>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Entrez le code à 6 chiffres généré par votre application d'authentification.
+                </p>
               </div>
-            </div>
 
-            {/* Password Field */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-xs font-semibold text-on-surface-variant" htmlFor="password">
-                  Password
-                </label>
-                <a className="text-xs font-semibold text-[#004322] hover:underline" href="#">
-                  Forgot password?
-                </a>
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                  lock
-                </span>
-                <input
-                  className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-12 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
-                  id="password"
-                  name="password"
-                  placeholder="••••••••"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                />
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-[#004322] transition-colors cursor-pointer"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showPassword ? 'visibility_off' : 'visibility'}
+              <form onSubmit={handle2faSubmit} className="flex flex-col gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    className="text-xs font-semibold text-on-surface-variant px-1"
+                    htmlFor="twoFactorCode"
+                  >
+                    Code de sécurité (6 chiffres)
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
+                      pin
+                    </span>
+                    <input
+                      className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
+                      id="twoFactorCode"
+                      name="twoFactorCode"
+                      placeholder="123456"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {activeError && (
+                  <div className="rounded-lg bg-error-container border border-error px-4 py-3 text-xs text-on-error-container">
+                    {activeError instanceof Error ? activeError.message : 'Code invalide.'}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    className="w-full bg-[#004322] text-on-primary font-semibold text-sm py-3.5 rounded-lg active:scale-[0.98] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="submit"
+                    disabled={isPending || twoFactorCode.trim().length !== 6}
+                  >
+                    {is2faPending ? 'Vérification...' : 'Valider le code'}
+                    <span className="material-symbols-outlined text-[18px]">check</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTwoFactorTempToken(null);
+                      setTwoFactorCode('');
+                    }}
+                    className="w-full border border-outline-variant bg-surface text-on-surface font-semibold text-xs py-2.5 rounded-lg hover:bg-surface-container-low transition-all cursor-pointer"
+                  >
+                    Annuler et revenir à la connexion
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* Standard Login Form */
+            <>
+              <div className="flex flex-col gap-2">
+                <h2 className="text-2xl font-bold text-on-surface tracking-tight">Bienvenue</h2>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-[10px] font-bold tracking-wider uppercase">
+                    <span className="material-symbols-outlined text-[14px]">agriculture</span>
+                    Agri-Fintech
                   </span>
+                  <p className="text-[10px] text-on-surface-variant">Accédez à votre espace sécurisé</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleLoginSubmit} className="flex flex-col gap-5">
+                {/* Email Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-on-surface-variant px-1" htmlFor="email">
+                    Adresse Email
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
+                      mail
+                    </span>
+                    <input
+                      className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
+                      id="email"
+                      name="email"
+                      placeholder="agriculteur@futurefarm.com"
+                      type="email"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-xs font-semibold text-on-surface-variant" htmlFor="password">
+                      Mot de passe
+                    </label>
+                    <Link
+                      to="/auth/forgot-password"
+                      className="text-xs font-semibold text-[#004322] hover:underline"
+                    >
+                      Mot de passe oublié ?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
+                      lock
+                    </span>
+                    <input
+                      className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-12 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
+                      id="password"
+                      name="password"
+                      placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                    />
+                    <button
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-[#004322] transition-colors cursor-pointer"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {showPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {activeError && (
+                  <div className="rounded-lg bg-error-container border border-error px-4 py-3 text-xs text-on-error-container">
+                    {activeError instanceof Error ? activeError.message : 'Identifiants invalides.'}
+                  </div>
+                )}
+
+                {/* Primary Action */}
+                <button
+                  className="w-full bg-[#004322] text-on-primary font-semibold text-sm py-3.5 rounded-lg active:scale-[0.98] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={isPending}
+                >
+                  {isLoginPending ? 'Connexion en cours...' : 'Se connecter'}
+                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </button>
-              </div>
-            </div>
-
-            {/* 2FA Toggle */}
-            <div className="flex items-center justify-between bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30">
-              <div className="flex flex-col">
-                <span className="text-xs font-semibold text-on-surface">Enable 2FA</span>
-                <span className="text-[10px] text-on-surface-variant mt-0.5">Added security for transactions</span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer select-none">
-                <input
-                  className="sr-only peer"
-                  type="checkbox"
-                  checked={enable2FA}
-                  onChange={(e) => setEnable2FA(e.target.checked)}
-                />
-                <div className="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-error-container border border-error px-4 py-3 text-xs text-on-error-container">
-                {error instanceof Error ? error.message : 'Login failed. Please try again.'}
-              </div>
-            )}
-
-            {/* Primary Action */}
-            <button
-              className="w-full bg-[#004322] text-on-primary font-semibold text-sm py-3.5 rounded-lg active:scale-[0.98] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              type="submit"
-              disabled={isPending}
-            >
-              {isPending ? 'Logging In...' : 'Log In'}
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div className="relative flex items-center gap-4 my-1">
-            <div className="h-[0.5px] bg-outline-variant/50 flex-1"></div>
-            <span className="text-[10px] font-semibold text-outline uppercase tracking-widest">or continue with</span>
-            <div className="h-[0.5px] bg-outline-variant/50 flex-1"></div>
-          </div>
-
-          {/* Social Logins */}
-          <div className="grid grid-cols-2 gap-3.5">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
-            >
-              <img
-                alt="Google"
-                className="w-4 h-4"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4FRvKcpQUTxOhZcyfPsDgaguZfaYm_6PV48arVP6PjA1ijb0GiDTnsaj2e2BNknil-q5s9GYfljHFgs1jKfB0BCaCXdccvZ7e-mdVJuQzF34D3VEm-hTye08m-TUF_c13jwgKFXoWq0645QAyGHCOoXbihOg9P6wUtNrcScR2cIGi2nzjZL5co4tIy1NeQN41wso1kY1ffvW3LfZBI7gv69Uh6HDA_mpL9RjrXinbNXsGPv5BJFjot34p-rAdfKkejlnzFQ4rvHk"
-              />
-              Google
-            </button>
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-outline text-[16px]">phone_iphone</span>
-              Phone
-            </button>
-          </div>
+              </form>
+            </>
+          )}
         </section>
 
         {/* Footer Links */}
         <footer className="text-center flex flex-col gap-4">
           <p className="text-xs text-on-surface-variant">
-            Don't have an account?{' '}
+            Pas encore de compte ?{' '}
             <Link className="text-[#004322] font-bold hover:underline" to="/auth/register">
-              Create Account
+              Créer un compte
             </Link>
           </p>
-          <div className="flex justify-center gap-6">
-            <a className="text-[10px] font-semibold text-outline hover:text-on-surface transition-colors" href="#">
-              Privacy Policy
-            </a>
-            <a className="text-[10px] font-semibold text-outline hover:text-on-surface transition-colors" href="#">
-              Terms of Service
-            </a>
+          <div className="flex justify-center gap-6 text-[10px] text-outline">
+            <span>FutureFarm Platform © 2026</span>
+            <span>·</span>
+            <span>Sécurité &amp; Confidentialité</span>
           </div>
         </footer>
       </main>

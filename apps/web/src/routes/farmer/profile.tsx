@@ -10,6 +10,7 @@ import {
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { clearAuth } from '@/features/auth/store/auth.store';
 import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/profile')({
@@ -293,6 +294,25 @@ function FarmerProfilePage() {
                 </div>
               ))
             )}
+          </div>
+        </section>
+
+        {/* Account & Logout Section */}
+        <section className="px-4 mt-8">
+          <div className="bg-white border border-[#c0c9be] rounded-xl p-4 shadow-sm flex flex-col gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#404941]">
+              Compte & Sécurité
+            </h3>
+            <button
+              onClick={() => {
+                clearAuth();
+                void navigate({ to: '/auth/login' });
+              }}
+              className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+              Déconnexion
+            </button>
           </div>
         </section>
       </main>

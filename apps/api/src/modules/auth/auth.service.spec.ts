@@ -6,13 +6,13 @@ import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionEntity } from './entities/user-session.entity';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { NotificationsService } from '../notifications/notifications.service';
+import { EmailChannel } from '../notifications/channels/email.channel';
 import {
   UnauthorizedException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { UserStatus, NotificationChannel } from '@futurefarm/types';
+import { UserStatus } from '@futurefarm/types';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -20,7 +20,7 @@ describe('AuthService', () => {
   let sessionRepository: any;
   let jwtService: any;
   let configService: any;
-  let notificationsService: any;
+  let emailChannel: any;
 
   const mockUsersRepository = {
     findOne: jest.fn(),
@@ -45,8 +45,9 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
-  const mockNotificationsService = {
+  const mockEmailChannel = {
     send: jest.fn(),
+    isConfigured: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -70,8 +71,8 @@ describe('AuthService', () => {
           useValue: mockConfigService,
         },
         {
-          provide: NotificationsService,
-          useValue: mockNotificationsService,
+          provide: EmailChannel,
+          useValue: mockEmailChannel,
         },
       ],
     }).compile();
@@ -81,7 +82,7 @@ describe('AuthService', () => {
     sessionRepository = module.get(getRepositoryToken(UserSessionEntity));
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
-    notificationsService = module.get(NotificationsService);
+    emailChannel = module.get(EmailChannel);
 
     jest.clearAllMocks();
   });
@@ -268,7 +269,7 @@ describe('AuthService', () => {
         await expect(
           service.forgotPassword('none@example.com'),
         ).resolves.not.toThrow();
-        expect(notificationsService.send).not.toHaveBeenCalled();
+        expect(emailChannel.send).not.toHaveBeenCalled();
       });
 
       it('should generate token and send recovery email if user exists', async () => {
@@ -279,12 +280,24 @@ describe('AuthService', () => {
 
         await service.forgotPassword('test@example.com');
         expect(usersRepository.update).toHaveBeenCalled();
-        expect(notificationsService.send).toHaveBeenCalledWith(
+        expect(emailChannel.send).toHaveBeenCalledWith(
           expect.objectContaining({
-            recipientIds: ['user-id'],
-            channels: [NotificationChannel.EMAIL],
+            userId: 'user-id',
+            userEmail: 'test@example.com',
           }),
         );
+      });
+
+      it('should throw BadRequestException when email delivery fails', async () => {
+        const mockUser = { id: 'user-id', email: 'test@example.com' };
+        usersRepository.findOneBy.mockResolvedValue(mockUser);
+        usersRepository.update.mockResolvedValue({});
+        configService.get.mockReturnValue('http://localhost:3001');
+        emailChannel.send.mockRejectedValue(new Error('SMTP Connection Failed'));
+
+        await expect(
+          service.forgotPassword('test@example.com'),
+        ).rejects.toThrow(BadRequestException);
       });
     });
 
