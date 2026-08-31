@@ -48,6 +48,15 @@ export function clearAuth() {
   localStorage.removeItem('futurefarm:auth');
 }
 
+export function updateAuthUser(partialUser: Partial<AuthUser>) {
+  authStore.setState((prev) => {
+    if (!prev.user) return prev;
+    const updated = { ...prev, user: { ...prev.user, ...partialUser } };
+    localStorage.setItem('futurefarm:auth', JSON.stringify(updated));
+    return updated;
+  });
+}
+
 export function getAccessToken(): string | null {
   return authStore.state.tokens?.accessToken ?? null;
 }

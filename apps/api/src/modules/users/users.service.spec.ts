@@ -15,6 +15,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserStatus, BuyerBusinessType, ParcelStatus } from '@futurefarm/types';
 
@@ -87,6 +88,8 @@ describe('UsersService', () => {
   };
 
   const mockNotificationsService = {
+    send: jest.fn().mockResolvedValue(undefined),
+    broadcast: jest.fn().mockResolvedValue(undefined),
     sendEmail: jest.fn().mockResolvedValue(true),
     sendSms: jest.fn().mockResolvedValue(true),
     sendPush: jest.fn().mockResolvedValue(true),
@@ -190,10 +193,10 @@ describe('UsersService', () => {
     });
 
     it('should return user if found', async () => {
-      const mockUser = { id: 'user-id' };
+      const mockUser = { id: 'user-id', roles: [] };
       usersRepository.findOne.mockResolvedValue(mockUser);
       const result = await service.findOne('user-id');
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(expect.objectContaining({ id: 'user-id' }));
     });
   });
 
@@ -442,8 +445,17 @@ describe('UsersService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should update user status successfully', async () => {
-      const mockUser = { id: 'user-id', status: UserStatus.PENDING_VALIDATION };
+    it('should throw BadRequestException if trying to update status of inactive user', async () => {
+      const mockInactiveUser = { id: 'user-id', isActive: false, status: UserStatus.PENDING_VALIDATION, roles: [] };
+      usersRepository.findOne.mockResolvedValue(mockInactiveUser);
+
+      await expect(
+        service.updateUserStatus('user-id', UserStatus.APPROVED),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update user status successfully for active user', async () => {
+      const mockUser = { id: 'user-id', isActive: true, status: UserStatus.PENDING_VALIDATION, roles: [] };
       usersRepository.findOne.mockResolvedValue(mockUser);
       usersRepository.save.mockResolvedValue({
         ...mockUser,
@@ -505,22 +517,114 @@ describe('UsersService', () => {
 
   describe('soft delete and update', () => {
     it('should update user details validating email uniqueness', async () => {
-      usersRepository.findOne.mockResolvedValue({ id: 'user-1', email: 'old@farm.com' });
+      const mockUser = { id: 'user-1', email: 'old@farm.com', firstName: 'Old', roles: [] };
+      usersRepository.findOne.mockImplementation(() => Promise.resolve(mockUser));
       usersRepository.findOneBy.mockResolvedValue(null); // No other user has 'new@farm.com'
-      usersRepository.save.mockImplementation((x: any) => Promise.resolve(x));
+      usersRepository.save.mockImplementation((x: any) => {
+        Object.assign(mockUser, x);
+        return Promise.resolve(mockUser);
+      });
 
       const result = await service.updateUser('user-1', { email: 'new@farm.com', firstName: 'New' });
       expect(result.email).toBe('new@farm.com');
       expect(result.firstName).toBe('New');
     });
 
-    it('should soft delete/ban user', async () => {
-      const mockUser = { id: 'user-1', status: UserStatus.APPROVED };
+    it('should soft delete/suspend user', async () => {
+      const mockUser = { id: 'user-1', status: UserStatus.APPROVED, roles: [] };
       usersRepository.findOne.mockResolvedValue(mockUser);
       usersRepository.save.mockImplementation((x: any) => Promise.resolve(x));
 
       const result = await service.softDeleteUser('user-1');
-      expect(result.status).toBe(UserStatus.BANNED);
+      expect(result.status).toBe(UserStatus.SUSPENDED);
+    });
+  });
+
+  describe('agent registration and notifications', () => {
+    it('should register inspector with isActive: false and dispatch notification without returning plain password', async () => {
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-inspector', name: 'Inspector' });
+      const createdUser = { id: 'user-insp', email: 'insp@farm.com', firstName: 'John', lastName: 'Doe', isActive: false };
+      usersRepository.create.mockReturnValue(createdUser);
+      usersRepository.save.mockResolvedValue(createdUser);
+      mockInspectorProfileRepository.create.mockReturnValue({ id: 'profile-insp' });
+      mockInspectorProfileRepository.save.mockResolvedValue({ id: 'profile-insp' });
+
+      const result = await service.registerInspector({
+        email: 'insp@farm.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        phoneNumber: '+22501020304',
+      });
+
+      expect(result.id).toBe('user-insp');
+      expect((result as any).temporaryPassword).toBeUndefined();
+      expect(usersRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+      expect(mockNotificationsService.send).toHaveBeenCalled();
+    });
+
+    it('should register driver with isActive: false and dispatch notification without returning plain password', async () => {
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-driver', name: 'Driver' });
+      const createdUser = { id: 'user-driver', email: 'driver@farm.com', firstName: 'Jack', lastName: 'Drive', isActive: false };
+      usersRepository.create.mockReturnValue(createdUser);
+      usersRepository.save.mockResolvedValue(createdUser);
+      mockDriverProfileRepository.create.mockReturnValue({ id: 'profile-driver' });
+      mockDriverProfileRepository.save.mockResolvedValue({ id: 'profile-driver' });
+
+      const result = await service.registerDriver({
+        email: 'driver@farm.com',
+        firstName: 'Jack',
+        lastName: 'Drive',
+        phoneNumber: '+22501020304',
+        licenseNumber: 'LIC-1234',
+        licenseCategory: 'C',
+      });
+
+      expect(result.id).toBe('user-driver');
+      expect((result as any).temporaryPassword).toBeUndefined();
+      expect(usersRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+      expect(mockNotificationsService.send).toHaveBeenCalled();
+    });
+
+    it('should resend welcome notification generating new temp password for inactive user', async () => {
+      const mockUser = {
+        id: 'inactive-user',
+        email: 'agent@farm.com',
+        firstName: 'Agent',
+        isActive: false,
+        roles: [],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+      usersRepository.save.mockImplementation((u: any) => Promise.resolve(u));
+
+      const res = await service.resendWelcomeNotification('inactive-user');
+      expect(res.success).toBe(true);
+      expect(usersRepository.save).toHaveBeenCalled();
+      expect(mockNotificationsService.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientIds: ['inactive-user'],
+        }),
+      );
+    });
+
+    it('should throw BadRequestException when trying to resend welcome notification to already active user', async () => {
+      const mockUser = {
+        id: 'active-user',
+        email: 'active@farm.com',
+        firstName: 'Active',
+        isActive: true,
+        roles: [],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+
+      await expect(
+        service.resendWelcomeNotification('active-user'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

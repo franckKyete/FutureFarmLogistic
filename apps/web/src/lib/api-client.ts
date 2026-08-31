@@ -25,22 +25,38 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const message = error.response?.data?.message || error.message;
+      const url = error.config?.url || '';
+      const isAuthRequest =
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/forgot-password') ||
+        url.includes('/auth/reset-password') ||
+        url.includes('/auth/2fa');
 
       if (status) {
         if (status === 401) {
-          clearAuth();
-          addToast('Votre session a expiré. Veuillez vous reconnecter.', 'error');
-          if (!window.location.pathname.startsWith('/auth/login') && !window.location.pathname.startsWith('/auth/register')) {
-            const currentPath = window.location.pathname + window.location.search;
-            const redirectParam = encodeURIComponent(currentPath);
-            window.location.href = `/auth/login?redirect=${redirectParam}`;
+          if (!isAuthRequest) {
+            clearAuth();
+            addToast('Votre session a expiré. Veuillez vous reconnecter.', 'error');
+            if (
+              !window.location.pathname.startsWith('/auth/login') &&
+              !window.location.pathname.startsWith('/auth/register')
+            ) {
+              const currentPath = window.location.pathname + window.location.search;
+              const redirectParam = encodeURIComponent(currentPath);
+              window.location.href = `/auth/login?redirect=${redirectParam}`;
+            }
           }
         } else if (status === 403) {
-          addToast(`Accès refusé : ${message}`, 'error');
+          if (!isAuthRequest) {
+            addToast(`Accès refusé : ${message}`, 'error');
+          }
         } else if (status >= 500) {
           addToast('Une erreur interne du serveur est survenue.', 'error');
         } else if (status === 400) {
-          addToast(`Données invalides : ${message}`, 'warning');
+          if (!isAuthRequest) {
+            addToast(`Données invalides : ${message}`, 'warning');
+          }
         }
       }
     }

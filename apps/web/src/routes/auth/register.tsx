@@ -39,7 +39,9 @@ function RegisterPage() {
   const { mutate: login, isPending: loginPending, error: loginError } = useMutation({
     ...loginMutation(),
     onSuccess: (data) => {
-      setAuth(data.user, data.tokens);
+      if (!data.require2fa) {
+        setAuth(data.user, data.tokens);
+      }
       setSuccess(true);
       setTimeout(() => {
         void navigate({ to: '/' });

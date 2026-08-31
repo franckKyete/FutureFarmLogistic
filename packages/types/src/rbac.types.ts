@@ -161,6 +161,7 @@ export interface AuthUser {
   lastName: string;
   permissions: Permission[];
   roles: string[];
+  mustChangePassword?: boolean;
 }
 
 /** JWT token payload */

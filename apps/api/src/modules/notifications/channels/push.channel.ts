@@ -68,7 +68,12 @@ export class PushChannel implements INotificationChannel {
 
     if (!this.isConfigured) {
       this.logger.log(
-        `[DRY RUN] Push to user ${payload.userId} (${subscriptions.length} devices): [${payload.priority}] ${payload.title} - ${payload.body}`,
+        `\n======================= [PUSH DRY RUN] =======================\n` +
+          `To:         User ${payload.userId} (${subscriptions.length} devices)\n` +
+          `Subject:    ${payload.title}\n` +
+          `Priority:   ${payload.priority}\n` +
+          `Body:       ${payload.body}\n` +
+          `==============================================================`,
       );
       return;
     }

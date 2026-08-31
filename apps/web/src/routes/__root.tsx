@@ -104,9 +104,32 @@ function RootLayout() {
     </div>
   );
 
+  const renderMustChangePasswordBanner = () => {
+    if (!isAuthenticated || !user?.mustChangePassword || location.pathname.startsWith('/profile')) {
+      return null;
+    }
+    return (
+      <div className="bg-amber-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold z-50 sticky top-0 animate-slide-in">
+        <div className="flex items-center gap-2 max-w-7xl mx-auto flex-1">
+          <span className="material-symbols-outlined text-lg">warning</span>
+          <span className="truncate sm:whitespace-normal">
+            Vous utilisez un mot de passe temporaire. Veuillez définir votre mot de passe personnalisé.
+          </span>
+          <Link
+            to="/profile"
+            className="ml-auto underline font-bold hover:text-amber-100 bg-amber-700/80 px-3 py-1 rounded-lg shrink-0"
+          >
+            Changer de mot de passe
+          </Link>
+        </div>
+      </div>
+    );
+  };
+
   if (isDashboardOrPortal) {
     return (
       <div className="min-h-screen">
+        {renderMustChangePasswordBanner()}
         <Outlet />
         {renderToasts()}
         {import.meta.env.DEV && <TanStackRouterDevtools />}
@@ -116,6 +139,7 @@ function RootLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {renderMustChangePasswordBanner()}
       {/* Top navigation bar */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
