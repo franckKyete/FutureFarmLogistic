@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -10,7 +10,6 @@ import {
 } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { OrderLineStatus } from '@futurefarm/types';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/orders')({
   component: OrdersPage,
@@ -128,27 +127,9 @@ function OrdersPage() {
   const deliveredCount = extendedLines.filter((l) => l.status === OrderLineStatus.DELIVERED).length;
 
   return (
-    <div className="max-w-[480px] mx-auto min-h-screen bg-background relative pb-24 font-sans text-on-surface">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-white border-b border-outline-variant max-w-[480px] mx-auto shadow-sm">
-        <div className="flex justify-between items-center px-4 h-16 w-full">
-          <div className="flex items-center gap-4">
-            <Link to="/farmer/dashboard" className="material-symbols-outlined text-primary cursor-pointer">
-              arrow_back
-            </Link>
-            <h1 className="text-sm font-bold text-primary">Mes commandes</h1>
-          </div>
-          <button
-            onClick={() => void refetch()}
-            className="material-symbols-outlined text-on-surface-variant cursor-pointer p-2 rounded-full hover:bg-surface-container-low transition-colors"
-          >
-            refresh
-          </button>
-        </div>
-      </header>
-
+    <div className="max-w-[480px] mx-auto min-h-screen bg-background relative font-sans text-on-surface">
       {/* Main Content Area */}
-      <main className="pt-20 px-4 space-y-6">
+      <main className="pt-4 px-4 space-y-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-xl border border-outline-variant flex flex-col justify-between min-h-[100px] shadow-sm">
@@ -393,9 +374,6 @@ function OrdersPage() {
           </div>
         </div>
       )}
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }

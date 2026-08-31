@@ -160,16 +160,6 @@ function FarmerProfilePage() {
         className="hidden"
       />
 
-      {/* Top App Bar */}
-      <header className="bg-[#f8f9ff] sticky top-0 z-[60] w-full border-b border-[#c0c9be] flex items-center justify-between px-4 py-3 max-w-[480px] mx-auto shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#004322]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            agriculture
-          </span>
-          <h1 className="text-[20px] font-bold text-[#004322]">Future Farm</h1>
-        </div>
-      </header>
-
       <main className="max-w-[480px] mx-auto pb-8">
         {/* Hero Section: Banner & Profile Photo */}
         <section className="relative">
@@ -480,9 +470,6 @@ function FarmerProfilePage() {
           </div>
         </div>
       )}
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }

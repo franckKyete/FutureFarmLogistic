@@ -15,17 +15,6 @@ function MyBidsPage() {
 
   return (
     <div className="bg-[#f8f9ff] min-h-screen font-sans max-w-lg mx-auto pb-24">
-      {/* Header */}
-      <header className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-30 flex items-center gap-2 shadow-xs">
-        <Link to="/auctions" className="p-1 text-gray-600 hover:text-gray-900 rounded-lg">
-          <span className="material-symbols-outlined text-xl">arrow_back</span>
-        </Link>
-        <div>
-          <h1 className="text-base font-bold text-[#0b1c30]">Mes Enchères</h1>
-          <p className="text-xs text-gray-500">Historique de vos offres d'achat</p>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="p-4 space-y-3">
         {isLoading ? (

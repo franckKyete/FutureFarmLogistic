@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
+import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
 
 export const Route = createFileRoute('/farmer/auctions/$id/bidders')({
   component: AuctionBiddersPage,
@@ -22,6 +23,7 @@ interface Activity {
 }
 
 function AuctionBiddersPage() {
+  useFarmerLayout({ hideTopBar: true });
   const { id } = Route.useParams();
 
   // Simulated countdown timer (starts at 4 minutes 22 seconds = 262 seconds)

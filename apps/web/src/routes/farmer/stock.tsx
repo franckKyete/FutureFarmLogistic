@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
 
 export const Route = createFileRoute('/farmer/stock')({
   component: StockPage,
@@ -146,24 +145,8 @@ function StockPage() {
   const outOfStockCount = harvests ? harvests.filter((h) => Number(h.quantityInStock) === 0).length : 0;
 
   return (
-    <div className="bg-surface text-on-surface font-sans min-h-screen pb-24 relative">
-      {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 bg-white border-b border-outline-variant flex justify-between items-center px-4 h-16 max-w-[480px] left-1/2 -translate-x-1/2 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary text-2xl">agriculture</span>
-          <h1 className="text-sm font-bold text-primary">Gestion des stocks</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/notifications"
-            className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </Link>
-        </div>
-      </header>
-
-      <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-6">
+    <div className="bg-surface text-on-surface font-sans min-h-screen relative">
+      <main className="pt-4 px-4 max-w-[480px] mx-auto space-y-6">
         {/* Alert Banner */}
         {lowStockCount > 0 && (
           <div className="bg-[#ffddbb] text-[#2b1700] flex items-center justify-between p-3.5 rounded-xl border border-[#ffa93d]/30 shadow-sm">
@@ -388,9 +371,6 @@ function StockPage() {
           )}
         </div>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <FarmerBottomNav />
     </div>
   );
 }
