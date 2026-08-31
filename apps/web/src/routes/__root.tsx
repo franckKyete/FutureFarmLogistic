@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth, getAccessToken } from '@/features/auth/store/auth.store';
 import { useToasts, removeToast, addToast } from '@/features/shared/store/toast.store';
+import { initOfflineSyncListeners } from '@/features/harvests/offline';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -19,8 +20,16 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { queryClient } = Route.useRouteContext();
   const { user, isAuthenticated } = useAuth();
   const toasts = useToasts();
+
+  useEffect(() => {
+    const cleanup = initOfflineSyncListeners(queryClient);
+    return () => {
+      cleanup();
+    };
+  }, [queryClient]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -40,8 +49,8 @@ function RootLayout() {
       socket.emit('subscribe');
     });
 
-    socket.on('notification:new', (notification: any) => {
-      addToast(notification.body || notification.title, 'info');
+    socket.on('notification:new', (notification: { body?: string; title?: string }) => {
+      addToast(notification.body || notification.title || 'Nouvelle notification', 'info');
     });
 
     return () => {

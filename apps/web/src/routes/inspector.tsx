@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { requireRole } from '@/features/auth/utils/role-guard';
 import { Permission } from '@futurefarm/types';
@@ -17,10 +17,13 @@ export const Route = createFileRoute('/inspector')({
 });
 
 function InspectorLayout() {
+  const location = useLocation();
+  const hideBottomNav = location.pathname.startsWith('/inspector/harvests/analyze');
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className={`min-h-screen bg-gray-50 ${!hideBottomNav ? 'pb-16' : ''}`}>
       <Outlet />
-      <InspectorBottomNav />
+      {!hideBottomNav && <InspectorBottomNav />}
     </div>
   );
 }
