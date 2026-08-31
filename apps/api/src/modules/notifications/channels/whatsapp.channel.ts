@@ -60,7 +60,12 @@ export class WhatsAppChannel implements INotificationChannel {
 
     if (!this.client || !from) {
       this.logger.log(
-        `[DRY RUN] WhatsApp to ${payload.userPhone}: [${payload.priority}] ${payload.title} - ${payload.body}`,
+        `\n===================== [WHATSAPP DRY RUN] =====================\n` +
+          `To:         ${payload.userPhone} (User ID: ${payload.userId})\n` +
+          `Subject:    ${payload.title}\n` +
+          `Priority:   ${payload.priority}\n` +
+          `Body:       ${payload.body}\n` +
+          `==============================================================`,
       );
       return;
     }

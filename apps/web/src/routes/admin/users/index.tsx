@@ -3,8 +3,20 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { Permission, UserStatus } from '@futurefarm/types';
-import { useUsers, useUpdateUserStatus } from '@/features/admin/api/users.queries';
-import type { AdminUserDto } from '@/features/admin/types';
+import {
+  useUsers,
+  useUser,
+  useUpdateUserStatus,
+  useResendWelcomeNotification,
+  useUpdateUser,
+} from '@/features/admin/api/users.queries';
+import type {
+  AdminUserDto,
+  DriverProfileInfo,
+  InspectorProfileInfo,
+  FarmerProfileInfo,
+  BuyerProfileInfo,
+} from '@/features/admin/types';
 import {
   StatCard,
   Button,
@@ -50,7 +62,144 @@ function getInitials(u: AdminUserDto): string {
 function UsersListPage() {
   const { data: users, isLoading } = useUsers();
   const updateStatus = useUpdateUserStatus();
+  const updateUserMutation = useUpdateUser();
+  const resendWelcomeMutation = useResendWelcomeNotification();
   const queryClient = useQueryClient();
+
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const { data: userDetail } = useUser(selectedUserId || '');
+
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' }>>([]);
+  const addToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  // Inline editing state for admin user details
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [customSpecInput, setCustomSpecInput] = useState('');
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    address: '',
+    licenseNumber: '',
+    licenseCategory: 'B',
+    isAvailable: true,
+    agencyName: '',
+    specializations: [] as string[],
+    companyName: '',
+    bio: '',
+    vatNumber: '',
+    shippingAddress: '',
+    isCertified: false,
+  });
+
+  const AVAILABLE_SPECIALIZATIONS = [
+    'Cacao & Café',
+    'Tubercules (Manioc, Igname)',
+    'Oléagineux & Noix',
+    'Céréales (Maïs, Riz)',
+    'Fruits & Légumes',
+    'Élevage & Aviculture',
+    'Cultures maraîchères',
+  ];
+
+  const startEditing = (u: AdminUserDto) => {
+    const prof = (u.profile as any) || {};
+    setEditFormData({
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email: u.email || '',
+      phoneNumber: u.phone || '',
+      address: prof.address || prof.shippingAddress || prof.billingAddress || '',
+      licenseNumber: prof.licenseNumber || '',
+      licenseCategory: prof.licenseCategory || 'B',
+      isAvailable: prof.isAvailable !== false,
+      agencyName: prof.agencyName || '',
+      specializations: Array.isArray(prof.specializations) ? [...prof.specializations] : [],
+      companyName: prof.companyName || '',
+      bio: prof.bio || '',
+      vatNumber: prof.vatNumber || '',
+      shippingAddress: prof.shippingAddress || '',
+      isCertified: !!prof.isCertified,
+    });
+    setCustomSpecInput('');
+    setIsEditingUser(true);
+  };
+
+  const handleToggleSpecialization = (spec: string) => {
+    setEditFormData((prev) => {
+      const exists = prev.specializations.includes(spec);
+      return {
+        ...prev,
+        specializations: exists
+          ? prev.specializations.filter((s) => s !== spec)
+          : [...prev.specializations, spec],
+      };
+    });
+  };
+
+  const handleAddCustomSpecialization = () => {
+    const trimmed = customSpecInput.trim();
+    if (!trimmed) return;
+    if (!editFormData.specializations.includes(trimmed)) {
+      setEditFormData((prev) => ({
+        ...prev,
+        specializations: [...prev.specializations, trimmed],
+      }));
+    }
+    setCustomSpecInput('');
+  };
+
+  const handleSaveUserEdit = (userId: string) => {
+    updateUserMutation.mutate(
+      {
+        id: userId,
+        firstName: editFormData.firstName,
+        lastName: editFormData.lastName,
+        email: editFormData.email,
+        phoneNumber: editFormData.phoneNumber,
+        address: editFormData.address || undefined,
+        licenseNumber: editFormData.licenseNumber || undefined,
+        licenseCategory: editFormData.licenseCategory || undefined,
+        isAvailable: editFormData.isAvailable,
+        agencyName: editFormData.agencyName || undefined,
+        specializations: editFormData.specializations,
+        companyName: editFormData.companyName || undefined,
+        bio: editFormData.bio || undefined,
+        vatNumber: editFormData.vatNumber || undefined,
+        shippingAddress: editFormData.shippingAddress || undefined,
+        isCertified: editFormData.isCertified,
+      },
+      {
+        onSuccess: () => {
+          addToast('Informations utilisateur mises à jour avec succès.', 'success');
+          setIsEditingUser(false);
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Erreur lors de la mise à jour';
+          addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+        },
+      },
+    );
+  };
+
+  const handleResendWelcome = (user: AdminUserDto) => {
+    resendWelcomeMutation.mutate(user.id, {
+      onSuccess: () => {
+        addToast(`Email d'activation renvoyé avec succès à ${user.email}`, 'success');
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message || "Échec du renvoi de l'email d'activation";
+        addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+      },
+    });
+  };
 
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,11 +207,25 @@ function UsersListPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
 
-  const [selectedUser, setSelectedUser] = useState<AdminUserDto | null>(null);
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
   const [verifyingUser, setVerifyingUser] = useState<AdminUserDto | null>(null);
+
+  const [confirmAction, setConfirmAction] = useState<{
+    user: AdminUserDto;
+    newStatus: UserStatus;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    confirmVariant: 'danger' | 'primary';
+  } | null>(null);
+
+  const executeConfirmedStatusChange = () => {
+    if (!confirmAction) return;
+    handleStatusChange(confirmAction.user.id, confirmAction.newStatus);
+    setConfirmAction(null);
+  };
 
   // Verification checks state
   const [checks, setChecks] = useState({
@@ -79,14 +242,19 @@ function UsersListPage() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-          setIsDetailPanelOpen(false);
-          setIsVerifyPanelOpen(false);
+          addToast(
+            newStatus === UserStatus.APPROVED
+              ? 'Compte utilisateur réactivé avec succès.'
+              : 'Compte utilisateur suspendu avec succès.',
+            'success',
+          );
         },
       },
     );
   };
 
   const userList = Array.isArray(users) ? users : [];
+  const selectedUser = userDetail || userList.find((u) => u.id === selectedUserId) || null;
 
   // Metrics
   const totalCount = userList.length;
@@ -171,12 +339,19 @@ function UsersListPage() {
     {
       key: 'country',
       header: 'Localisation',
-      render: () => (
-        <div>
-          <p className="text-xs text-[var(--admin-on-surface)] font-medium">Sénégal</p>
-          <p className="text-[11px] text-[var(--admin-on-surface-variant)]">Région de Dakar</p>
-        </div>
-      ),
+      render: (u: AdminUserDto) => {
+        const address =
+          (u.profile as any)?.address ||
+          (u.profile as any)?.shippingAddress ||
+          (u.profile as any)?.billingAddress;
+        return (
+          <div>
+            <p className="text-xs text-[var(--admin-on-surface)] font-medium">
+              {address || 'Non renseignée'}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'createdAt',
@@ -187,33 +362,17 @@ function UsersListPage() {
       key: 'status',
       header: 'Statut',
       render: (u: AdminUserDto) => {
+        if (!u.isActive) {
+          return <StatusBadge status="pending" label="Inactif" />;
+        }
         const statusMap: Record<UserStatus, string> = {
           [UserStatus.APPROVED]: 'active',
           [UserStatus.SUSPENDED]: 'suspended',
           [UserStatus.PENDING_VALIDATION]: 'pending',
-          [UserStatus.BANNED]: 'banned',
+          [UserStatus.BANNED]: 'suspended',
         };
-        return <StatusBadge status={statusMap[u.status] || 'inactive'} />;
+        return <StatusBadge status={statusMap[u.status] || 'active'} />;
       },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'right' as const,
-      render: (u: AdminUserDto) => (
-        <div className="flex justify-end gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedUser(u);
-              setIsDetailPanelOpen(true);
-            }}
-            className="p-1.5 hover:bg-[var(--admin-surface-container-high)] rounded-lg text-[var(--admin-on-surface-variant)] transition-all"
-          >
-            <span className="material-symbols-outlined text-lg">visibility</span>
-          </button>
-        </div>
-      ),
     },
   ];
 
@@ -303,7 +462,6 @@ function UsersListPage() {
               <option value="all">Tous les statuts</option>
               <option value={UserStatus.APPROVED}>Actif</option>
               <option value={UserStatus.SUSPENDED}>Suspendu</option>
-              <option value={UserStatus.BANNED}>Banni</option>
             </select>
             <select
               value={countryFilter}
@@ -321,7 +479,7 @@ function UsersListPage() {
             columns={tableColumns}
             data={paginatedUsers}
             onRowClick={(u) => {
-              setSelectedUser(u);
+              setSelectedUserId(u.id);
               setIsDetailPanelOpen(true);
             }}
             pagination={{
@@ -394,65 +552,717 @@ function UsersListPage() {
       {/* Slide-out user details panel */}
       <SidePanel
         isOpen={isDetailPanelOpen}
-        onClose={() => setIsDetailPanelOpen(false)}
-        title="Détails de l'utilisateur"
+        onClose={() => {
+          setIsDetailPanelOpen(false);
+          setSelectedUserId(null);
+        }}
+        title="Détails du compte utilisateur"
+        width="w-[560px]"
       >
         {selectedUser && (
-          <div className="p-8 space-y-6">
-            <div className="flex flex-col items-center mb-8">
-              <div className="w-24 h-24 rounded-full bg-[var(--admin-primary-container)]/10 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-3xl text-[var(--admin-primary)]">person</span>
+          <div className="p-6 space-y-6">
+            {/* Header / Edit toggle */}
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--admin-outline-variant)]/20">
+              <span className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
+                {isEditingUser ? 'Édition du profil' : 'Fiche collaborateur'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditingUser) {
+                    setIsEditingUser(false);
+                  } else {
+                    startEditing(selectedUser);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-xl border border-[var(--admin-outline-variant)] hover:bg-[var(--admin-surface-container-low)] text-xs font-bold text-[var(--admin-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {isEditingUser ? 'close' : 'edit'}
+                </span>
+                {isEditingUser ? 'Annuler' : 'Modifier'}
+              </button>
+            </div>
+
+            {/* User Header Profile */}
+            <div className="bg-[var(--admin-surface-container-low)]/40 border border-[var(--admin-outline-variant)]/30 rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden">
+              <div className="w-20 h-20 rounded-full bg-[var(--admin-primary-container)]/15 border-2 border-[var(--admin-primary)]/20 shadow-sm overflow-hidden flex items-center justify-center mb-3 font-bold text-xl text-[var(--admin-primary)]">
+                {getInitials(selectedUser)}
               </div>
-              <h3 className="text-xl font-bold text-[var(--admin-on-surface)]">
+              <h3 className="text-xl font-bold text-[var(--admin-on-surface)] mb-1">
                 {selectedUser.firstName} {selectedUser.lastName}
               </h3>
-              <StatusBadge status={selectedUser.status === UserStatus.APPROVED ? 'active' : 'suspended'} className="mt-2" />
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
-                Informations de contact
-              </h4>
-              <div className="space-y-3 text-sm text-[var(--admin-on-surface)]">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[var(--admin-primary)]/60 text-lg">email</span>
-                  <span>{selectedUser.email}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[var(--admin-primary)]/60 text-lg">call</span>
-                  <span>{selectedUser.phone ?? '—'}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[var(--admin-primary)]/60 text-lg">location_on</span>
-                  <span>Sénégal, Dakar</span>
-                </div>
+              <p className="text-xs text-[var(--admin-on-surface-variant)] font-mono mb-3">
+                ID: #{selectedUser.id}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className="px-3 py-1 bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] rounded-full text-[11px] font-bold uppercase tracking-wider">
+                  {selectedUser.roles?.map((r: { id: string; name: string }) => getFrenchRole(r.name)).join(', ') || 'Utilisateur'}
+                </span>
+                {!selectedUser.isActive ? (
+                  <StatusBadge status="pending" label="Inactif" />
+                ) : (
+                  <StatusBadge
+                    status={
+                      selectedUser.status === UserStatus.APPROVED
+                        ? 'active'
+                        : selectedUser.status === UserStatus.SUSPENDED
+                        ? 'suspended'
+                        : 'pending'
+                    }
+                  />
+                )}
               </div>
             </div>
 
-            <hr className="border-[var(--admin-outline-variant)]/30" />
+            {isEditingUser ? (
+              /* Inline Edit Form */
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">edit_note</span>
+                    Informations générales
+                  </h4>
+                  <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                          Prénom
+                        </label>
+                        <input
+                          type="text"
+                          value={editFormData.firstName}
+                          onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                          className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                          Nom
+                        </label>
+                        <input
+                          type="text"
+                          value={editFormData.lastName}
+                          onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                          className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={editFormData.email}
+                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                        Téléphone
+                      </label>
+                      <input
+                        type="tel"
+                        value={editFormData.phoneNumber}
+                        onChange={(e) => setEditFormData({ ...editFormData, phoneNumber: e.target.value })}
+                        placeholder="+221..."
+                        className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                        Adresse / Localisation
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.address}
+                        onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                        placeholder="Ex: Dakar, Sénégal"
+                        className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => handleStatusChange(selectedUser.id, UserStatus.APPROVED)}
-                className="w-full flex items-center justify-between p-3 border border-[var(--admin-outline-variant)]/40 rounded-xl hover:bg-[var(--admin-surface-container-high)] text-sm font-medium"
-              >
-                <span>Activer / Réactiver le compte</span>
-                <span className="material-symbols-outlined text-lg">check_circle</span>
-              </button>
-              <button
-                onClick={() => handleStatusChange(selectedUser.id, UserStatus.SUSPENDED)}
-                className="w-full flex items-center justify-between p-3 border border-[var(--admin-outline-variant)]/40 rounded-xl hover:bg-orange-50 text-[var(--admin-secondary)] border-[var(--admin-secondary)]/20 text-sm font-medium"
-              >
-                <span>Suspendre le compte</span>
-                <span className="material-symbols-outlined text-lg">pause_circle</span>
-              </button>
-              <button
-                onClick={() => handleStatusChange(selectedUser.id, UserStatus.BANNED)}
-                className="w-full flex items-center justify-between p-3 border border-red-200 rounded-xl hover:bg-red-50 text-[var(--admin-error)] border-red-200/20 text-sm font-medium"
-              >
-                <span>Bannir l'utilisateur</span>
-                <span className="material-symbols-outlined text-lg">gavel</span>
-              </button>
+                {/* Role Specific Fields in Edit Mode */}
+                {(() => {
+                  const roleName = selectedUser.roles[0]?.name || '';
+                  if (roleName === 'Driver') {
+                    return (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">local_shipping</span>
+                          Données Chauffeur
+                        </h4>
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                                Numéro de Permis
+                              </label>
+                              <input
+                                type="text"
+                                value={editFormData.licenseNumber}
+                                onChange={(e) => setEditFormData({ ...editFormData, licenseNumber: e.target.value })}
+                                className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                                Catégorie Permis
+                              </label>
+                              <select
+                                value={editFormData.licenseCategory}
+                                onChange={(e) => setEditFormData({ ...editFormData, licenseCategory: e.target.value })}
+                                className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                              >
+                                <option value="B">Permis B (Véhicule léger)</option>
+                                <option value="C">Permis C (Poids lourd)</option>
+                                <option value="C1">Permis C1</option>
+                                <option value="CE">Permis CE (Semi-remorque)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editFormData.isAvailable}
+                              onChange={(e) => setEditFormData({ ...editFormData, isAvailable: e.target.checked })}
+                              className="rounded border-[var(--admin-outline-variant)] text-[var(--admin-primary)] focus:ring-[var(--admin-primary)]"
+                            />
+                            <span className="text-xs font-semibold text-[var(--admin-on-surface)]">
+                              Disponible pour de nouvelles missions de livraison
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (roleName === 'Inspector') {
+                    return (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">verified_user</span>
+                          Données Inspecteur
+                        </h4>
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Agence / Entreprise
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.agencyName}
+                              onChange={(e) => setEditFormData({ ...editFormData, agencyName: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Numéro d'agrément
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.licenseNumber}
+                              onChange={(e) => setEditFormData({ ...editFormData, licenseNumber: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1.5">
+                              Spécialisations agricoles
+                            </label>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {AVAILABLE_SPECIALIZATIONS.map((spec) => {
+                                const isSelected = editFormData.specializations.includes(spec);
+                                return (
+                                  <button
+                                    key={spec}
+                                    type="button"
+                                    onClick={() => handleToggleSpecialization(spec)}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                                      isSelected
+                                        ? 'bg-[var(--admin-primary)] text-white shadow-xs'
+                                        : 'bg-[var(--admin-surface-container-low)] text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-outline-variant)]/40'
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      {isSelected ? 'check' : 'add'}
+                                    </span>
+                                    {spec}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={customSpecInput}
+                                onChange={(e) => setCustomSpecInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddCustomSpecialization();
+                                  }
+                                }}
+                                placeholder="Ajouter une autre spécialité..."
+                                className="flex-1 px-3 py-1.5 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                              />
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleAddCustomSpecialization}
+                                className="py-1.5 px-3 text-xs"
+                              >
+                                Ajouter
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (roleName === 'Farmer') {
+                    return (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">agriculture</span>
+                          Données Exploitation Agricole
+                        </h4>
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Nom de l'exploitation
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.companyName}
+                              onChange={(e) => setEditFormData({ ...editFormData, companyName: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Adresse de la ferme
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.address}
+                              onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Présentation
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={editFormData.bio}
+                              onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editFormData.isCertified}
+                              onChange={(e) => setEditFormData({ ...editFormData, isCertified: e.target.checked })}
+                              className="rounded border-[var(--admin-outline-variant)] text-[var(--admin-primary)] focus:ring-[var(--admin-primary)]"
+                            />
+                            <span className="text-xs font-semibold text-[var(--admin-on-surface)]">
+                              Exploitation certifiée Bio
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (roleName === 'Buyer') {
+                    return (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">storefront</span>
+                          Données Entreprise & Facturation
+                        </h4>
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Nom de l'entreprise
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.companyName}
+                              onChange={(e) => setEditFormData({ ...editFormData, companyName: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              N° TVA / Registre
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.vatNumber}
+                              onChange={(e) => setEditFormData({ ...editFormData, vatNumber: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
+                              Adresse de livraison
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.shippingAddress}
+                              onChange={(e) => setEditFormData({ ...editFormData, shippingAddress: e.target.value })}
+                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Save and Cancel buttons */}
+                <div className="flex items-center gap-3 pt-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setIsEditingUser(false)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold"
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => handleSaveUserEdit(selectedUser.id)}
+                    disabled={updateUserMutation.isPending}
+                    className="flex-1 py-2.5 bg-[var(--admin-primary)] text-white hover:brightness-110 rounded-xl text-xs font-bold"
+                  >
+                    {updateUserMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Read-only details view */
+              <>
+                {/* General Contact Info */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">contact_mail</span>
+                    Coordonnées & Informations générales
+                  </h4>
+                  <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Email</p>
+                      <p className="font-medium text-[var(--admin-on-surface)] truncate mt-0.5" title={selectedUser.email}>
+                        {selectedUser.email}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Téléphone</p>
+                      <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                        {selectedUser.phone || 'Non renseigné'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Date d'inscription</p>
+                      <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                        {formatDate(selectedUser.createdAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Localisation</p>
+                      <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                        {(selectedUser.profile as any)?.address ||
+                          (selectedUser.profile as any)?.shippingAddress ||
+                          (selectedUser.profile as any)?.billingAddress ||
+                          'Non renseignée'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role-Specific Profile Information */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">badge</span>
+                    Données professionnelles ({getFrenchRole(selectedUser.roles[0]?.name || 'Utilisateur')})
+                  </h4>
+
+                  {(() => {
+                    const roleName = selectedUser.roles[0]?.name || '';
+                    const profile = selectedUser.profile as any;
+
+                    if (roleName === 'Driver') {
+                      const driverProfile = profile as DriverProfileInfo | undefined;
+                      return (
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
+                              <span className="material-symbols-outlined text-base">local_shipping</span>
+                              Permis & Flotte de transport
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              driverProfile?.isAvailable !== false
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {driverProfile?.isAvailable !== false ? 'Disponible' : 'Indisponible'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Numéro de Permis</p>
+                              <p className="font-mono font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {driverProfile?.licenseNumber || 'Non renseigné'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Catégorie</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {driverProfile?.licenseCategory ? `Permis ${driverProfile.licenseCategory}` : 'Non renseignée'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Expiration Permis</p>
+                              <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                                {driverProfile?.licenseExpiresAt ? formatDate(driverProfile.licenseExpiresAt) : 'Non renseignée'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Livraisons effectuées</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {driverProfile?.totalDeliveriesCompleted ?? 0} courses
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (roleName === 'Inspector') {
+                      const inspectorProfile = profile as InspectorProfileInfo | undefined;
+                      return (
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
+                              <span className="material-symbols-outlined text-base">verified_user</span>
+                              Agrément & Spécialités d'Inspection
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                              {inspectorProfile?.isActiveInspector !== false ? 'Inspecteur Actif' : 'Inactif'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Agence / Entreprise</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {inspectorProfile?.agencyName || 'Non renseignée'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Numéro d'agrément</p>
+                              <p className="font-mono font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {inspectorProfile?.licenseNumber || 'Non renseigné'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs">
+                            <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold mb-1.5">Spécialisations agricoles</p>
+                            {inspectorProfile?.specializations && inspectorProfile.specializations.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {inspectorProfile.specializations.map((spec: string) => (
+                                  <span key={spec} className="px-2 py-0.5 rounded-md bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] text-[11px] font-semibold">
+                                    {spec}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 italic text-[11px]">Aucune spécialisation enregistrée</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (roleName === 'Farmer') {
+                      const farmerProfile = profile as FarmerProfileInfo | undefined;
+                      return (
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
+                              <span className="material-symbols-outlined text-base">agriculture</span>
+                              Exploitation Agricole
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              farmerProfile?.isCertified
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {farmerProfile?.isCertified ? 'Certifié Bio' : 'Non certifié'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Nom de l'exploitation</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {farmerProfile?.companyName || 'Non renseigné'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Parcelles déclarées</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {farmerProfile?.parcels?.length ?? 0} parcelles
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs">
+                            <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Adresse de la ferme</p>
+                            <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                              {farmerProfile?.address || 'Non renseignée'}
+                            </p>
+                          </div>
+
+                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs">
+                            <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Présentation</p>
+                            <p className="text-gray-600 mt-0.5 italic">
+                              {farmerProfile?.bio || 'Non renseignée'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (roleName === 'Buyer') {
+                      const buyerProfile = profile as BuyerProfileInfo | undefined;
+                      return (
+                        <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
+                              <span className="material-symbols-outlined text-base">storefront</span>
+                              Entreprise & Facturation
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 uppercase">
+                              {buyerProfile?.businessType || 'Acheteur'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Société</p>
+                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {buyerProfile?.companyName || 'Non renseigné'}
+                              </p>
+                            </div>
+                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">N° TVA / Registre</p>
+                              <p className="font-mono font-bold text-[var(--admin-on-surface)] mt-0.5">
+                                {buyerProfile?.vatNumber || 'Non renseigné'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs">
+                            <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Adresse de livraison</p>
+                            <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
+                              {buyerProfile?.shippingAddress || 'Non renseignée'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 text-xs">
+                        <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)] mb-1">
+                          <span className="material-symbols-outlined text-base">shield_person</span>
+                          Privilèges Administrateur
+                        </div>
+                        <p className="text-gray-600">Accès complet à la supervision du réseau Future Farm, gestion des utilisateurs et validation.</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+
+            {/* Actions Bar */}
+            <div className="pt-4 border-t border-[var(--admin-outline-variant)]/30">
+              <h4 className="text-[11px] font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider mb-3">
+                Actions de gestion du compte
+              </h4>
+
+              {!selectedUser.isActive ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-[var(--admin-on-surface-variant)] leading-relaxed">
+                    Ce compte est actuellement inactif. Il s'activera automatiquement dès la première connexion du collaborateur.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleResendWelcome(selectedUser)}
+                    disabled={resendWelcomeMutation.isPending}
+                    title="Renvoyer l'email d'activation avec de nouveaux identifiants"
+                    className="w-full py-2.5 px-4 bg-[var(--admin-primary)]/10 hover:bg-[var(--admin-primary)]/20 text-[var(--admin-primary)] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-base">forward_to_inbox</span>
+                    Renvoyer les accès
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {selectedUser.status === UserStatus.APPROVED ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          user: selectedUser,
+                          newStatus: UserStatus.SUSPENDED,
+                          title: 'Suspendre le compte',
+                          message: `Êtes-vous sûr de vouloir suspendre le compte de ${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email}) ? L'utilisateur ne pourra plus accéder à la plateforme.`,
+                          confirmLabel: 'Suspendre le compte',
+                          confirmVariant: 'danger',
+                        })
+                      }
+                      disabled={updateStatus.isPending}
+                      className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-base">pause_circle</span>
+                      Suspendre le compte
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmAction({
+                          user: selectedUser,
+                          newStatus: UserStatus.APPROVED,
+                          title: 'Réactiver le compte',
+                          message: `Êtes-vous sûr de vouloir réactiver le compte de ${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email}) ?`,
+                          confirmLabel: 'Réactiver le compte',
+                          confirmVariant: 'primary',
+                        })
+                      }
+                      disabled={updateStatus.isPending}
+                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-base">check_circle</span>
+                      Réactiver le compte
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -564,7 +1374,71 @@ function UsersListPage() {
         )}
       </SidePanel>
 
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl animate-slide-in">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto shadow-xs ${
+                confirmAction.confirmVariant === 'danger'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              <span className="material-symbols-outlined text-2xl">
+                {confirmAction.confirmVariant === 'danger' ? 'warning' : 'check_circle'}
+              </span>
+            </div>
 
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-lg text-gray-900">{confirmAction.title}</h3>
+              <p className="text-xs text-gray-600 leading-relaxed">{confirmAction.message}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmAction(null)}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold"
+              >
+                Annuler
+              </Button>
+              <button
+                type="button"
+                onClick={executeConfirmedStatusChange}
+                disabled={updateStatus.isPending}
+                className={`w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50 ${
+                  confirmAction.confirmVariant === 'danger'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                {confirmAction.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`p-4 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all animate-slide-in ${
+              toast.type === 'success'
+                ? 'bg-emerald-800 text-white'
+                : 'bg-red-800 text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {toast.type === 'success' ? 'check_circle' : 'error'}
+            </span>
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

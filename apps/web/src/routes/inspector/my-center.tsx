@@ -1,12 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMyCenter } from '@/features/admin/api/inspections.queries';
 import { DeliveryMap } from '@/features/shared/components/DeliveryMap';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { clearAuth } from '@/features/auth/store/auth.store';
 
 export const Route = createFileRoute('/inspector/my-center')({
   component: MyCenterPage,
 });
 
 function MyCenterPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: center, isLoading, isError, refetch } = useMyCenter();
 
   return (
@@ -112,6 +116,36 @@ function MyCenterPage() {
             </div>
           </>
         )}
+
+        {/* Inspector Account & Logout Section */}
+        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#1a5c35] text-white flex items-center justify-center font-bold text-lg shadow-xs">
+              {user?.firstName?.charAt(0) || 'I'}
+              {user?.lastName?.charAt(0) || ''}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-[#0b1c30] truncate">
+                {user ? `${user.firstName} ${user.lastName}` : 'Inspecteur Qualité'}
+              </h3>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              <span className="inline-block mt-0.5 bg-emerald-100 text-[#1a5c35] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                Inspecteur Certifié
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              clearAuth();
+              void navigate({ to: '/auth/login' });
+            }}
+            className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">logout</span>
+            Déconnexion
+          </button>
+        </div>
       </main>
     </div>
   );

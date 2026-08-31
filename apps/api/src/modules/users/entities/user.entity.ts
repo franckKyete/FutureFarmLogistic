@@ -79,6 +79,9 @@ export class UserEntity {
   })
   roles: RoleEntity[];
 
+  @Column({ name: 'must_change_password', default: false })
+  mustChangePassword: boolean;
+
   @Column({ name: 'created_by_actor_id', type: 'uuid', nullable: true })
   createdByActorId: string | null;
 
@@ -91,7 +94,11 @@ export class UserEntity {
   @BeforeInsert()
   @BeforeUpdate()
   async hashPassword() {
-    if (this.password) {
+    if (
+      this.password &&
+      !this.password.startsWith('$2b$') &&
+      !this.password.startsWith('$2a$')
+    ) {
       this.password = await bcrypt.hash(this.password, 12);
     }
   }

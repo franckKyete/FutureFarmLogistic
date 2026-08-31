@@ -4,6 +4,7 @@ import {
   ConflictException,
   InternalServerErrorException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -97,7 +98,7 @@ export class UsersService {
     };
   }
 
-  async findOne(id: string): Promise<UserEntity> {
+  async findOne(id: string): Promise<UserEntity & { profile?: any }> {
     const user = await this.usersRepository.findOne({
       where: { id },
       relations: ['roles'],
@@ -105,7 +106,26 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
-    return user;
+
+    const roleNames = user.roles?.map((r) => r.name) ?? [];
+    let profile: any = null;
+    if (roleNames.includes('Inspector')) {
+      profile = await this.inspectorProfileRepository.findOneBy({ userId: id });
+    } else if (roleNames.includes('Driver')) {
+      profile = await this.driverProfileRepository.findOneBy({ userId: id });
+    } else if (roleNames.includes('Farmer')) {
+      profile = await this.farmerProfileRepository.findOne({
+        where: { userId: id },
+        relations: ['parcels'],
+      });
+    } else if (roleNames.includes('Buyer')) {
+      profile = await this.buyerProfileRepository.findOneBy({ userId: id });
+    }
+
+    return {
+      ...user,
+      profile,
+    } as any;
   }
 
   async registerFarmer(dto: RegisterFarmerDto): Promise<UserEntity> {
@@ -142,6 +162,26 @@ export class UsersService {
     });
 
     await this.farmerProfileRepository.save(profile);
+
+    // Send welcome email notification
+    try {
+      await this.notificationsService.send({
+        recipientIds: [savedUser.id],
+        title: 'Bienvenue sur Future Farm !',
+        body: `Bonjour ${savedUser.firstName},\n\nVotre compte Producteur Agricole a été créé avec succès. Vous pouvez dès à présent vous connecter, enregistrer vos parcelles et proposer vos récoltes.`,
+        channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+        priority: NotificationPriority.NORMAL,
+        metadata: {
+          actionUrl: '/auth/login',
+          actionText: 'Accéder à mon espace',
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send welcome email to farmer ${savedUser.email}:`,
+        err,
+      );
+    }
 
     return savedUser;
   }
@@ -182,6 +222,26 @@ export class UsersService {
     });
 
     await this.buyerProfileRepository.save(profile);
+
+    // Send welcome email notification
+    try {
+      await this.notificationsService.send({
+        recipientIds: [savedUser.id],
+        title: 'Bienvenue sur Future Farm !',
+        body: `Bonjour ${savedUser.firstName},\n\nVotre compte Acheteur Professionnel a été créé avec succès. Vous pouvez dès à présent explorer le catalogue et commander des récoltes certifiées.`,
+        channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+        priority: NotificationPriority.NORMAL,
+        metadata: {
+          actionUrl: '/auth/login',
+          actionText: 'Accéder au catalogue',
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send welcome email to buyer ${savedUser.email}:`,
+        err,
+      );
+    }
 
     return savedUser;
   }
@@ -350,11 +410,16 @@ export class UsersService {
     status: UserStatus,
   ): Promise<UserEntity> {
     const user = await this.findOne(userId);
+    if (!user.isActive) {
+      throw new BadRequestException(
+        'Impossible de modifier le statut d’un utilisateur inactif. Le compte s’active automatiquement lors de sa première connexion.',
+      );
+    }
     user.status = status;
     return this.usersRepository.save(user);
   }
 
-  async updateUser(id: string, dto: UpdateUserDto): Promise<UserEntity> {
+  async updateUser(id: string, dto: UpdateUserDto): Promise<UserEntity & { profile?: any }> {
     const user = await this.findOne(id);
     if (dto.email !== undefined) {
       const existing = await this.usersRepository.findOneBy({ email: dto.email });
@@ -366,13 +431,53 @@ export class UsersService {
     if (dto.firstName !== undefined) user.firstName = dto.firstName;
     if (dto.lastName !== undefined) user.lastName = dto.lastName;
     if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber || null;
-    return this.usersRepository.save(user);
+    await this.usersRepository.save(user);
+
+    // Update associated profile if present
+    const roleNames = user.roles?.map((r) => r.name) ?? [];
+    if (roleNames.includes('Inspector')) {
+      const inspProfile = await this.inspectorProfileRepository.findOneBy({ userId: id });
+      if (inspProfile) {
+        if (dto.licenseNumber !== undefined) inspProfile.licenseNumber = dto.licenseNumber;
+        if (dto.agencyName !== undefined) inspProfile.agencyName = dto.agencyName;
+        if (dto.specializations !== undefined) inspProfile.specializations = dto.specializations;
+        await this.inspectorProfileRepository.save(inspProfile);
+      }
+    } else if (roleNames.includes('Driver')) {
+      const driverProfile = await this.driverProfileRepository.findOneBy({ userId: id });
+      if (driverProfile) {
+        if (dto.licenseNumber !== undefined) driverProfile.licenseNumber = dto.licenseNumber;
+        if (dto.licenseCategory !== undefined) driverProfile.licenseCategory = dto.licenseCategory;
+        if (dto.isAvailable !== undefined) driverProfile.isAvailable = dto.isAvailable;
+        await this.driverProfileRepository.save(driverProfile);
+      }
+    } else if (roleNames.includes('Farmer')) {
+      const farmerProfile = await this.farmerProfileRepository.findOneBy({ userId: id });
+      if (farmerProfile) {
+        if (dto.companyName !== undefined) farmerProfile.companyName = dto.companyName;
+        if (dto.address !== undefined) farmerProfile.address = dto.address;
+        if (dto.bio !== undefined) farmerProfile.bio = dto.bio;
+        if (dto.isCertified !== undefined) farmerProfile.isCertified = dto.isCertified;
+        if (dto.avatarUrl !== undefined) farmerProfile.avatarUrl = dto.avatarUrl;
+        await this.farmerProfileRepository.save(farmerProfile);
+      }
+    } else if (roleNames.includes('Buyer')) {
+      const buyerProfile = await this.buyerProfileRepository.findOneBy({ userId: id });
+      if (buyerProfile) {
+        if (dto.companyName !== undefined) buyerProfile.companyName = dto.companyName;
+        if (dto.vatNumber !== undefined) buyerProfile.vatNumber = dto.vatNumber;
+        if (dto.billingAddress !== undefined) buyerProfile.billingAddress = dto.billingAddress;
+        if (dto.shippingAddress !== undefined) buyerProfile.shippingAddress = dto.shippingAddress;
+        await this.buyerProfileRepository.save(buyerProfile);
+      }
+    }
+
+    return this.findOne(id);
   }
 
   async softDeleteUser(id: string): Promise<UserEntity> {
     const user = await this.findOne(id);
-    user.isActive = false;
-    user.status = UserStatus.BANNED;
+    user.status = UserStatus.SUSPENDED;
     return this.usersRepository.save(user);
   }
 
@@ -403,7 +508,8 @@ export class UsersService {
       phoneNumber: dto.phoneNumber,
       roles: [inspectorRole],
       status: UserStatus.APPROVED,
-      isActive: true,
+      isActive: false, // Inactive until first login
+      mustChangePassword: true,
     });
 
     const savedUser = await this.usersRepository.save(user);
@@ -414,13 +520,13 @@ export class UsersService {
         dto.licenseNumber ||
         `INSP-${Math.random().toString(36).slice(-6).toUpperCase()}`,
       agencyName: dto.agencyName || 'Future Farm Inspection',
-      specializations: dto.specializations ?? [],
+      specializations: dto.specializations || ['Céréales & Grains', 'Fruits & Légumes'],
       isActiveInspector: true,
     });
 
     await this.inspectorProfileRepository.save(profile);
 
-    // Send email notification with login credentials
+    // Send email notification with login credentials (non-blocking)
     try {
       await this.notificationsService.send({
         recipientIds: [savedUser.id],
@@ -435,12 +541,11 @@ export class UsersService {
       });
     } catch (error) {
       this.logger.warn(
-        `Failed to send welcome email to inspector ${savedUser.email}:`,
+        `Failed to enqueue welcome email to inspector ${savedUser.email}:`,
         error,
       );
     }
 
-    (savedUser as any).temporaryPassword = tempPassword;
     return savedUser;
   }
 
@@ -471,7 +576,8 @@ export class UsersService {
       phoneNumber: dto.phoneNumber,
       roles: [driverRole],
       status: UserStatus.APPROVED,
-      isActive: true,
+      isActive: false, // Inactive until first login
+      mustChangePassword: true,
     });
 
     const savedUser = await this.usersRepository.save(user);
@@ -488,7 +594,7 @@ export class UsersService {
 
     await this.driverProfileRepository.save(profile);
 
-    // Send email notification with login credentials
+    // Send email notification with login credentials (non-blocking)
     try {
       await this.notificationsService.send({
         recipientIds: [savedUser.id],
@@ -503,12 +609,62 @@ export class UsersService {
       });
     } catch (error) {
       this.logger.warn(
-        `Failed to send welcome email to driver ${savedUser.email}:`,
+        `Failed to enqueue welcome email to driver ${savedUser.email}:`,
         error,
       );
     }
 
-    (savedUser as any).temporaryPassword = tempPassword;
     return savedUser;
+  }
+
+  async resendWelcomeNotification(userId: string): Promise<{ success: boolean; message: string }> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    if (user.isActive) {
+      throw new BadRequestException("Impossible de renvoyer les accès d'un utilisateur déjà actif.");
+    }
+
+    const tempPassword =
+      Math.random().toString(36).slice(-8) +
+      Math.random().toString(36).slice(-4) +
+      '!';
+    user.password = tempPassword;
+    user.mustChangePassword = true;
+    await this.usersRepository.save(user);
+
+    const body = `Bonjour ${user.firstName},\n\nVoici vos nouveaux identifiants d’accès à la plateforme Future Farm :\n- Email : ${user.email}\n- Nouveau mot de passe temporaire : ${tempPassword}\n\nVotre compte sera activé dès votre première connexion.`;
+
+    try {
+      await this.notificationsService.send({
+        recipientIds: [user.id],
+        title: 'Vos identifiants d’accès - Future Farm',
+        body,
+        channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          actionUrl: '/auth/login',
+          actionText: 'Se connecter',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to resend welcome notification to ${user.email}:`,
+        error,
+      );
+      throw new BadRequestException(
+        "Échec de l'envoi de l'email d'activation. Veuillez réessayer ultérieurement.",
+      );
+    }
+
+    return {
+      success: true,
+      message: "Email d'activation renvoyé avec succès.",
+    };
   }
 }

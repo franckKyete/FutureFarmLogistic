@@ -30,6 +30,7 @@ import { Verify2faDto, Authenticate2faDto } from './dto/2fa.dto';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
+  ChangePasswordDto,
 } from './dto/password-recovery.dto';
 
 @ApiTags('Auth')
@@ -112,6 +113,23 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { success: true };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password for authenticated user' })
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { success: true, message: 'Mot de passe modifié avec succès.' };
   }
 
   @Get('sessions')

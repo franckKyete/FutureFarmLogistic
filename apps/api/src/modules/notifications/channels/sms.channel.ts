@@ -51,7 +51,12 @@ export class SmsChannel implements INotificationChannel {
 
     if (!this.client || !from) {
       this.logger.log(
-        `[DRY RUN] SMS to ${payload.userPhone}: [${payload.priority}] ${payload.title} - ${payload.body}`,
+        `\n======================== [SMS DRY RUN] ========================\n` +
+          `To:         ${payload.userPhone} (User ID: ${payload.userId})\n` +
+          `Subject:    ${payload.title}\n` +
+          `Priority:   ${payload.priority}\n` +
+          `Body:       ${payload.body}\n` +
+          `==============================================================`,
       );
       return;
     }

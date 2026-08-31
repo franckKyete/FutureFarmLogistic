@@ -177,6 +177,10 @@ export class EmailChannel implements INotificationChannel {
     this.template = handlebars.compile(fallbackSource);
   }
 
+  isConfigured(): boolean {
+    return this.transporter !== null;
+  }
+
   async send(payload: NotificationPayload): Promise<void> {
     const from = this.configService.get<string>(
       'SMTP_FROM',
@@ -198,7 +202,13 @@ export class EmailChannel implements INotificationChannel {
 
     if (!this.transporter) {
       this.logger.log(
-        `[DRY RUN] Email to ${payload.userEmail}: [${payload.priority}] ${payload.title} - ${payload.body}`,
+        `\n======================= [EMAIL DRY RUN] =======================\n` +
+          `To:         ${payload.userEmail}\n` +
+          `Subject:    ${payload.title}\n` +
+          `Priority:   ${payload.priority}\n` +
+          `Body:       ${payload.body}\n` +
+          (actionUrl ? `Action URL: ${actionUrl}\n` : '') +
+          `==============================================================`,
       );
       return;
     }

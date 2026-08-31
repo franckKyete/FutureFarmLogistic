@@ -8,7 +8,11 @@ import { resolve } from 'node:path';
 export default defineConfig({
   plugins: [
     // TanStack Router file-based routing (must be before react())
-    TanStackRouterVite({ routesDirectory: './src/routes', generatedRouteTree: './src/routeTree.gen.ts' }),
+    TanStackRouterVite({
+      routesDirectory: './src/routes',
+      generatedRouteTree: './src/routeTree.gen.ts',
+      routeFileIgnorePattern: '.*\\.test\\..*',
+    }),
     react(),
     tailwindcss(),
   ],

@@ -43,6 +43,6 @@ import { AuthModule } from '../auth/auth.module';
     PushChannel,
     WhatsAppChannel,
   ],
-  exports: [NotificationsService, NotificationsGateway],
+  exports: [NotificationsService, NotificationsGateway, EmailChannel],
 })
 export class NotificationsModule {}

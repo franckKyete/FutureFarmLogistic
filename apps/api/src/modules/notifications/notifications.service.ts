@@ -3,6 +3,7 @@ import {
   NotFoundException,
   Logger,
   ForbiddenException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, FindManyOptions } from 'typeorm';
@@ -61,41 +62,60 @@ export class NotificationsService {
 
       const saved = await this.notificationRepository.save(notification);
 
-      // Enqueue send job
-      await this.notificationsQueue.add(
-        'send',
-        {
-          notificationId: saved.id,
-          userId,
-        },
-        {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 5000,
+      try {
+        // Enqueue send job
+        await this.notificationsQueue.add(
+          'send',
+          {
+            notificationId: saved.id,
+            userId,
           },
-        },
-      );
+          {
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 5000,
+            },
+          },
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to enqueue notification job for user ${userId}:`,
+          error,
+        );
+        saved.status = NotificationStatus.FAILED;
+        await this.notificationRepository.save(saved);
+        throw new ServiceUnavailableException(
+          'Le service de notification est temporairement indisponible. Veuillez vérifier la connexion et réessayer.',
+        );
+      }
     }
   }
 
   async broadcast(dto: BroadcastNotificationDto): Promise<void> {
-    // Enqueue the broadcast job itself, letting the processor resolve users asynchronously
-    await this.notificationsQueue.add(
-      'broadcast',
-      {
-        title: dto.title,
-        body: dto.body,
-        priority: dto.priority ?? 'normal',
-        channels: dto.channels,
-        metadata: dto.metadata ?? null,
-        filterByRole: dto.filterByRole,
-        filterByPermission: dto.filterByPermission,
-      },
-      {
-        attempts: 1, // Only try the broadcast orchestration once
-      },
-    );
+    try {
+      // Enqueue the broadcast job itself, letting the processor resolve users asynchronously
+      await this.notificationsQueue.add(
+        'broadcast',
+        {
+          title: dto.title,
+          body: dto.body,
+          priority: dto.priority ?? 'normal',
+          channels: dto.channels,
+          metadata: dto.metadata ?? null,
+          filterByRole: dto.filterByRole,
+          filterByPermission: dto.filterByPermission,
+        },
+        {
+          attempts: 1, // Only try the broadcast orchestration once
+        },
+      );
+    } catch (error) {
+      this.logger.error('Failed to enqueue broadcast notification job:', error);
+      throw new ServiceUnavailableException(
+        'Le service de notification est temporairement indisponible. Veuillez vérifier la connexion et réessayer.',
+      );
+    }
   }
 
   async getMyNotifications(
