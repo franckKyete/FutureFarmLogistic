@@ -58,6 +58,8 @@ import { Route as DriverRunsIndexRouteImport } from './routes/driver/runs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
 import { Route as InspectorReportsIdRouteImport } from './routes/inspector/reports/$id'
+import { Route as InspectorHarvestsNewRouteImport } from './routes/inspector/harvests/new'
+import { Route as InspectorHarvestsAnalyzeRouteImport } from './routes/inspector/harvests/analyze'
 import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
 import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
 import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
@@ -314,6 +316,17 @@ const InspectorReportsIdRoute = InspectorReportsIdRouteImport.update({
   path: '/reports/$id',
   getParentRoute: () => InspectorRoute,
 } as any)
+const InspectorHarvestsNewRoute = InspectorHarvestsNewRouteImport.update({
+  id: '/harvests/new',
+  path: '/harvests/new',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorHarvestsAnalyzeRoute =
+  InspectorHarvestsAnalyzeRouteImport.update({
+    id: '/harvests/analyze',
+    path: '/harvests/analyze',
+    getParentRoute: () => InspectorRoute,
+  } as any)
 const HarvestsIdQualityRoute = HarvestsIdQualityRouteImport.update({
   id: '/quality',
   path: '/quality',
@@ -419,6 +432,8 @@ export interface FileRoutesByFullPath {
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
+  '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -478,6 +493,8 @@ export interface FileRoutesByTo {
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
+  '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/admin/users': typeof AdminUsersIndexRoute
@@ -540,6 +557,8 @@ export interface FileRoutesById {
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
+  '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
+  '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -603,6 +622,8 @@ export interface FileRouteTypes {
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
+    | '/inspector/harvests/analyze'
+    | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
     | '/admin/users/'
@@ -662,6 +683,8 @@ export interface FileRouteTypes {
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
+    | '/inspector/harvests/analyze'
+    | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
     | '/admin/users'
@@ -723,6 +746,8 @@ export interface FileRouteTypes {
     | '/farmer/harvests/new'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
+    | '/inspector/harvests/analyze'
+    | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
     | '/admin/users/'
@@ -1096,6 +1121,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspectorReportsIdRouteImport
       parentRoute: typeof InspectorRoute
     }
+    '/inspector/harvests/new': {
+      id: '/inspector/harvests/new'
+      path: '/harvests/new'
+      fullPath: '/inspector/harvests/new'
+      preLoaderRoute: typeof InspectorHarvestsNewRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/harvests/analyze': {
+      id: '/inspector/harvests/analyze'
+      path: '/harvests/analyze'
+      fullPath: '/inspector/harvests/analyze'
+      preLoaderRoute: typeof InspectorHarvestsAnalyzeRouteImport
+      parentRoute: typeof InspectorRoute
+    }
     '/harvests/$id/quality': {
       id: '/harvests/$id/quality'
       path: '/quality'
@@ -1261,6 +1300,8 @@ interface InspectorRouteChildren {
   InspectorProxyRoute: typeof InspectorProxyRoute
   InspectorValidateRoute: typeof InspectorValidateRoute
   InspectorIndexRoute: typeof InspectorIndexRoute
+  InspectorHarvestsAnalyzeRoute: typeof InspectorHarvestsAnalyzeRoute
+  InspectorHarvestsNewRoute: typeof InspectorHarvestsNewRoute
   InspectorReportsIdRoute: typeof InspectorReportsIdRoute
 }
 
@@ -1272,6 +1313,8 @@ const InspectorRouteChildren: InspectorRouteChildren = {
   InspectorProxyRoute: InspectorProxyRoute,
   InspectorValidateRoute: InspectorValidateRoute,
   InspectorIndexRoute: InspectorIndexRoute,
+  InspectorHarvestsAnalyzeRoute: InspectorHarvestsAnalyzeRoute,
+  InspectorHarvestsNewRoute: InspectorHarvestsNewRoute,
   InspectorReportsIdRoute: InspectorReportsIdRoute,
 }
 

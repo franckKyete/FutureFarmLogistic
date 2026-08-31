@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useDashboardStats } from '../../features/inspector/api/dashboard.queries';
 import type { DashboardStats, VisitDto } from '../../features/inspector/types';
 import { VisitReason } from '@futurefarm/types';
+import { useOfflineSyncState } from '@/features/harvests/offline/offline-sync.store';
 
 export const Route = createFileRoute('/inspector/dashboard')({
   component: DashboardPage,
@@ -28,12 +29,74 @@ const STATUS_LABELS: Record<string, string> = {
 
 function DashboardPage() {
   const { data: stats, isLoading, isError, refetch } = useDashboardStats();
+  const { tempDrafts } = useOfflineSyncState();
+
+  const proxyDraftsReady = tempDrafts.filter(
+    (d) => d.isProxy && d.status === 'ANALYZED_READY_FOR_REVIEW',
+  );
+  const proxyDraftsPending = tempDrafts.filter(
+    (d) => d.isProxy && (d.status === 'PENDING_AI_ANALYSIS' || d.status === 'ANALYZING'),
+  );
 
   return (
     <div className="pb-24">
       <Header />
 
       <div className="p-4">
+        {/* Offline Proxy Review Banner */}
+        {proxyDraftsReady.length > 0 && (
+          <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3 animate-slide-in">
+            <div className="flex items-center gap-3 min-w-0">
+              <span
+                className="material-symbols-outlined text-emerald-700 text-2xl flex-shrink-0"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                auto_awesome
+              </span>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-emerald-950">
+                  {proxyDraftsReady.length} récolte{proxyDraftsReady.length > 1 ? 's' : ''} par procuration analysée{proxyDraftsReady.length > 1 ? 's' : ''} prête{proxyDraftsReady.length > 1 ? 's' : ''} à réviser
+                </div>
+                <div className="text-[11px] text-emerald-800 truncate">
+                  L'IA a terminé l'analyse. Vérifiez et validez au nom du producteur.
+                </div>
+              </div>
+            </div>
+            <Link
+              to="/inspector/harvests/new"
+              search={
+                proxyDraftsReady[0]?.id
+                  ? {
+                      reviewDraftId: proxyDraftsReady[0].id,
+                      farmerUserId: proxyDraftsReady[0].farmerUserId,
+                      farmerName: proxyDraftsReady[0].farmerName,
+                    }
+                  : {}
+              }
+              className="bg-[#1a5c35] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-[#144a2a] transition-all cursor-pointer whitespace-nowrap shadow-xs flex-shrink-0"
+            >
+              Réviser
+            </Link>
+          </div>
+        )}
+
+        {/* Offline Proxy Pending Banner */}
+        {proxyDraftsPending.length > 0 && (
+          <div className="mb-4 bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-sm flex items-center gap-3 animate-slide-in">
+            <span className="material-symbols-outlined text-amber-700 text-2xl animate-spin flex-shrink-0">
+              sync
+            </span>
+            <div>
+              <div className="text-xs font-bold text-amber-950">
+                {proxyDraftsPending.length} récolte{proxyDraftsPending.length > 1 ? 's' : ''} par procuration en attente d'analyse IA
+              </div>
+              <div className="text-[11px] text-amber-800">
+                Ces lots enregistrés hors-ligne seront analysés dès le retour de la connexion.
+              </div>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <LoadingState />
         ) : isError ? (

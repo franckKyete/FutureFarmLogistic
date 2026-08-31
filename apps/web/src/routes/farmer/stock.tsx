@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import {
+  useOfflineSyncState,
+  syncOfflineHarvests,
+  refreshOfflineQueueState,
+} from '@/features/harvests/offline';
 
 export const Route = createFileRoute('/farmer/stock')({
   component: StockPage,
@@ -30,9 +35,29 @@ const CATEGORY_REVERSE_MAP: Record<Category, string> = {
 };
 
 function StockPage() {
+  const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<Category>('Tout');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const {
+    isOnline,
+    pendingCount,
+    isSyncing,
+    queuedHarvests,
+    pendingAnalysisCount,
+    readyForReviewCount,
+    tempDrafts,
+  } = useOfflineSyncState();
+
+  useEffect(() => {
+    void refreshOfflineQueueState();
+  }, []);
+
+  const handleManualSync = async () => {
+    if (!isOnline || isSyncing) return;
+    await syncOfflineHarvests(queryClient);
+  };
 
   // Fetch harvests query
   const { data: harvests, refetch } = useQuery(getFarmerHarvestsQuery());
@@ -174,6 +199,130 @@ function StockPage() {
             Mettre à jour
           </button>
         </div>
+
+        {/* Drafts Ready for Review Section */}
+        {readyForReviewCount > 0 && (
+          <section className="bg-[#eff4ff] border-2 border-[#004322] p-4 rounded-xl shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#004322] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  auto_awesome
+                </span>
+                <span className="text-xs font-bold text-[#004322]">
+                  {readyForReviewCount} récolte{readyForReviewCount > 1 ? 's' : ''} analysée{readyForReviewCount > 1 ? 's' : ''} à réviser
+                </span>
+              </div>
+              <span className="bg-[#004322] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                À confirmer
+              </span>
+            </div>
+            <div className="space-y-2 pt-1">
+              {tempDrafts
+                .filter((d) => d.status === 'ANALYZED_READY_FOR_REVIEW')
+                .map((draft) => (
+                  <div key={draft.id} className="bg-white p-3 rounded-lg border border-[#c0c9be] flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#1a5c35]/10 flex items-center justify-center text-[#1a5c35] shrink-0">
+                        {draft.localPhotos && draft.localPhotos[0] ? (
+                          <img alt="Vignette" className="w-full h-full object-cover" src={draft.localPhotos[draft.featuredPhotoIndex || 0] || draft.localPhotos[0]} />
+                        ) : (
+                          <span className="material-symbols-outlined text-xl">psychology</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[#0b1c30]">
+                          {draft.manualForm?.productName || draft.aiResult?.suggestedName || 'Lot récolté'}
+                        </p>
+                        <p className="text-[10px] text-[#707970]">
+                          Qualité IA : {draft.aiResult?.aiQualityScore ? Math.round(draft.aiResult.aiQualityScore * 10) : 90}% • {draft.manualForm?.quantity || 0} {draft.manualForm?.unit || 'KG'}
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/farmer/harvests/new"
+                      search={{ reviewDraftId: draft.id }}
+                      className="bg-[#004322] hover:bg-[#1a5c35] text-white py-1.5 px-3 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                    >
+                      Réviser
+                    </Link>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
+
+        {/* Drafts Pending AI Analysis Section */}
+        {pendingAnalysisCount > 0 && (
+          <section className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl shadow-sm flex items-start gap-3">
+            <span className="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">
+              cloud_sync
+            </span>
+            <div className="text-xs text-amber-900 leading-relaxed">
+              <p className="font-bold">
+                {pendingAnalysisCount} lot{pendingAnalysisCount > 1 ? 's' : ''} en attente d'analyse IA
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                Vos photos et estimations sont sauvegardées localement. L'analyse IA débutera dès que votre téléphone sera connecté à Internet.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Pending Offline Submissions Section */}
+        {pendingCount > 0 && (
+          <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className={`material-symbols-outlined text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  cloud_sync
+                </span>
+                <span className="text-xs font-bold text-[#1a5c35]">
+                  {pendingCount} récolte{pendingCount > 1 ? 's' : ''} en attente de synchronisation
+                </span>
+              </div>
+              {isOnline && (
+                <button
+                  onClick={handleManualSync}
+                  disabled={isSyncing}
+                  className="bg-[#004322] text-white py-1.5 px-3 rounded-lg text-[11px] font-bold active:scale-95 transition-transform cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                >
+                  <span className={`material-symbols-outlined text-xs ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                  {isSyncing ? 'En cours...' : 'Synchroniser'}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {queuedHarvests.map((item) => (
+                <div key={item.id} className="bg-white p-3 rounded-lg border border-[#aef2be]/60 flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#1a5c35]/10 flex items-center justify-center text-[#1a5c35] shrink-0">
+                      {item.metadata.photoUrl ? (
+                        <img alt={item.metadata.productName} className="w-full h-full object-cover" src={item.metadata.photoUrl} />
+                      ) : (
+                        <span className="material-symbols-outlined text-xl">agriculture</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#0b1c30]">{item.metadata.productName}</p>
+                      <p className="text-[10px] text-[#707970]">
+                        {item.metadata.quantity} {item.metadata.unit} • {item.metadata.pricePerUnit.toLocaleString()} CDF/{item.metadata.unit}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                      {item.status === 'SYNCING' ? 'En cours' : 'En attente'}
+                    </span>
+                    <p className="text-[9px] text-[#707970] mt-0.5">
+                      {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">

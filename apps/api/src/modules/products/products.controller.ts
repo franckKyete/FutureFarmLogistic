@@ -74,7 +74,10 @@ export class ProductsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10 MB
-          new FileTypeValidator({ fileType: 'image/(jpeg|png|webp|gif|heic|heif)' }),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|webp|gif|heic|heif)/,
+            fallbackToMimetype: true,
+          }),
         ],
       }),
     )

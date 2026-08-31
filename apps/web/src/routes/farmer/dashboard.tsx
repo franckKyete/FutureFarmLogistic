@@ -1,15 +1,38 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
+import {
+  useOfflineSyncState,
+  syncOfflineHarvests,
+  refreshOfflineQueueState,
+} from '@/features/harvests/offline';
 
 export const Route = createFileRoute('/farmer/dashboard')({
   component: DashboardPage,
 });
 
 function DashboardPage() {
+  const queryClient = useQueryClient();
   const [alertOpen, setAlertOpen] = useState(true);
+  const {
+    isOnline,
+    pendingCount,
+    isSyncing,
+    pendingAnalysisCount,
+    readyForReviewCount,
+    tempDrafts,
+  } = useOfflineSyncState();
+
+  useEffect(() => {
+    void refreshOfflineQueueState();
+  }, []);
+
+  const handleManualSync = async () => {
+    if (!isOnline || isSyncing) return;
+    await syncOfflineHarvests(queryClient);
+  };
 
   // Queries
   const { data: harvests } = useQuery(getFarmerHarvestsQuery());
@@ -83,6 +106,125 @@ function DashboardPage() {
 
       {/* Main Content */}
       <main className="px-4 max-w-[480px] mx-auto space-y-6 pt-4">
+        {/* Drafts Ready for Review Banner */}
+        {readyForReviewCount > 0 && (
+          <section className="bg-[#eff4ff] border-2 border-[#004322] p-4 rounded-xl shadow-md flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#004322] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  auto_awesome
+                </span>
+                <span className="text-xs font-bold text-[#004322]">
+                  {readyForReviewCount} récolte{readyForReviewCount > 1 ? 's' : ''} analysée{readyForReviewCount > 1 ? 's' : ''} prête{readyForReviewCount > 1 ? 's' : ''} à réviser
+                </span>
+              </div>
+              <span className="bg-[#004322] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                Action requise
+              </span>
+            </div>
+            <p className="text-[11px] text-[#404941] leading-relaxed">
+              L'analyse IA de vos photos est terminée. Consultez les estimations de qualité et confirmez vos lots avant publication.
+            </p>
+            <div className="flex flex-col gap-2">
+              {tempDrafts
+                .filter((d) => d.status === 'ANALYZED_READY_FOR_REVIEW')
+                .map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="bg-white border border-[#c0c9be] p-2.5 rounded-lg flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#0b1c30] truncate">
+                        {draft.manualForm?.productName || draft.aiResult?.suggestedName || 'Récolte'}
+                      </p>
+                      <p className="text-[10px] text-[#707970]">
+                        Qualité IA : {draft.aiResult?.aiQualityScore ? Math.round(draft.aiResult.aiQualityScore * 10) : 90}%
+                      </p>
+                    </div>
+                    <Link
+                      to="/farmer/harvests/new"
+                      search={{ reviewDraftId: draft.id }}
+                      className="bg-[#004322] hover:bg-[#1a5c35] text-white py-1.5 px-3 rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                    >
+                      Réviser
+                    </Link>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
+
+        {/* Drafts Pending AI Analysis Banner */}
+        {pendingAnalysisCount > 0 && (
+          <section className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl shadow-sm flex items-start gap-3">
+            <span className="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">
+              cloud_sync
+            </span>
+            <div className="text-xs text-amber-900 leading-relaxed">
+              <p className="font-bold">
+                {pendingAnalysisCount} récolte{pendingAnalysisCount > 1 ? 's' : ''} en attente d'analyse IA
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                Vos photos et estimations sont stockées localement. L'analyse IA débutera automatiquement dès le retour du réseau.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Offline Sync Status Banner */}
+        {pendingCount > 0 && (
+          <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl shadow-sm flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`material-symbols-outlined text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  sync
+                </span>
+                <span className="text-xs font-bold text-[#1a5c35]">
+                  {pendingCount} récolte{pendingCount > 1 ? 's' : ''} en attente de synchronisation
+                </span>
+              </div>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {isOnline ? 'En ligne' : 'Hors-ligne'}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#404941] leading-relaxed">
+              {isOnline
+                ? 'Connexion active. Vos données locales sont prêtes à être envoyées vers le serveur.'
+                : 'Vos données sont stockées en toute sécurité sur votre appareil. La synchronisation démarrera automatiquement dès rétablissement du réseau.'}
+            </p>
+            {isOnline && (
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="bg-[#004322] text-white py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
+              >
+                <span className={`material-symbols-outlined text-sm ${isSyncing ? 'animate-spin' : ''}`}>
+                  sync
+                </span>
+                {isSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
+              </button>
+            )}
+          </section>
+        )}
+
+        {!isOnline && pendingCount === 0 && (
+          <section className="bg-[#fff8e1] border border-[#ffe082] p-3 rounded-xl shadow-sm flex items-center gap-3">
+            <span className="material-symbols-outlined text-amber-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              cloud_off
+            </span>
+            <div className="text-xs">
+              <p className="font-bold text-amber-800">Mode hors-ligne actif</p>
+              <p className="text-amber-900/80 text-[10px] mt-0.5">
+                Toutes les nouvelles récoltes enregistrées seront sauvegardées localement.
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* KPI Bento Grid */}
         <section className="grid grid-cols-2 gap-4">
           {/* Revenue Card */}
