@@ -8,6 +8,7 @@ import { requireRole } from '@/features/auth/utils/role-guard';
 import { Permission } from '@futurefarm/types';
 import { useProducers } from '@/features/inspector/api/accounts.queries';
 import { useOfflineSyncState } from '@/features/harvests/offline';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export interface InspectorProxySearchParams {
   tab?: 'register' | 'harvest' | undefined;
@@ -44,7 +45,13 @@ function InspectorProxyPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [bio, setBio] = useState('');
   const [createdTempPassword, setCreatedTempPassword] = useState<string | null>(null);
 
@@ -104,7 +111,13 @@ function InspectorProxyPage() {
       setEmail('');
       setPhone('');
       setCompanyName('');
-      setAddress('');
+      setAddress({
+        streetAddress: '',
+        streetAddress2: '',
+        city: '',
+        stateOrProvince: '',
+        country: 'COD',
+      });
       setBio('');
       void queryClient.invalidateQueries({ queryKey: ['inspector', 'producers'] });
     },
@@ -117,10 +130,21 @@ function InspectorProxyPage() {
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !email || !companyName || !address) {
+    if (!firstName || !lastName || !email || !companyName || !address.streetAddress || !address.city || !address.stateOrProvince) {
       addToast('Veuillez remplir tous les champs obligatoires.', 'warning');
       return;
     }
+
+    const formattedAddress = [
+      address.streetAddress,
+      address.streetAddress2,
+      address.city,
+      address.stateOrProvince,
+      address.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     const payload: {
       firstName: string;
       lastName: string;
@@ -134,7 +158,7 @@ function InspectorProxyPage() {
       lastName,
       email,
       companyName,
-      address,
+      address: formattedAddress,
     };
     if (phone.trim()) payload.phoneNumber = phone.trim();
     if (bio.trim()) payload.bio = bio.trim();
@@ -289,27 +313,26 @@ function InspectorProxyPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Nom de la ferme / Exploitation *</label>
-                <input
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
-                  placeholder="Ex: Ferme Mutombo & Fils"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Localisation / Adresse *</label>
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
-                  placeholder="Ex: Village Mbanza-Ngungu, Kongo-Central"
-                  required
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-700">Nom de la ferme / Exploitation *</label>
+              <input
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                placeholder="Ex: Ferme Mutombo & Fils"
+                required
+              />
+            </div>
+
+            {/* Address of the exploitation */}
+            <div className="pt-2 border-t border-gray-100">
+              <AddressInputGroup
+                value={address}
+                onChange={setAddress}
+                title="Adresse de l'exploitation"
+                subtitle="Localisation principale de la ferme"
+                required
+              />
             </div>
 
             <div className="space-y-1">

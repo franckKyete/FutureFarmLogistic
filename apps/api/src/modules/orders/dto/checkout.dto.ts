@@ -1,27 +1,72 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, ValidateNested, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class DeliveryAddressDto {
-  @ApiProperty({ example: '123 Farm Road' })
+  @ApiPropertyOptional({ example: 'uuid-address-id' })
   @IsString()
-  @IsNotEmpty()
-  street: string;
+  @IsOptional()
+  id?: string;
 
-  @ApiProperty({ example: 'Agricity' })
+  @ApiPropertyOptional({ example: 'Jean Dupont' })
+  @IsString()
+  @IsOptional()
+  recipientName?: string;
+
+  @ApiPropertyOptional({ example: '+243990000000' })
+  @IsString()
+  @IsOptional()
+  phoneNumber?: string;
+
+  @ApiPropertyOptional({ example: '123 Farm Road' })
+  @IsString()
+  @IsOptional()
+  street?: string;
+
+  @ApiPropertyOptional({ example: '12 Avenue de la Paix' })
+  @IsString()
+  @IsOptional()
+  streetAddress?: string;
+
+  @ApiPropertyOptional({ example: 'Apt 4B' })
+  @IsString()
+  @IsOptional()
+  streetAddress2?: string;
+
+  @ApiProperty({ example: 'Kinshasa' })
   @IsString()
   @IsNotEmpty()
   city: string;
 
-  @ApiProperty({ example: 'Morocco' })
+  @ApiPropertyOptional({ example: 'Kinshasa' })
+  @IsString()
+  @IsOptional()
+  stateOrProvince?: string;
+
+  @ApiProperty({ example: 'COD' })
   @IsString()
   @IsNotEmpty()
   country: string;
 
-  @ApiProperty({ example: '40000' })
+  @ApiPropertyOptional({ example: '10000' })
   @IsString()
-  @IsNotEmpty()
-  postalCode: string;
+  @IsOptional()
+  postalCode?: string;
+
+  @ApiPropertyOptional({ example: -4.325 })
+  @IsNumber()
+  @IsOptional()
+  latitude?: number;
+
+  @ApiPropertyOptional({ example: 15.322 })
+  @IsNumber()
+  @IsOptional()
+  longitude?: number;
+
+  @ApiPropertyOptional({ example: 'Domicile' })
+  @IsString()
+  @IsOptional()
+  label?: string;
 }
 
 export class CheckoutDto {

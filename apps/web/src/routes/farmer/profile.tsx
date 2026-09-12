@@ -15,6 +15,7 @@ import { addToast } from '@/features/shared/store/toast.store';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { useUpdateUser } from '@/features/admin/api/users.queries';
 import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export interface FarmerProfileSearchParams {
   id?: string | undefined;
@@ -72,7 +73,13 @@ export function FarmerProfilePage() {
   const [tempEmail, setTempEmail] = useState('');
   const [tempPhone, setTempPhone] = useState('');
   const [tempName, setTempName] = useState('');
-  const [tempAddress, setTempAddress] = useState('');
+  const [tempAddress, setTempAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [tempBio, setTempBio] = useState('');
   const [tempIsCertified, setTempIsCertified] = useState(false);
   const [tempAvatarUrl, setTempAvatarUrl] = useState<string | null>(null);
@@ -133,7 +140,13 @@ export function FarmerProfilePage() {
     }
     if (profile) {
       setTempName(profile.companyName || '');
-      setTempAddress(profile.address || '');
+      setTempAddress({
+        streetAddress: profile.address || '',
+        streetAddress2: '',
+        city: '',
+        stateOrProvince: '',
+        country: 'COD',
+      });
       setTempBio(profile.bio || '');
       setTempIsCertified(Boolean(profile.isCertified));
       setTempAvatarUrl(profile.avatarUrl || null);
@@ -179,6 +192,16 @@ export function FarmerProfilePage() {
     }
     if (!user?.id) return;
 
+    const formattedAddress = [
+      tempAddress.streetAddress,
+      tempAddress.streetAddress2,
+      tempAddress.city,
+      tempAddress.stateOrProvince,
+      tempAddress.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     updateUserMutation.mutate(
       {
         id: user.id,
@@ -187,7 +210,7 @@ export function FarmerProfilePage() {
         email: tempEmail.trim(),
         phoneNumber: tempPhone.trim(),
         companyName: tempName.trim(),
-        address: tempAddress.trim() || undefined,
+        address: formattedAddress || undefined,
         bio: tempBio.trim() || undefined,
         isCertified: tempIsCertified,
         avatarUrl: tempAvatarUrl || undefined,
@@ -683,13 +706,14 @@ export function FarmerProfilePage() {
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-[#404941] block">Adresse de la ferme / Localisation</label>
-              <input
-                placeholder="Ex: Région de Thiès, Sénégal"
-                className="w-full bg-[#ffffff] border border-[#c0c9be] focus:border-[#004322] focus:ring-2 focus:ring-[#aef2be] rounded-lg p-2.5 text-[13px] outline-none"
+            {/* Address of the exploitation */}
+            <div className="pt-2 border-t border-gray-100">
+              <AddressInputGroup
                 value={tempAddress}
-                onChange={(e) => setTempAddress(e.target.value)}
+                onChange={setTempAddress}
+                title="Adresse de l'exploitation"
+                subtitle="Localisation principale de la ferme"
+                required={false}
               />
             </div>
 

@@ -408,17 +408,8 @@ describe('CartPage (/cart)', () => {
       </QueryClientProvider>,
     );
 
-    // Enter promo code
-    const promoInput = await screen.findByPlaceholderText('Code promo');
-    fireEvent.change(promoInput, { target: { value: 'BIO10' } });
-
-    const applyBtn = screen.getByText('Appliquer');
-    fireEvent.click(applyBtn);
-
-    expect(mockAddToast).toHaveBeenCalledWith(
-      expect.stringContaining('Code appliqué'),
-      'success',
-    );
+    // Verify order summary title is displayed
+    expect(await screen.findByText('Récapitulatif')).toBeInTheDocument();
 
     // Click checkout CTA
     const checkoutBtn = screen.getByText('Procéder au paiement');

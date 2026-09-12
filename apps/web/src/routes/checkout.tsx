@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
@@ -20,7 +20,9 @@ import {
   type DeliveryAddress,
   type BasketLineDto,
   type OrderDto,
+  type AddressDto,
 } from '@futurefarm/types';
+import { AddressSelector } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/checkout')({
   beforeLoad: () => {
@@ -29,31 +31,7 @@ export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
 });
 
-const DEFAULT_SAVED_ADDRESSES = [
-  '12 Rue des Agriculteurs, Kinshasa',
-  '45 Avenue de la Paix, Dakar',
-  '8 Boulevard de la République, Abidjan',
-];
-
 type DeliverySlot = 'Matin (08:00 - 12:00)' | 'Après-midi' | 'Soir';
-
-function parseFullAddress(fullAddress: string, defaultCountry = 'COD'): DeliveryAddress {
-  const parts = fullAddress.split(',').map((p) => p.trim());
-  if (parts.length >= 2) {
-    return {
-      street: parts[0] || '12 Rue des Agriculteurs',
-      city: parts[1] || 'Kinshasa',
-      country: parts[2] || defaultCountry,
-      postalCode: '10000',
-    };
-  }
-  return {
-    street: fullAddress || '12 Rue des Agriculteurs',
-    city: 'Kinshasa',
-    country: defaultCountry,
-    postalCode: '10000',
-  };
-}
 
 function getTomorrowDate(): string {
   const tomorrow = new Date();
@@ -68,53 +46,16 @@ export function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Form State
-  const [addressInput, setAddressInput] = useState('12 Rue des Agriculteurs, Dakar');
+  const [selectedAddress, setSelectedAddress] = useState<AddressDto | null>(null);
   const [deliveryDate, setDeliveryDate] = useState(getTomorrowDate());
   const [selectedSlot, setSelectedSlot] = useState<DeliverySlot>('Matin (08:00 - 12:00)');
   const [specialInstructions, setSpecialInstructions] = useState('');
-
-  // Saved addresses list
-  const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
-  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
 
   // Payment Method Selection (Step 2)
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'mobile_money'>('stripe');
 
   // Placed Order Result State (Step 3)
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
-
-  // Load saved addresses from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('futurefarm_saved_addresses');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSavedAddresses(parsed);
-          return;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    setSavedAddresses(DEFAULT_SAVED_ADDRESSES);
-  }, []);
-
-  // Save new address automatically
-  const persistAddress = (addr: string) => {
-    const trimmed = addr.trim();
-    if (!trimmed) return;
-    setSavedAddresses((prev) => {
-      const filtered = prev.filter((a) => a.toLowerCase() !== trimmed.toLowerCase());
-      const updated = [trimmed, ...filtered].slice(0, 10);
-      try {
-        localStorage.setItem('futurefarm_saved_addresses', JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
-  };
 
   const selectedCountry = useCurrencyStore((s) => s.selectedCountry);
   const selectedCurrency = useCurrencyStore((s) => s.selectedCurrency);
@@ -195,11 +136,10 @@ export function CheckoutPage() {
 
   const handleStep1Submit = (e?: React.FormEvent | React.MouseEvent) => {
     e?.preventDefault?.();
-    if (!addressInput.trim()) {
-      addToast('Veuillez renseigner une adresse de livraison', 'error');
+    if (!selectedAddress) {
+      addToast('Veuillez sélectionner ou ajouter une adresse de livraison', 'error');
       return;
     }
-    persistAddress(addressInput);
     setCurrentStep(2);
   };
 
@@ -209,12 +149,41 @@ export function CheckoutPage() {
       addToast('Votre panier est vide', 'error');
       return;
     }
+    if (!selectedAddress) {
+      addToast('Veuillez sélectionner une adresse de livraison', 'error');
+      return;
+    }
 
-    const parsedAddress = parseFullAddress(addressInput, selectedCountry);
+    const deliveryAddressPayload: DeliveryAddress = {
+      id: selectedAddress.id,
+      recipientName: selectedAddress.recipientName ?? undefined,
+      phoneNumber: selectedAddress.phoneNumber ?? undefined,
+      street: selectedAddress.streetAddress,
+      streetAddress: selectedAddress.streetAddress,
+      city: selectedAddress.city,
+      country: selectedAddress.country || selectedCountry,
+      postalCode: selectedAddress.postalCode ?? '10000',
+    };
+    if (selectedAddress.streetAddress2) {
+      deliveryAddressPayload.streetAddress2 = selectedAddress.streetAddress2;
+    }
+    if (selectedAddress.stateOrProvince) {
+      deliveryAddressPayload.stateOrProvince = selectedAddress.stateOrProvince;
+    }
+    if (selectedAddress.label) {
+      deliveryAddressPayload.label = selectedAddress.label;
+    }
+    if (selectedAddress.latitude !== null && selectedAddress.latitude !== undefined) {
+      deliveryAddressPayload.latitude = Number(selectedAddress.latitude);
+    }
+    if (selectedAddress.longitude !== null && selectedAddress.longitude !== undefined) {
+      deliveryAddressPayload.longitude = Number(selectedAddress.longitude);
+    }
+
     const combinedNotes = `Date: ${deliveryDate} | Créneau: ${selectedSlot}${specialInstructions.trim() ? ` | Instructions: ${specialInstructions.trim()}` : ''}`;
 
     checkout.mutate({
-      deliveryAddress: parsedAddress,
+      deliveryAddress: deliveryAddressPayload,
       notes: combinedNotes,
       paymentMethod,
       currency: selectedCurrency,
@@ -344,70 +313,16 @@ export function CheckoutPage() {
         {currentStep === 1 && (
           <form id="checkout-step1-form" onSubmit={handleStep1Submit} className="space-y-4">
             <div className="bg-white border border-[#c0c9be] rounded-2xl p-5 space-y-4 shadow-sm">
-              {/* Adresse de livraison */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-[#004322]">
-                    Adresse de livraison
-                  </label>
-                  {savedAddresses.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressDropdown(!showAddressDropdown)}
-                      className="text-[11px] font-semibold text-[#1a5c35] hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">history</span>
-                      <span>Adresses enregistrées ({savedAddresses.length})</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Saved addresses selector */}
-                {showAddressDropdown && savedAddresses.length > 0 && (
-                  <div className="mb-2 p-2 bg-[#f8f9fc] border border-[#e2e8f0] rounded-xl space-y-1.5">
-                    <p className="text-[10px] font-bold text-[#707970] uppercase px-1">
-                      Choisir une adresse enregistrée :
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {savedAddresses.map((addr, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setAddressInput(addr);
-                            setShowAddressDropdown(false);
-                          }}
-                          className={`text-xs px-2.5 py-1 rounded-lg border text-left truncate max-w-full transition-all cursor-pointer ${
-                            addressInput === addr
-                              ? 'bg-[#004322] text-white border-[#004322] font-semibold'
-                              : 'bg-white border-[#c0c9be] text-[#0b1c30] hover:border-[#004322]'
-                          }`}
-                        >
-                          📍 {addr}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Main Address Input */}
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3.5 text-[#707970] text-[20px] pointer-events-none">
-                    location_on
-                  </span>
-                  <input
-                    type="text"
-                    value={addressInput}
-                    onChange={(e) => setAddressInput(e.target.value)}
-                    placeholder="12 Rue des Agriculteurs, Dakar"
-                    className="w-full h-12 pl-10 pr-4 bg-white border border-[#c0c9be] rounded-xl text-sm font-medium text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#004322] focus:ring-1 focus:ring-[#004322] transition-all"
-                    required
-                  />
-                </div>
-              </div>
+              {/* Adresse de livraison avec AddressSelector */}
+              <AddressSelector
+                selectedAddressId={selectedAddress?.id}
+                onSelectAddress={setSelectedAddress}
+                title="Adresse de livraison"
+                showActions
+              />
 
               {/* Date de livraison */}
-              <div>
+              <div className="pt-2 border-t border-gray-100">
                 <label className="text-xs font-bold text-[#004322] block mb-1.5">
                   Date de livraison
                 </label>
@@ -492,7 +407,11 @@ export function CheckoutPage() {
                 </button>
               </div>
               <div className="text-xs text-[#404941] space-y-1">
-                <p className="font-semibold text-[#0b1c30]">📍 {addressInput}</p>
+                <p className="font-semibold text-[#0b1c30]">
+                  📍 {selectedAddress?.recipientName} — {selectedAddress?.streetAddress}
+                  {selectedAddress?.streetAddress2 ? `, ${selectedAddress.streetAddress2}` : ''},{' '}
+                  {selectedAddress?.city} ({selectedAddress?.phoneNumber})
+                </p>
                 <p>🕒 {deliveryDate} — {selectedSlot}</p>
                 {specialInstructions.trim() && (
                   <p className="text-[#707970] italic">Note : {specialInstructions}</p>
@@ -662,7 +581,7 @@ export function CheckoutPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-[#707970] font-semibold">Livraison</span>
                   <span className="font-bold text-[#0b1c30] truncate max-w-[200px]">
-                    {addressInput}
+                    {selectedAddress?.streetAddress || placedOrder?.deliveryAddress?.street || 'Adresse enregistrée'}
                   </span>
                 </div>
               </div>

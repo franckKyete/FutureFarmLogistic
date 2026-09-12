@@ -5,11 +5,24 @@ import { BuyerBusinessType } from '@futurefarm/types';
 import { registerFarmerMutation, registerBuyerMutation, loginMutation } from '@/features/auth/api/auth.queries';
 import { setAuth } from '@/features/auth/store/auth.store';
 import { useCurrencyStore } from '@/features/currency/store/currency.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 import type { RegisterFarmerPayload, RegisterBuyerPayload } from '@/features/auth/api/auth.queries';
 
 export const Route = createFileRoute('/auth/register')({
   component: RegisterPage,
 });
+
+function formatAddressString(addr: AddressValue): string {
+  return [
+    addr.streetAddress,
+    addr.streetAddress2,
+    addr.city,
+    addr.stateOrProvince,
+    addr.country,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -26,8 +39,32 @@ function RegisterPage() {
 
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState(''); // Address (Farmer) or Billing Address (Buyer)
-  const [shippingAddress, setShippingAddress] = useState(''); // Only Buyer
+
+  // Structured Multi-Field Addresses
+  const [farmerAddress, setFarmerAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
+
+  const [buyerBillingAddress, setBuyerBillingAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
+
+  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [buyerShippingAddress, setBuyerShippingAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
 
   const countries = useCurrencyStore((s) => s.countries);
   const [buyerCountry, setBuyerCountry] = useState('COD');
@@ -84,17 +121,26 @@ function RegisterPage() {
       }
       setStep(2);
     } else if (step === 2) {
-      if (!email || !address) {
-        setValidationError('L\'adresse email et l\'adresse physique sont requises.');
+      if (!email) {
+        setValidationError('L\'adresse email est requise.');
         return;
       }
-      if (role === 'BUYER') {
-        if (!buyerCountry) {
-          setValidationError('Le pays de livraison est obligatoire.');
+      if (role === 'FARMER') {
+        if (!farmerAddress.streetAddress || !farmerAddress.city || !farmerAddress.stateOrProvince) {
+          setValidationError('Veuillez renseigner l\'adresse complète de votre exploitation (Ligne 1, Ville, Province/Région).');
           return;
         }
-        if (!shippingAddress) {
-          setValidationError('L\'adresse de livraison est requise.');
+      } else {
+        if (!buyerBillingAddress.streetAddress || !buyerBillingAddress.city || !buyerBillingAddress.stateOrProvince) {
+          setValidationError('Veuillez renseigner l\'adresse de facturation complète (Ligne 1, Ville, Province/Région).');
+          return;
+        }
+        if (!sameAsBilling && (!buyerShippingAddress.streetAddress || !buyerShippingAddress.city || !buyerShippingAddress.stateOrProvince)) {
+          setValidationError('Veuillez renseigner l\'adresse de livraison complète.');
+          return;
+        }
+        if (!buyerCountry) {
+          setValidationError('Le pays est obligatoire.');
           return;
         }
       }
@@ -137,19 +183,20 @@ function RegisterPage() {
     if (role === 'FARMER') {
       const payload: RegisterFarmerPayload = {
         ...baseData,
-        address,
+        address: formatAddressString(farmerAddress),
       };
       if (bio) payload.bio = bio;
       registerFarmer(payload);
     } else {
+      const shippingAddrObj = sameAsBilling ? buyerBillingAddress : buyerShippingAddress;
       const payload: RegisterBuyerPayload = {
         ...baseData,
         country: buyerCountry,
         preferredCurrency: buyerPreferredCurrency,
         vatNumber,
         businessType,
-        billingAddress: address,
-        shippingAddress,
+        billingAddress: formatAddressString(buyerBillingAddress),
+        shippingAddress: formatAddressString(shippingAddrObj),
       };
       registerBuyer(payload);
     }
@@ -380,7 +427,7 @@ function RegisterPage() {
               <form onSubmit={handleNext} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="email">
-                    Adresse Email
+                    Adresse Email *
                   </label>
                   <input
                     className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-outline/40"
@@ -403,28 +450,25 @@ function RegisterPage() {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     type="tel"
+                    placeholder="Ex: +243 990 000 000"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="address">
-                    {role === 'FARMER' ? 'Adresse de l\'exploitation' : 'Adresse de facturation'}
-                  </label>
-                  <input
-                    className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    type="text"
-                    required
-                  />
-                </div>
-
-                {role === 'BUYER' && (
+                {role === 'FARMER' ? (
+                  <div className="pt-2 border-t border-gray-100">
+                    <AddressInputGroup
+                      value={farmerAddress}
+                      onChange={setFarmerAddress}
+                      title="Adresse de l'exploitation"
+                      subtitle="Localisation principale de vos parcelles et récoltes"
+                      required
+                    />
+                  </div>
+                ) : (
                   <>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-on-surface-variant flex items-center justify-between" htmlFor="buyerCountry">
-                        <span>Pays de résidence / livraison <span className="text-error">*</span></span>
+                        <span>Pays d'implantation <span className="text-error">*</span></span>
                         <span className="text-[10px] text-primary font-semibold">Obligatoire</span>
                       </label>
                       <select
@@ -433,6 +477,8 @@ function RegisterPage() {
                         onChange={(e) => {
                           const newCountry = e.target.value;
                           setBuyerCountry(newCountry);
+                          setBuyerBillingAddress((prev) => ({ ...prev, country: newCountry }));
+                          setBuyerShippingAddress((prev) => ({ ...prev, country: newCountry }));
                           const cfg = countries.find((c) => c.countryCode === newCountry);
                           if (cfg) {
                             setBuyerPreferredCurrency(cfg.defaultCurrency);
@@ -482,19 +528,44 @@ function RegisterPage() {
                       return null;
                     })()}
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="shippingAddress">
-                        Adresse de livraison
-                      </label>
-                      <input
-                        className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                        id="shippingAddress"
-                        value={shippingAddress}
-                        onChange={(e) => setShippingAddress(e.target.value)}
-                        type="text"
+                    {/* Billing Address */}
+                    <div className="pt-2 border-t border-gray-100">
+                      <AddressInputGroup
+                        value={buyerBillingAddress}
+                        onChange={setBuyerBillingAddress}
+                        title="Adresse de facturation"
+                        subtitle="Siège social ou adresse enregistrée"
                         required
                       />
                     </div>
+
+                    {/* Same as billing checkbox */}
+                    <div className="pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sameAsBilling}
+                          onChange={(e) => setSameAsBilling(e.target.checked)}
+                          className="w-4 h-4 rounded text-primary focus:ring-primary border-[#c0c9be] cursor-pointer accent-[#004322]"
+                        />
+                        <span className="text-xs font-semibold text-on-surface">
+                          L'adresse de livraison est identique à l'adresse de facturation
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Separate Shipping Address */}
+                    {!sameAsBilling && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <AddressInputGroup
+                          value={buyerShippingAddress}
+                          onChange={setBuyerShippingAddress}
+                          title="Adresse de livraison"
+                          subtitle="Entrepôt, magasin ou point de déchargement"
+                          required
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 

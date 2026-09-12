@@ -10,11 +10,11 @@ import {
   placeBidMutation,
   cancelBidMutation,
 } from '@/features/auctions/api/auctions.queries';
-import { getBuyerProfileQuery } from '@/features/profile/api/profile.queries';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { addToast } from '@/features/shared/store/toast.store';
-import { AuctionStatus, AuctionEvent, BidStatus } from '@futurefarm/types';
+import { AuctionStatus, AuctionEvent, BidStatus, type AddressDto } from '@futurefarm/types';
 import { io } from 'socket.io-client';
+import { AddressSelector } from '@/features/addresses/components';
 
 export interface AuctionDetailSearchParams {
   setup_session_id?: string;
@@ -42,12 +42,6 @@ function formatCountdown(endAt: string | undefined): string {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-const DEFAULT_ADDRESS_OPTIONS = [
-  '12 Rue des Agriculteurs, Kinshasa, COD',
-  '45 Avenue de la Paix, Dakar, SEN',
-  '8 Boulevard de la République, Abidjan, CIV',
-];
-
 function AuctionDetailPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
@@ -60,10 +54,6 @@ function AuctionDetailPage() {
   const { data: myBids, refetch: refetchMyBids } = useQuery({ ...getMyBidsQuery(), enabled: isAuthenticated });
   const { data: paymentMethod, refetch: refetchPaymentMethod } = useQuery({
     ...getPaymentMethodQuery(),
-    enabled: isAuthenticated,
-  });
-  const { data: buyerProfile } = useQuery({
-    ...getBuyerProfileQuery(),
     enabled: isAuthenticated,
   });
 
@@ -81,44 +71,7 @@ function AuctionDetailPage() {
   // Bid / Bottom Sheet State
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const [bidPrice, setBidPrice] = useState<number>(0);
-  const [selectedAddress, setSelectedAddress] = useState<string>('');
-  const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
-  const [newAddressInput, setNewAddressInput] = useState('');
-  const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
-
-  // Load and sync addresses
-  useEffect(() => {
-    const list: string[] = [];
-    const profileAddress = buyerProfile?.shippingAddress;
-    if (profileAddress && profileAddress.trim()) {
-      list.push(profileAddress.trim());
-    }
-
-    try {
-      const stored = localStorage.getItem('futurefarm_saved_addresses');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          for (const addr of parsed) {
-            if (addr && typeof addr === 'string' && !list.includes(addr)) {
-              list.push(addr);
-            }
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    if (list.length === 0) {
-      list.push(...DEFAULT_ADDRESS_OPTIONS);
-    }
-
-    setSavedAddresses(list);
-    if (!selectedAddress && list.length > 0) {
-      setSelectedAddress(list[0] ?? '');
-    }
-  }, [buyerProfile]);
+  const [selectedAddress, setSelectedAddress] = useState<AddressDto | null>(null);
 
   // Live countdown interval
   useEffect(() => {
@@ -417,41 +370,23 @@ function AuctionDetailPage() {
       return;
     }
 
-    const effectiveAddress = isAddingNewAddress && newAddressInput.trim()
-      ? newAddressInput.trim()
-      : selectedAddress;
-
-    if (!effectiveAddress) {
+    if (!selectedAddress) {
       addToast('Veuillez sélectionner ou renseigner une adresse de livraison.', 'warning');
       return;
-    }
-
-    // Save new address to localStorage if entered
-    if (isAddingNewAddress && newAddressInput.trim()) {
-      try {
-        const updated = [...savedAddresses, newAddressInput.trim()];
-        setSavedAddresses(updated);
-        setSelectedAddress(newAddressInput.trim());
-        localStorage.setItem('futurefarm_saved_addresses', JSON.stringify(updated));
-        setIsAddingNewAddress(false);
-        setNewAddressInput('');
-      } catch {
-        // ignore
-      }
     }
 
     if (bidPrice >= displayPrice) {
       // Immediate buy at current price
       placeBid.mutate({
         id,
-        deliveryAddress: effectiveAddress,
+        deliveryAddress: selectedAddress,
       });
     } else {
       // Bid at chosen lower price
       placeBid.mutate({
         id,
         autoBidMaxPrice: bidPrice,
-        deliveryAddress: effectiveAddress,
+        deliveryAddress: selectedAddress,
       });
     }
   };
@@ -1003,89 +938,14 @@ function AuctionDetailPage() {
                   </Link>
                 </div>
 
-                {/* 2. Mandatory Delivery Address Selection / Registration */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[13px] font-bold text-[#0b1c30] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[#004322] text-[18px]">
-                        location_on
-                      </span>
-                      Adresse de livraison de la commande
-                    </label>
-                    {!isAddingNewAddress && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingNewAddress(true)}
-                        className="text-[11px] font-bold text-[#004322] hover:underline cursor-pointer"
-                      >
-                        + Autre adresse
-                      </button>
-                    )}
-                  </div>
-
-                  {!isAddingNewAddress ? (
-                    <div className="space-y-2">
-                      {savedAddresses.map((addr) => (
-                        <label
-                          key={addr}
-                          className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                            selectedAddress === addr
-                              ? 'bg-[#e8f5e9]/60 border-[#1a5c35] ring-1 ring-[#1a5c35]'
-                              : 'bg-white border-[#c0c9be] hover:bg-gray-50'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="deliveryAddress"
-                            checked={selectedAddress === addr}
-                            onChange={() => setSelectedAddress(addr)}
-                            className="mt-0.5 accent-[#004322]"
-                          />
-                          <span className="text-[13px] text-[#0b1c30] font-medium leading-tight">
-                            {addr}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-3.5 bg-gray-50 border border-[#c0c9be] rounded-2xl space-y-2.5">
-                      <label className="block text-[11px] font-bold text-[#404941]">
-                        Saisir une nouvelle adresse de livraison
-                      </label>
-                      <input
-                        type="text"
-                        value={newAddressInput}
-                        onChange={(e) => setNewAddressInput(e.target.value)}
-                        placeholder="Ex: 24 Avenue de la Libération, Kinshasa"
-                        className="w-full px-3 py-2 bg-white border border-[#c0c9be] rounded-xl text-[13px] focus:outline-none focus:border-[#004322]"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAddingNewAddress(false);
-                            setNewAddressInput('');
-                          }}
-                          className="px-3 py-1.5 text-[12px] font-semibold text-[#707970] hover:text-[#0b1c30] cursor-pointer"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (newAddressInput.trim()) {
-                              setSelectedAddress(newAddressInput.trim());
-                              setIsAddingNewAddress(false);
-                            }
-                          }}
-                          disabled={!newAddressInput.trim()}
-                          className="px-3 py-1.5 bg-[#004322] text-white rounded-lg text-[12px] font-bold cursor-pointer disabled:opacity-50"
-                        >
-                          Valider cette adresse
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                {/* 2. Mandatory Delivery Address Selection */}
+                <div className="pt-2 border-t border-gray-100">
+                  <AddressSelector
+                    selectedAddressId={selectedAddress?.id}
+                    onSelectAddress={setSelectedAddress}
+                    title="Adresse de livraison de la commande"
+                    showActions
+                  />
                 </div>
 
                 {/* 3. Bid Price Selector */}
@@ -1167,7 +1027,7 @@ function AuctionDetailPage() {
                     disabled={
                       placeBid.isPending ||
                       !isBidPriceValid ||
-                      (!selectedAddress && (!isAddingNewAddress || !newAddressInput.trim()))
+                      !selectedAddress
                     }
                     className="flex-1 py-3.5 bg-[#004322] hover:bg-[#003319] text-white rounded-xl text-[14px] font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >

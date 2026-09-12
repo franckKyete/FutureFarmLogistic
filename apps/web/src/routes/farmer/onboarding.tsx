@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/farmer/onboarding')({
   component: OnboardingPage,
@@ -18,7 +19,13 @@ function OnboardingPage() {
   const [yearCreated, setYearCreated] = useState('Choisir');
   const [surfaceArea, setSurfaceArea] = useState('');
   const [surfaceUnit, setSurfaceUnit] = useState('ha');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [deliveryRadius, setDeliveryRadius] = useState(50);
   const [altCollectPoint, setAltCollectPoint] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<ProductType[]>(['Fruits']);
@@ -180,20 +187,13 @@ function OnboardingPage() {
               <h2 className="font-display text-base font-semibold">Localisation</h2>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-on-surface-variant">Adresse complète *</label>
-              <div className="relative">
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 pr-10 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                  placeholder="Entrez votre adresse..."
-                  type="text"
-                  required
-                />
-                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline cursor-pointer hover:text-primary">my_location</span>
-              </div>
-            </div>
+            <AddressInputGroup
+              value={address}
+              onChange={setAddress}
+              title="Adresse de la ferme"
+              subtitle="Renseignez la localisation précise de l'exploitation"
+              required
+            />
 
             <div className="relative w-full h-40 rounded-xl overflow-hidden border border-outline-variant">
               <div

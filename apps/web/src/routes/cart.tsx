@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
@@ -226,8 +226,6 @@ function CartItemCard({
 export function CartPage() {
   const navigate = useNavigate();
   const { data: basket, refetch } = useQuery(getBasketQuery());
-  const [promoInput, setPromoInput] = useState('');
-  const [discount, setDiscount] = useState(0);
 
   const rawLines = basket?.lines || [];
 
@@ -319,25 +317,7 @@ export function CartPage() {
   }, [activeFees, rawLines.length, itemsSubtotal, selectedCurrency]);
 
   const totalFees = calculatedFees.reduce((sum, f) => sum + f.calculatedAmount, 0);
-  const totalTTC = Math.max(0, itemsSubtotal + totalFees - discount);
-
-  const handleApplyPromo = () => {
-    if (!promoInput.trim()) {
-      addToast('Veuillez entrer un code promo', 'error');
-      return;
-    }
-
-    const cleanCode = promoInput.trim().toUpperCase();
-    if (cleanCode === 'BIO10' || cleanCode === 'FRESH' || cleanCode === 'FUTURE') {
-      const promoAmount = Number((itemsSubtotal * 0.1).toFixed(2));
-      setDiscount(promoAmount);
-      addToast(`Code appliqué : -${formatPriceDirect(promoAmount, selectedCurrency)}`, 'success');
-    } else {
-      const discountVal = convertFromUSD(2.00, selectedCurrency);
-      setDiscount(discountVal);
-      addToast(`Code promo appliqué : -${formatPriceDirect(discountVal, selectedCurrency)}`, 'success');
-    }
-  };
+  const totalTTC = itemsSubtotal + totalFees;
 
   const subtitle =
     rawLines.length === 0
@@ -449,32 +429,6 @@ export function CartPage() {
                     <span className="font-semibold text-[#0b1c30]">{formatPriceDirect(fee.calculatedAmount, selectedCurrency)}</span>
                   </div>
                 ))}
-                {discount > 0 && (
-                  <div className="flex justify-between text-[#137333]">
-                    <span>Réduction code promo</span>
-                    <span className="font-semibold">-{formatPriceDirect(discount, selectedCurrency)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Promo Code Input Box */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value)}
-                    placeholder="Code promo"
-                    className="w-full bg-[#f1f5f9] border border-transparent focus:border-[#004322] rounded-xl px-3.5 py-2 text-sm text-[#0b1c30] placeholder-[#707970] outline-none transition-colors"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleApplyPromo}
-                  className="bg-[#e6f4ea] hover:bg-[#cbf0d8] text-[#137333] font-bold text-sm px-4 py-2 rounded-xl transition-colors cursor-pointer shrink-0"
-                >
-                  Appliquer
-                </button>
               </div>
 
               {/* Total TTC & Delivery Time */}

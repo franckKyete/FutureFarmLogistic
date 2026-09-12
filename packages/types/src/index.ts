@@ -16,4 +16,5 @@ export * from './logistics.types';
 export * from './visit.types';
 export * from './currency.types';
 export * from './fee.types';
+export * from './address.types';
 

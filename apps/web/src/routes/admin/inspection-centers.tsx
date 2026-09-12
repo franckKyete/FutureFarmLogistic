@@ -18,6 +18,7 @@ import {
   Modal,
 } from '@/features/admin/components';
 import { addToast } from '@/features/shared/store/toast.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/admin/inspection-centers')({
   beforeLoad: () => {
@@ -43,7 +44,13 @@ function InspectionCentersPage() {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [regionName, setRegionName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [latitude, setLatitude] = useState<number | ''>('');
   const [longitude, setLongitude] = useState<number | ''>('');
 
@@ -60,6 +67,16 @@ function InspectionCentersPage() {
   const handleCreateCenter = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const formattedAddress = [
+        address.streetAddress,
+        address.streetAddress2,
+        address.city,
+        address.stateOrProvince,
+        address.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
       const payload: {
         name: string;
         code: string;
@@ -71,7 +88,7 @@ function InspectionCentersPage() {
         name,
         code,
         regionName,
-        address,
+        address: formattedAddress,
       };
       if (latitude !== '') payload.latitude = Number(latitude);
       if (longitude !== '') payload.longitude = Number(longitude);
@@ -82,7 +99,13 @@ function InspectionCentersPage() {
       setName('');
       setCode('');
       setRegionName('');
-      setAddress('');
+      setAddress({
+        streetAddress: '',
+        streetAddress2: '',
+        city: '',
+        stateOrProvince: '',
+        country: 'COD',
+      });
       setLatitude('');
       setLongitude('');
       void refetch();
@@ -293,15 +316,13 @@ function InspectionCentersPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Adresse physique</label>
-            <textarea
-              rows={2}
-              required
+          <div className="pt-2 border-t border-gray-100">
+            <AddressInputGroup
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Zone Industrielle Portuaire, San-Pédro"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+              onChange={setAddress}
+              title="Adresse du centre"
+              subtitle="Adresse physique et pays de la station"
+              required
             />
           </div>
 

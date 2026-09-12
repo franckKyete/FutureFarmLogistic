@@ -9,6 +9,8 @@ import { addToast } from '@/features/shared/store/toast.store';
 import { Button } from '@/features/admin/components';
 import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
 
+import { AddressSelector } from '@/features/addresses/components';
+
 export const Route = createFileRoute('/profile')({
   component: UnifiedProfilePage,
 });
@@ -33,7 +35,7 @@ function UnifiedProfilePage() {
   const updateUser = useUpdateUser();
 
   // Form states
-  const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'addresses' | 'security'>('info');
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -224,6 +226,18 @@ function UnifiedProfilePage() {
           >
             <span className="material-symbols-outlined text-lg">person</span>
             Mes informations
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('addresses')}
+            className={`pb-3 px-2 text-sm font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+              activeTab === 'addresses'
+                ? 'border-[#004322] text-[#004322]'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">location_on</span>
+            Mes adresses
           </button>
           <button
             type="button"
@@ -462,7 +476,25 @@ function UnifiedProfilePage() {
           </form>
         )}
 
-        {/* Tab 2: Security & Change Password */}
+        {/* Tab 2: Saved Addresses */}
+        {activeTab === 'addresses' && (
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+            <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#004322]">location_on</span>
+              Carnet d'adresses
+            </h2>
+            <p className="text-xs text-gray-500">
+              Gérez vos adresses de livraison et d'enlèvement enregistrées.
+            </p>
+            <AddressSelector
+              onSelectAddress={() => {}}
+              title="Mes adresses enregistrées"
+              showActions
+            />
+          </div>
+        )}
+
+        {/* Tab 3: Security & Change Password */}
         {activeTab === 'security' && (
           <form onSubmit={handleChangePasswordSubmit} className="space-y-6">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">

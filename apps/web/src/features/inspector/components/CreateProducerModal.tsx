@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateProducer } from '../api/accounts.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 interface CreateProducerModalProps {
   isOpen: boolean;
@@ -25,7 +26,13 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [farmName, setFarmName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -51,12 +58,23 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
 
     const password = Math.random().toString(36).slice(2, 10) + 'A1!';
 
+    const formattedAddress = [
+      address.streetAddress,
+      address.streetAddress2,
+      address.city,
+      address.stateOrProvince,
+      address.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     const basePayload = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       password,
       farmName: farmName.trim(),
+      ...(formattedAddress ? { address: formattedAddress } : {}),
     };
     const payload = phone.trim()
       ? { ...basePayload, phone: phone.trim() }
@@ -80,7 +98,13 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
     setEmail('');
     setPhone('');
     setFarmName('');
-    setAddress('');
+    setAddress({
+      streetAddress: '',
+      streetAddress2: '',
+      city: '',
+      stateOrProvince: '',
+      country: 'COD',
+    });
     setParcels([]);
     setErrors({});
     onClose();
@@ -238,15 +262,14 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             )}
           </div>
 
-          {/* Adresse */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-            <input
-              type="text"
+          {/* Adresse de l'exploitation */}
+          <div className="pt-2 border-t border-gray-100">
+            <AddressInputGroup
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] transition-all"
-              placeholder="12 rue des Champs, 75000 Paris"
+              onChange={setAddress}
+              title="Adresse de l'exploitation"
+              subtitle="Localisation géographique de la ferme"
+              required={false}
             />
           </div>
 

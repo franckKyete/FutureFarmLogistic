@@ -7,6 +7,9 @@ import {
   ProductCategory,
   HarvestUnit,
   HarvestStatus,
+  AddressType,
+  AddressableType,
+  type AddressDto,
 } from '@futurefarm/types';
 
 const mockNavigate = vi.fn();
@@ -41,6 +44,64 @@ vi.mock('@/features/notifications/api/notifications.queries', () => ({
 
 vi.mock('@/features/auth/utils/auth-guard', () => ({
   requireAuth: vi.fn(),
+}));
+
+const mockSavedAddresses: AddressDto[] = [
+  {
+    id: 'addr-1',
+    addressableType: AddressableType.USER,
+    addressableId: 'u1',
+    type: AddressType.SHIPPING,
+    label: 'Domicile',
+    recipientName: 'Jean Dupont',
+    phoneNumber: '+243990000000',
+    streetAddress: '12 Rue des Agriculteurs',
+    city: 'Dakar',
+    country: 'SEN',
+    postalCode: '10000',
+    isDefault: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'addr-2',
+    addressableType: AddressableType.USER,
+    addressableId: 'u1',
+    type: AddressType.SHIPPING,
+    label: 'Bureau',
+    recipientName: 'Jean Dupont',
+    phoneNumber: '+243990000000',
+    streetAddress: '45 Avenue de la Paix',
+    city: 'Dakar',
+    country: 'SEN',
+    postalCode: '10000',
+    isDefault: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+vi.mock('@/features/addresses/api/addresses.queries', () => ({
+  getMyAddressesQuery: () => ({
+    queryKey: ['addresses', 'me'],
+    queryFn: async () => mockSavedAddresses,
+  }),
+  createAddressMutation: () => ({
+    mutationKey: ['addresses', 'create'],
+    mutationFn: async (dto: any) => ({ ...dto, id: 'addr-new' }),
+  }),
+  updateAddressMutation: () => ({
+    mutationKey: ['addresses', 'update'],
+    mutationFn: async (dto: any) => dto,
+  }),
+  setDefaultAddressMutation: () => ({
+    mutationKey: ['addresses', 'set-default'],
+    mutationFn: async (id: string) => ({ id, isDefault: true }),
+  }),
+  deleteAddressMutation: () => ({
+    mutationKey: ['addresses', 'delete'],
+    mutationFn: async () => {},
+  }),
 }));
 
 const mockCheckoutMutation = vi.fn();
@@ -164,7 +225,7 @@ describe('CheckoutPage (/checkout)', () => {
 
     // Form inputs
     expect(screen.getByText('Adresse de livraison')).toBeDefined();
-    expect(screen.getByDisplayValue('12 Rue des Agriculteurs, Dakar')).toBeDefined();
+    expect(await screen.findByText(/12 Rue des Agriculteurs/)).toBeDefined();
     expect(screen.getByText('Date de livraison')).toBeDefined();
     expect(screen.getByText('Créneau de livraison')).toBeDefined();
     expect(screen.getByText('Matin (08:00 - 12:00)')).toBeDefined();
@@ -183,7 +244,7 @@ describe('CheckoutPage (/checkout)', () => {
     expect(screen.getByText('Continuer vers le paiement')).toBeDefined();
   });
 
-  it('selects saved addresses and automatically saves new address on submit', async () => {
+  it('selects saved addresses from the list and transitions to Step 2: Paiement', async () => {
     const queryClient = createTestQueryClient();
 
     render(
@@ -192,31 +253,21 @@ describe('CheckoutPage (/checkout)', () => {
       </QueryClientProvider>,
     );
 
-    // Open saved addresses dropdown
-    const savedBtn = await screen.findByText(/Adresses enregistrées/);
-    fireEvent.click(savedBtn);
+    // Verify saved addresses rendered
+    expect(await screen.findByText(/12 Rue des Agriculteurs/)).toBeDefined();
+    expect(screen.getByText(/45 Avenue de la Paix/)).toBeDefined();
 
-    // Click Dakar saved address
-    const dakarOption = screen.getByText(/45 Avenue de la Paix, Dakar/);
-    fireEvent.click(dakarOption);
-
-    expect(screen.getByDisplayValue('45 Avenue de la Paix, Dakar')).toBeDefined();
-
-    // Type a brand new address
-    const input = screen.getByDisplayValue('45 Avenue de la Paix, Dakar');
-    fireEvent.change(input, { target: { value: '99 Boulevard Circulaire, Lomé' } });
+    // Click Bureau address
+    const bureauOption = screen.getByText('Bureau');
+    fireEvent.click(bureauOption);
 
     // Click continue to payment in sticky bar
     const continueBtn = screen.getByTestId('continue-button');
     fireEvent.click(continueBtn);
 
-    // Verifies address was automatically saved in localStorage
-    const savedInStorage = JSON.parse(localStorage.getItem('futurefarm_saved_addresses') || '[]');
-    expect(savedInStorage).toContain('99 Boulevard Circulaire, Lomé');
-
     // Transitions to Step 2: Paiement
     expect(await screen.findByText('Choisir le mode de paiement')).toBeDefined();
-    expect(screen.getByText(/99 Boulevard Circulaire, Lomé/)).toBeDefined();
+    expect(screen.getByText(/45 Avenue de la Paix/)).toBeDefined();
   });
 
   it('completes the self-hosted payment flow and displays the confirmation screen', async () => {

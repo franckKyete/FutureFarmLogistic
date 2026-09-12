@@ -20,6 +20,8 @@ import {
   UserStatus,
   ParcelStatus,
   FeeCalculationType,
+  AddressType,
+  AddressableType,
 } from '@futurefarm/types';
 import { UserEntity } from '../modules/users/entities/user.entity';
 import { RoleEntity } from '../modules/roles/entities/role.entity';
@@ -41,6 +43,7 @@ import { ParcelEntity } from '../modules/users/entities/parcel.entity';
 import { OrderEntity } from '../modules/orders/entities/order.entity';
 import { OrderLineEntity } from '../modules/orders/entities/order-line.entity';
 import { PlatformFeeEntity } from '../modules/fees/entities/platform-fee.entity';
+import { AddressEntity } from '../modules/addresses/entities/address.entity';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -1846,7 +1849,73 @@ export class SeedService implements OnApplicationBootstrap {
       this.logger.log('Platform fees seeded successfully.');
     }
 
+    // 16. Seed Default Addresses for Users
+    const addressRepo = this.userRepository.manager.getRepository(AddressEntity);
+    const existingAddressesCount = await addressRepo.count();
+    if (existingAddressesCount === 0) {
+      this.logger.log('Seeding default addresses for users...');
+      const allUsers = await this.userRepository.find({ relations: { roles: true } });
+
+      for (const user of allUsers) {
+        const roleNames = user.roles?.map((r) => r.name) || [];
+        const isBuyer = roleNames.includes('buyer') || user.email.includes('buyer') || user.email.includes('khadija');
+        const isFarmer = roleNames.includes('farmer') || user.email.includes('farmer');
+
+        if (isBuyer) {
+          const addr1 = addressRepo.create({
+            addressableType: AddressableType.USER,
+            addressableId: user.id,
+            type: AddressType.SHIPPING,
+            label: 'Domicile (Principal)',
+            recipientName: `${user.firstName || 'Khadija'} ${user.lastName || 'Sy'}`,
+            phoneNumber: '+243998765432',
+            streetAddress: '12 Boulevard du 30 Juin',
+            streetAddress2: 'Résidence Flamboyant, Apt 4B',
+            city: 'Kinshasa',
+            stateOrProvince: 'Kinshasa',
+            postalCode: '10000',
+            country: 'COD',
+            isDefault: true,
+          });
+          const addr2 = addressRepo.create({
+            addressableType: AddressableType.USER,
+            addressableId: user.id,
+            type: AddressType.SHIPPING,
+            label: 'Bureau',
+            recipientName: `${user.firstName || 'Khadija'} ${user.lastName || 'Sy'}`,
+            phoneNumber: '+243812345678',
+            streetAddress: '45 Avenue de la Paix',
+            streetAddress2: 'Immeuble Futur, 2e étage',
+            city: 'Kinshasa',
+            stateOrProvince: 'Kinshasa',
+            postalCode: '10000',
+            country: 'COD',
+            isDefault: false,
+          });
+          await addressRepo.save([addr1, addr2]);
+        } else if (isFarmer) {
+          const farmAddr = addressRepo.create({
+            addressableType: AddressableType.USER,
+            addressableId: user.id,
+            type: AddressType.COLLECTION,
+            label: 'Ferme Principale',
+            recipientName: `${user.firstName || 'Producteur'} ${user.lastName || 'Agricole'}`,
+            phoneNumber: '+243990011223',
+            streetAddress: 'Route de Maluku Km 18',
+            city: 'Kinshasa',
+            stateOrProvince: 'Kinshasa',
+            postalCode: '10000',
+            country: 'COD',
+            isDefault: true,
+          });
+          await addressRepo.save(farmAddr);
+        }
+      }
+      this.logger.log('Default addresses seeded successfully.');
+    }
+
     this.logger.log('Database seeding complete.');
   }
 }
+
 

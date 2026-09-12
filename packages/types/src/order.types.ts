@@ -27,10 +27,19 @@ export enum PaymentStatus {
 }
 
 export interface DeliveryAddress {
-  street: string;
+  id?: string | undefined;
+  recipientName?: string | undefined;
+  phoneNumber?: string | undefined;
+  street?: string | undefined;
+  streetAddress?: string | undefined;
+  streetAddress2?: string | undefined;
   city: string;
+  stateOrProvince?: string | undefined;
   country: string;
-  postalCode: string;
+  postalCode?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  label?: string | undefined;
 }
 
 export interface AddBasketLineDto {

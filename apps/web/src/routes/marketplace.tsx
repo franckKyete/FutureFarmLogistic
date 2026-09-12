@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -24,7 +24,38 @@ const CATEGORIES: { label: string; value: ProductCategory | null }[] = [
   { label: 'Other', value: 'OTHER' as ProductCategory },
 ];
 
+function ProducerAvatar({
+  name,
+  avatarUrl,
+  size = 'w-12 h-12',
+}: {
+  name: string;
+  avatarUrl?: string | null | undefined;
+  size?: string;
+}) {
+  const initial = (name || 'P').trim().charAt(0).toUpperCase();
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={`${size} rounded-full object-cover border border-[#c0c9be] shadow-xs`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${size} rounded-full bg-[#e8f5e9] text-[#004322] border border-[#c0c9be] flex items-center justify-center font-bold text-[14px] shadow-xs`}
+    >
+      {initial}
+    </div>
+  );
+}
+
 export function MarketplacePage() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<ProductCategory | null>(null);
@@ -41,6 +72,37 @@ export function MarketplacePage() {
     if (!isAuthenticated || !basket?.lines) return 0;
     return basket.lines.length;
   }, [isAuthenticated, basket]);
+
+  // Extract unique producers who have at least one active auction for the story row
+  const producers = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; avatarUrl?: string | null }
+    >();
+    if (auctionsData?.data) {
+      auctionsData.data.forEach((a: any) => {
+        if (a.status === AuctionStatus.ACTIVE) {
+          const farmer = a.farmerProfile;
+          const farmerId = farmer?.id || a.farmerProfileId;
+          if (farmerId && !map.has(farmerId)) {
+            const name =
+              farmer?.companyName ||
+              farmer?.farmName ||
+              farmer?.user?.name ||
+              'Producteur';
+            const avatarUrl =
+              farmer?.avatarUrl || farmer?.user?.avatarUrl || null;
+            map.set(farmerId, {
+              id: farmerId,
+              name,
+              avatarUrl,
+            });
+          }
+        }
+      });
+    }
+    return Array.from(map.values());
+  }, [auctionsData]);
 
   const activeAuctionHarvestMap = useMemo(() => {
     const map = new Map<string, AuctionDto>();
@@ -125,6 +187,58 @@ export function MarketplacePage() {
             );
           })}
         </div>
+
+        {/* Producers Live Auction Story Row */}
+        {producers.length > 0 && (
+          <div className="py-0.5">
+            <p className="text-[12px] font-semibold text-[#404941] mb-1.5">
+              Producteurs en direct
+            </p>
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+              {/* "Toutes ->" Opens full stories carousel */}
+              <button
+                type="button"
+                onClick={() => void navigate({ to: '/auctions/story' })}
+                className="flex flex-col items-center gap-1 min-w-[56px] cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#004322] text-white flex items-center justify-center transition-all group-hover:scale-105 ring-2 ring-[#004322] ring-offset-1">
+                  <span className="material-symbols-outlined text-[20px]">
+                    agriculture
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-[#004322] truncate max-w-[56px]">
+                  Toutes →
+                </span>
+              </button>
+
+              {/* Individual Producers -> Open Story for that producer */}
+              {producers.map((prod) => (
+                <button
+                  key={prod.id}
+                  type="button"
+                  onClick={() =>
+                    void navigate({
+                      to: '/auctions/story',
+                      search: { producerId: prod.id },
+                    })
+                  }
+                  className="flex flex-col items-center gap-1 min-w-[56px] cursor-pointer group"
+                >
+                  <div className="transition-all group-hover:scale-105 group-hover:ring-2 group-hover:ring-[#004322] group-hover:ring-offset-1 rounded-full">
+                    <ProducerAvatar
+                      name={prod.name}
+                      avatarUrl={prod.avatarUrl}
+                      size="w-12 h-12"
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-[#0b1c30] truncate max-w-[56px] group-hover:text-[#004322]">
+                    {prod.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 2-Column Grid matching design */}
         {isLoading ? (
