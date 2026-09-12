@@ -5,6 +5,8 @@ import {
   IsString,
   MinLength,
   IsArray,
+  ArrayMinSize,
+  IsUUID,
 } from 'class-validator';
 
 export class RegisterInspectorDto {
@@ -41,4 +43,9 @@ export class RegisterInspectorDto {
   @IsArray()
   @IsString({ each: true })
   specializations?: string[];
+
+  @IsArray({ message: 'Les centres d’inspection doivent être fournis sous forme de liste' })
+  @ArrayMinSize(1, { message: 'Au moins un centre d’inspection doit être assigné à l’inspecteur' })
+  @IsUUID('4', { each: true, message: 'Chaque identifiant de centre d’inspection doit être un UUID valide' })
+  inspectionCenterIds: string[];
 }

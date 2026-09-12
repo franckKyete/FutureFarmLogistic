@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   Inject,
+  Logger,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,7 +22,10 @@ import {
   InspectionStatus,
   HarvestStatus,
   ProductCategory,
+  NotificationChannel,
+  NotificationPriority,
 } from '@futurefarm/types';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { InspectorProfileEntity } from './entities/inspector-profile.entity';
 import { InspectionReportEntity } from './entities/inspection-report.entity';
@@ -28,10 +33,14 @@ import { InspectionPhotoEntity } from './entities/inspection-photo.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { ProductEntity } from '../products/entities/product.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
+import { VisitStatus } from '@futurefarm/types';
 import { QualityVisionProvider } from './interfaces/quality-vision-provider.interface';
 
 @Injectable()
 export class InspectionsService {
+  private readonly logger = new Logger(InspectionsService.name);
+
   constructor(
     @InjectRepository(InspectorProfileEntity)
     private readonly inspectorProfileRepo: Repository<InspectorProfileEntity>,
@@ -45,9 +54,13 @@ export class InspectionsService {
     private readonly harvestRepo: Repository<HarvestEntity>,
     @InjectRepository(ProductEntity)
     private readonly productRepo: Repository<ProductEntity>,
+    @InjectRepository(VisitEntity)
+    private readonly visitRepo: Repository<VisitEntity>,
     @Inject('QUALITY_VISION_PROVIDER')
     private readonly visionProvider: QualityVisionProvider,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   // --- Inspector Profile Management ---
@@ -89,6 +102,14 @@ export class InspectionsService {
     return profile;
   }
 
+  async listAllInspectors(): Promise<InspectorProfileEntity[]> {
+    return this.inspectorProfileRepo.find({
+      where: { isActiveInspector: true },
+      relations: ['user', 'assignments', 'assignments.center'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   // --- Inspection Report Lifecycle ---
 
   async createReport(
@@ -114,6 +135,7 @@ export class InspectionsService {
       status: InspectionStatus.IN_PROGRESS,
       checklist: dto.checklist,
       siteVisitDate: new Date(dto.siteVisitDate),
+      aiPreScreenScore: harvest.qualityScore != null ? harvest.qualityScore : null,
       photos: [],
     });
 
@@ -335,6 +357,7 @@ export class InspectionsService {
     // Mutate parent harvest batch
     const harvest = await this.harvestRepo.findOne({
       where: { id: report.harvestId },
+      relations: ['product', 'farmerProfile'],
     });
     if (!harvest) {
       throw new NotFoundException(`Harvest associated with report not found`);
@@ -351,7 +374,70 @@ export class InspectionsService {
         dto.overallNotes || 'Failed quality inspection score thresholds';
     }
 
+    if (this.visitRepo) {
+      try {
+        await this.visitRepo.update(
+          { harvestId: report.harvestId, status: VisitStatus.PLANNED },
+          { status: VisitStatus.COMPLETED },
+        );
+      } catch {}
+    }
+
     await this.harvestRepo.save(harvest);
+
+    // Send multi-channel notification to farmer
+    if (this.notificationsService && harvest.farmerProfile?.userId) {
+      try {
+        const prodName = harvest.product?.name ?? 'produit';
+        if (isApproved) {
+          const qualityText =
+            harvest.qualityScore != null
+              ? ` avec une note de qualité de ${harvest.qualityScore}/10`
+              : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte approuvée !',
+            body: `Votre lot de ${prodName} (${harvest.quantityInStock} ${harvest.unit}) a été approuvé et certifié${qualityText}. Il est désormais disponible à la vente.`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: `/farmer/products/${harvest.productId || harvest.id}`,
+              actionText: 'Voir le produit',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        } else {
+          const reasonText = harvest.rejectionReason
+            ? ` Motif : ${harvest.rejectionReason}`
+            : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte non validée',
+            body: `Votre lot de ${prodName} n'a pas été validé par l'inspecteur.${reasonText}`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: '/farmer/stock',
+              actionText: 'Voir mes récoltes',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        }
+      } catch (err) {
+        this.logger.warn('Failed to send inspection completion notification:', err);
+      }
+    }
+
     return this.reportRepo.save(report);
   }
 

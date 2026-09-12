@@ -22,23 +22,26 @@ export function Modal({
   mode = 'center',
   className = '',
 }: ModalProps) {
-  const [state, setState] = useState<'closed' | 'entering' | 'open' | 'exiting'>('closed');
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (open && state === 'closed') {
-      setState('entering');
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setState('open'));
+    if (open) {
+      setMounted(true);
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setVisible(true);
+        });
       });
-      return;
-    }
-    if (!open && state === 'open') {
-      setState('exiting');
-      const timer = setTimeout(() => setState('closed'), TRANSITION_DURATION);
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setVisible(false);
+      const timer = setTimeout(() => {
+        setMounted(false);
+      }, TRANSITION_DURATION);
       return () => clearTimeout(timer);
     }
-    return;
-  }, [open, state]);
+  }, [open]);
 
   const handleEsc = useCallback(
     (e: KeyboardEvent) => {
@@ -48,7 +51,7 @@ export function Modal({
   );
 
   useEffect(() => {
-    if (state !== 'open') return;
+    if (!open) return;
 
     document.addEventListener('keydown', handleEsc);
     document.body.style.overflow = 'hidden';
@@ -57,25 +60,24 @@ export function Modal({
       document.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
     };
-  }, [state, handleEsc]);
+  }, [open, handleEsc]);
 
-  if (state === 'closed') return null;
+  if (!mounted) return null;
 
-  const isVisible = state === 'open';
-  const baseTransition = `transition-all duration-${TRANSITION_DURATION} ease-in-out`;
+  const baseTransition = 'transition-all duration-300 ease-in-out';
 
   const panel = (
     <>
       <div
         className={`fixed inset-0 bg-black/50 z-40 ${baseTransition} ${
-          isVisible ? 'opacity-100' : 'opacity-0'
+          visible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
       {mode === 'slide-over' ? (
         <div
           className={`fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-surface-container-lowest shadow-xl ${baseTransition} ${
-            isVisible ? 'translate-x-0' : 'translate-x-full'
+            visible ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
           }`}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -97,8 +99,10 @@ export function Modal({
       ) : (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div
-            className={`relative w-full max-w-lg mx-4 bg-surface-container-lowest rounded-xl shadow-xl border border-gray-200 pointer-events-auto ${baseTransition} ${
-              isVisible
+            className={`relative w-full max-w-lg mx-4 bg-surface-container-lowest rounded-xl shadow-xl border border-gray-200 ${
+              visible ? 'pointer-events-auto' : 'pointer-events-none'
+            } ${baseTransition} ${
+              visible
                 ? 'opacity-100 scale-100'
                 : 'opacity-0 scale-95'
             }`}

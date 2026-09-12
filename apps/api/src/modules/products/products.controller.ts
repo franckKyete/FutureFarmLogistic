@@ -15,7 +15,6 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
-  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -37,13 +36,18 @@ import {
 } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import {
+  RequirePermissions,
+  RequireAnyPermissions,
+} from '../../common/decorators/require-permissions.decorator';
 
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
+import { CreateHarvestProxyDto } from './dto/create-harvest-proxy.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
 import { AiSuggestHarvestDto } from './dto/ai-suggest.dto';
@@ -139,6 +143,13 @@ export class ProductsController {
     return this.productsService.findAllProducts(category);
   }
 
+  @Get('products/:id')
+  @ApiOperation({ summary: 'Get a product crop template by ID' })
+  @ApiOkResponse({ description: 'Product template details' })
+  findProductById(@Param('id') id: string) {
+    return this.productsService.findProductById(id);
+  }
+
   // =============================================================================
   // Physical Harvest Batches
   // =============================================================================
@@ -168,33 +179,39 @@ export class ProductsController {
   })
   createHarvestProxy(
     @CurrentUser() user: AuthUser,
-    @Body() body: CreateHarvestDto & { farmerUserId: string },
+    @Body() dto: CreateHarvestProxyDto,
   ) {
-    const { farmerUserId, ...dto } = body;
-    return this.productsService.createHarvest(user.id, dto, {
-      onBehalfOfUserId: farmerUserId,
-    });
+    return this.productsService.createHarvestProxy(user.id, dto);
   }
 
   @Get('harvests')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'List harvest batches' })
   @ApiOkResponse({ description: 'List of harvest batches' })
   async findAllHarvests(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser | undefined,
     @Query('status') status?: HarvestStatus,
     @Query('category') category?: ProductCategory,
     @Query('productId') productId?: string,
     @Query('farmerProfileId') farmerProfileId?: string,
+    @Query('centerId') centerId?: string,
+    @Query('radiusKm') radiusKm?: number,
   ) {
-    const user = req.user as AuthUser | undefined;
-    const hasReadAll = user?.permissions?.includes(Permission.HARVEST_READ_ALL) ?? false;
-    return this.productsService.findAllHarvests({
-      status: hasReadAll ? status : HarvestStatus.APPROVED,
-      category,
-      productId,
-      farmerProfileId,
-      isPublicView: !hasReadAll,
-    });
+    const hasReadAll =
+      user?.permissions?.includes(Permission.HARVEST_READ_ALL) ?? false;
+    return this.productsService.findAllHarvests(
+      {
+        status: hasReadAll ? status : HarvestStatus.APPROVED,
+        category,
+        productId,
+        farmerProfileId,
+        centerId,
+        radiusKm: radiusKm !== undefined ? Number(radiusKm) : undefined,
+        isPublicView: !hasReadAll,
+      },
+      user,
+    );
   }
 
   @Get('harvests/farmer')
@@ -303,7 +320,10 @@ export class ProductsController {
 
   @Post('harvests/ai-suggest')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.HARVEST_CREATE)
+  @RequireAnyPermissions(
+    Permission.HARVEST_CREATE,
+    Permission.FARMER_PROXY_HARVEST_MANAGE,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({

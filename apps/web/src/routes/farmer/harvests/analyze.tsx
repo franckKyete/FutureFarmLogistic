@@ -4,7 +4,14 @@ import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
 import { HarvestAnalyzeView } from '@/features/harvests/components/HarvestAnalyzeView';
 import { Permission } from '@futurefarm/types';
 
+export interface AnalyzeSearch {
+  productId?: string | undefined;
+}
+
 export const Route = createFileRoute('/farmer/harvests/analyze')({
+  validateSearch: (search: Record<string, unknown>): AnalyzeSearch => ({
+    productId: typeof search.productId === 'string' ? search.productId : undefined,
+  }),
   beforeLoad: () => {
     requireAuth(Permission.HARVEST_CREATE);
   },
@@ -13,6 +20,7 @@ export const Route = createFileRoute('/farmer/harvests/analyze')({
 
 function FarmerAnalyzePage() {
   useFarmerLayout({ hideTopBar: true, hideBottomNav: true });
+  const { productId: initialProductId } = Route.useSearch();
   const navigate = useNavigate();
 
   return (
@@ -23,7 +31,10 @@ function FarmerAnalyzePage() {
       onProceedToForm={(params) => {
         void navigate({
           to: '/farmer/harvests/new',
-          search: params,
+          search: {
+            ...params,
+            productId: params.productId || initialProductId || undefined,
+          },
         });
       }}
     />

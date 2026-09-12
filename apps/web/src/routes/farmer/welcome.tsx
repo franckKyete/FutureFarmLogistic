@@ -85,7 +85,7 @@ function WelcomePage() {
           {/* Action Buttons */}
           <div className="w-full flex flex-col gap-3">
             <Link
-              to="/farmer/harvests/new"
+              to="/farmer/harvests/analyze"
               className="w-full py-4 bg-primary text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center"
             >
               Publier mon premier produit

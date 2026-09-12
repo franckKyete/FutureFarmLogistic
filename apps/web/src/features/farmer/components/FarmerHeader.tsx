@@ -104,40 +104,67 @@ export function FarmerHeader() {
   let backTo = override.backTo;
   let rightAction: ReactNode = override.rightAction;
 
+  const profileButton = (
+    <Link
+      to="/farmer/profile"
+      title="Profil"
+      className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-[#1A5C35]/10 flex items-center justify-center cursor-pointer active:scale-95 transition-transform shrink-0"
+    >
+      {profile?.avatarUrl ? (
+        <img
+          alt={user?.firstName || 'Farmer'}
+          className="w-full h-full object-cover"
+          src={profile.avatarUrl}
+        />
+      ) : (
+        <span className="material-symbols-outlined text-[18px] text-[#1A5C35]">person</span>
+      )}
+    </Link>
+  );
+
   if (!title) {
     if (pathname.startsWith('/farmer/stock')) {
       title = 'Gestion des stocks';
       icon = 'inventory_2';
       rightAction = (
-        <Link
-          to="/notifications"
-          className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
-        >
-          <span className="material-symbols-outlined">notifications</span>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to="/notifications"
+            className="p-1.5 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl">notifications</span>
+          </Link>
+          {profileButton}
+        </div>
       );
     } else if (pathname.startsWith('/farmer/analytics')) {
       title = 'Analytiques & revenus';
       icon = 'query_stats';
       rightAction = (
-        <Link
-          to="/notifications"
-          className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
-        >
-          <span className="material-symbols-outlined">notifications</span>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to="/notifications"
+            className="p-1.5 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl">notifications</span>
+          </Link>
+          {profileButton}
+        </div>
       );
     } else if (pathname.startsWith('/farmer/orders')) {
       title = 'Mes commandes';
       showBack = true;
       backTo = '/farmer/dashboard';
       rightAction = (
-        <Link
-          to="/notifications"
-          className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
-        >
-          <span className="material-symbols-outlined">notifications</span>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to="/notifications"
+            className="p-1.5 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl">notifications</span>
+          </Link>
+          {profileButton}
+        </div>
       );
     } else if (pathname.startsWith('/farmer/profile')) {
       title = 'Profil Producteur';
@@ -145,21 +172,31 @@ export function FarmerHeader() {
       rightAction = (
         <Link
           to="/notifications"
-          className="p-2 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant"
+          className="p-1.5 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant flex items-center justify-center"
         >
-          <span className="material-symbols-outlined">notifications</span>
+          <span className="material-symbols-outlined text-xl">notifications</span>
         </Link>
       );
     } else if (pathname === '/farmer/auctions' || pathname === '/farmer/auctions/') {
       title = 'Enchères';
       icon = 'gavel';
       rightAction = (
-        <Link
-          to="/farmer/auctions/new"
-          className="p-2 bg-[#004322] text-white rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/farmer/auctions/new"
+            className="p-1.5 bg-[#004322] text-white rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
+            title="Créer une enchère"
+          >
+            <span className="material-symbols-outlined text-base">add</span>
+          </Link>
+          <Link
+            to="/notifications"
+            className="p-1.5 hover:bg-surface-container-low transition-colors rounded-full text-on-surface-variant flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl">notifications</span>
+          </Link>
+          {profileButton}
+        </div>
       );
     } else if (pathname.startsWith('/farmer/auctions/new')) {
       title = 'Nouvelle enchère';

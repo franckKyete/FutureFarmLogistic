@@ -1,5 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ProductCategory } from '@futurefarm/types';
 import {
   QualityVisionProvider,
@@ -23,6 +25,36 @@ export class GeminiVisionProvider implements QualityVisionProvider {
       const mime = parts[0]?.match(/:(.*?);/)?.[1] || 'image/jpeg';
       const base64Data = parts[1] || '';
       return { mimeType: mime, data: base64Data };
+    }
+
+    // Resolve local file system path for uploaded images (/uploads/...)
+    try {
+      let localPath: string | null = null;
+      if (url.startsWith('/uploads/')) {
+        localPath = path.resolve(process.cwd(), url.replace(/^\//, ''));
+      } else if (url.includes('/uploads/')) {
+        const afterUploads = url.substring(url.indexOf('uploads/'));
+        localPath = path.resolve(process.cwd(), afterUploads);
+      } else if (path.isAbsolute(url) && fs.existsSync(url)) {
+        localPath = url;
+      }
+
+      if (localPath && fs.existsSync(localPath)) {
+        const buffer = await fs.promises.readFile(localPath);
+        const ext = path.extname(localPath).toLowerCase().replace('.', '');
+        const mimeMap: Record<string, string> = {
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          webp: 'image/webp',
+          gif: 'image/gif',
+        };
+        const mimeType = mimeMap[ext] || 'image/jpeg';
+        const data = buffer.toString('base64');
+        return { mimeType, data };
+      }
+    } catch {
+      // Fall through to remote fetch
     }
 
     try {

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateProducer } from '../api/accounts.queries';
+import { useMyCenters } from '@/features/admin/api/inspections.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 
 interface CreateProducerModalProps {
@@ -19,6 +20,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProps) {
   const queryClient = useQueryClient();
   const createProducer = useCreateProducer();
+  const { data: myCenters = [] } = useMyCenters();
+
+  const availableRegions = useMemo(() => {
+    return Array.from(new Set(myCenters.map((c) => c.regionName).filter(Boolean)));
+  }, [myCenters]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -26,8 +32,15 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
   const [phone, setPhone] = useState('');
   const [farmName, setFarmName] = useState('');
   const [address, setAddress] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (availableRegions.length > 0 && !selectedRegion) {
+      setSelectedRegion(availableRegions[0]!);
+    }
+  }, [availableRegions, selectedRegion]);
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
@@ -50,17 +63,19 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
     if (!validate()) return;
 
     const password = Math.random().toString(36).slice(2, 10) + 'A1!';
+    const effectiveRegion = selectedRegion || (availableRegions.length > 0 ? availableRegions[0] : undefined);
 
-    const basePayload = {
+    const payload = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       password,
       farmName: farmName.trim(),
+      companyName: farmName.trim(),
+      address: address.trim(),
+      ...(effectiveRegion ? { regionName: effectiveRegion } : {}),
+      ...(phone.trim() ? { phone: phone.trim() } : {}),
     };
-    const payload = phone.trim()
-      ? { ...basePayload, phone: phone.trim() }
-      : basePayload;
 
     createProducer.mutate(payload, {
       onSuccess: () => {
@@ -81,6 +96,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
     setPhone('');
     setFarmName('');
     setAddress('');
+    setSelectedRegion(availableRegions[0] || '');
     setParcels([]);
     setErrors({});
     onClose();
@@ -248,6 +264,44 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] transition-all"
               placeholder="12 rue des Champs, 75000 Paris"
             />
+          </div>
+
+          {/* Région d'assignation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Région de l'exploitation <span className="text-red-500">*</span>
+            </label>
+            {availableRegions.length > 1 ? (
+              <select
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] transition-all cursor-pointer font-medium text-gray-800"
+              >
+                {availableRegions.map((reg) => (
+                  <option key={reg} value={reg}>
+                    {reg}
+                  </option>
+                ))}
+              </select>
+            ) : availableRegions.length === 1 ? (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#1a5c35] text-lg">location_on</span>
+                  <span className="text-xs font-bold text-[#1a5c35]">{availableRegions[0]}</span>
+                </div>
+                <span className="text-[10px] font-semibold bg-white text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Votre juridiction
+                </span>
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+                placeholder="Ex: Kasenga"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] transition-all"
+              />
+            )}
           </div>
 
           {/* Parcelle(s) */}

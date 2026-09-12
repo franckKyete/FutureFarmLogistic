@@ -8,9 +8,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
-import type { PaginatedResult, PaginationQuery } from '@futurefarm/types';
+import type { PaginatedResult, PaginationQuery, AuthUser } from '@futurefarm/types';
 import { UserStatus, ParcelStatus, NotificationChannel, NotificationPriority } from '@futurefarm/types';
 
 import { UserEntity } from './entities/user.entity';
@@ -31,6 +31,8 @@ import {
 import { CreateParcelDto } from './dto/parcel.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
+import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -51,14 +53,19 @@ export class UsersService {
     private readonly parcelRepository: Repository<ParcelEntity>,
     @InjectRepository(InspectorProfileEntity)
     private readonly inspectorProfileRepository: Repository<InspectorProfileEntity>,
+    @InjectRepository(InspectionCenterEntity)
+    private readonly centerRepository: Repository<InspectionCenterEntity>,
+    @InjectRepository(InspectorCenterAssignmentEntity)
+    private readonly assignmentRepository: Repository<InspectorCenterAssignmentEntity>,
     @InjectRepository(DriverProfileEntity)
     private readonly driverProfileRepository: Repository<DriverProfileEntity>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(
-    query: PaginationQuery & { role?: string; status?: string; search?: string },
-  ): Promise<PaginatedResult<Omit<UserEntity, 'password'>>> {
+    query: PaginationQuery & { role?: string; status?: string; search?: string; regionName?: string },
+    caller?: AuthUser,
+  ): Promise<PaginatedResult<any>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -71,7 +78,7 @@ export class UsersService {
       .orderBy('user.createdAt', 'DESC');
 
     if (query.role) {
-      qb.andWhere('role.name = :role', { role: query.role });
+      qb.andWhere('LOWER(role.name) = LOWER(:role)', { role: query.role });
     }
     if (query.status) {
       qb.andWhere('user.status = :status', { status: query.status });
@@ -83,7 +90,95 @@ export class UsersService {
       );
     }
 
-    const [data, total] = await qb.getManyAndCount();
+    // Determine regional scoping:
+    // If caller is an Inspector (and not an Admin):
+    const isInspector = caller?.roles?.includes('Inspector') && !caller?.roles?.includes('Admin');
+    if (isInspector && caller?.id) {
+      const inspectorProfile = await this.inspectorProfileRepository.findOne({
+        where: { userId: caller.id },
+        relations: ['assignments', 'assignments.center'],
+      });
+      const activeAssignments = inspectorProfile?.assignments?.filter(
+        (a) => a.isCurrentAssignment && a.center?.isActive,
+      ) || [];
+      const assignedRegions = Array.from(
+        new Set(activeAssignments.map((a) => a.center.regionName).filter(Boolean)),
+      );
+
+      // If inspector has no assigned regions/centers, they cannot see any regional farmers
+      if (assignedRegions.length === 0) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          },
+        };
+      }
+
+      qb.leftJoin(FarmerProfileEntity, 'farmerProfile', 'farmerProfile.userId = user.id');
+      const assignedRegionsLower = assignedRegions.map((r) => r.toLowerCase());
+
+      if (query.regionName) {
+        if (!assignedRegionsLower.includes(query.regionName.toLowerCase())) {
+          // Requested region is outside inspector's assignments
+          return {
+            data: [],
+            meta: {
+              total: 0,
+              page,
+              limit,
+              totalPages: 0,
+              hasNextPage: false,
+              hasPreviousPage: false,
+            },
+          };
+        }
+        qb.andWhere('LOWER(farmerProfile.regionName) = LOWER(:reg)', { reg: query.regionName });
+      } else {
+        qb.andWhere('LOWER(farmerProfile.regionName) IN (:...assignedRegionsLower)', {
+          assignedRegionsLower,
+        });
+      }
+    } else if (query.regionName) {
+      // Admin filtering by region
+      qb.leftJoin(FarmerProfileEntity, 'farmerProfile', 'farmerProfile.userId = user.id');
+      qb.andWhere('LOWER(farmerProfile.regionName) = LOWER(:reg)', { reg: query.regionName });
+    }
+
+    const [users, total] = await qb.getManyAndCount();
+
+    // Hydrate farmer profile information for farmer role queries or users with farmer profiles
+    const userIds = users.map((u) => u.id);
+    let farmerProfilesMap = new Map<string, FarmerProfileEntity>();
+    if (userIds.length > 0) {
+      const farmerProfiles = await this.farmerProfileRepository.find({
+        where: { userId: In(userIds) },
+      });
+      farmerProfilesMap = new Map(farmerProfiles.map((fp) => [fp.userId, fp]));
+    }
+
+    const data = users.map((u) => {
+      const fp = farmerProfilesMap.get(u.id);
+      return {
+        ...u,
+        phone: u.phoneNumber,
+        farmName: fp?.companyName,
+        regionName: fp?.regionName,
+        profile: fp
+          ? {
+              companyName: fp.companyName,
+              address: fp.address,
+              regionName: fp.regionName,
+              isCertified: fp.isCertified,
+            }
+          : undefined,
+      };
+    });
 
     return {
       data,
@@ -110,7 +205,25 @@ export class UsersService {
     const roleNames = user.roles?.map((r) => r.name) ?? [];
     let profile: any = null;
     if (roleNames.includes('Inspector')) {
-      profile = await this.inspectorProfileRepository.findOneBy({ userId: id });
+      const insp = await this.inspectorProfileRepository.findOne({
+        where: { userId: id },
+        relations: ['assignments', 'assignments.center'],
+      });
+      if (insp) {
+        const assignedCenters = insp.assignments
+          ?.filter((a) => a.isCurrentAssignment && a.center?.isActive)
+          ?.map((a) => ({
+            id: a.center.id,
+            name: a.center.name,
+            code: a.center.code,
+            regionName: a.center.regionName,
+            address: a.center.address,
+          })) || [];
+        profile = {
+          ...insp,
+          assignedCenters,
+        };
+      }
     } else if (roleNames.includes('Driver')) {
       profile = await this.driverProfileRepository.findOneBy({ userId: id });
     } else if (roleNames.includes('Farmer')) {
@@ -158,6 +271,7 @@ export class UsersService {
       userId: savedUser.id,
       companyName: dto.companyName,
       address: dto.address,
+      regionName: dto.regionName.trim(),
       bio: dto.bio ?? null,
     });
 
@@ -269,12 +383,26 @@ export class UsersService {
     userId: string,
     dto: UpdateFarmerProfileDto,
   ): Promise<FarmerProfileEntity> {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (user) {
+      if (dto.firstName !== undefined) user.firstName = dto.firstName;
+      if (dto.lastName !== undefined) user.lastName = dto.lastName;
+      if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber || null;
+      await this.usersRepository.save(user);
+    }
+
     const profile = await this.getFarmerProfile(userId);
     profile.companyName = dto.companyName;
     profile.address = dto.address;
+    if (dto.regionName !== undefined) {
+      profile.regionName = dto.regionName ? dto.regionName.trim() : null;
+    }
     profile.bio = dto.bio ?? null;
     if (dto.avatarUrl !== undefined) {
       profile.avatarUrl = dto.avatarUrl || null;
+    }
+    if (dto.isCertified !== undefined) {
+      profile.isCertified = dto.isCertified;
     }
     return this.farmerProfileRepository.save(profile);
   }
@@ -376,10 +504,47 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
 
+    const companyName = dto.companyName || dto.farmName || 'Exploitation Agricole';
+    const address = dto.address || '';
+    let regionName = dto.regionName ? dto.regionName.trim() : null;
+
+    // If actor is an inspector, validate or auto-assign regionName
+    const inspectorProfile = await this.inspectorProfileRepository.findOne({
+      where: { userId: actorId },
+      relations: ['assignments', 'assignments.center'],
+    });
+    if (inspectorProfile) {
+      const activeAssignments = inspectorProfile.assignments?.filter(
+        (a) => a.isCurrentAssignment && a.center?.isActive,
+      ) || [];
+      const assignedRegions = Array.from(
+        new Set(activeAssignments.map((a) => a.center.regionName).filter(Boolean)),
+      );
+      if (assignedRegions.length === 0) {
+        throw new ForbiddenException(
+          "Vous devez être affecté à au moins un centre d'inspection actif pour enrôler un producteur.",
+        );
+      }
+      if (regionName) {
+        const matchingRegion = assignedRegions.find(
+          (r) => r.toLowerCase() === regionName!.toLowerCase(),
+        );
+        if (!matchingRegion) {
+          throw new ForbiddenException(
+            `Vous ne pouvez enrôler des producteurs que dans vos régions assignées (${assignedRegions.join(', ')}).`,
+          );
+        }
+        regionName = matchingRegion;
+      } else {
+        regionName = assignedRegions[0]!;
+      }
+    }
+
     const profile = this.farmerProfileRepository.create({
       userId: savedUser.id,
-      companyName: dto.companyName,
-      address: dto.address,
+      companyName,
+      address,
+      regionName,
       bio: dto.bio ?? null,
     });
 
@@ -442,6 +607,54 @@ export class UsersService {
         if (dto.agencyName !== undefined) inspProfile.agencyName = dto.agencyName;
         if (dto.specializations !== undefined) inspProfile.specializations = dto.specializations;
         await this.inspectorProfileRepository.save(inspProfile);
+
+        if (dto.inspectionCenterIds !== undefined) {
+          if (dto.inspectionCenterIds.length === 0) {
+            throw new BadRequestException(
+              'Un inspecteur doit obligatoirement conserver au moins un centre d’inspection assigné',
+            );
+          }
+
+          const targetIds = Array.from(new Set(dto.inspectionCenterIds));
+          for (const cid of targetIds) {
+            const center = await this.centerRepository.findOneBy({ id: cid });
+            if (!center || !center.isActive) {
+              throw new BadRequestException(`Centre d'inspection introuvable ou inactif : ${cid}`);
+            }
+          }
+
+          const currentAssignments = await this.assignmentRepository.find({
+            where: { inspectorProfileId: inspProfile.id, isCurrentAssignment: true },
+          });
+
+          // Deactivate assignments no longer in targetIds
+          for (const assignment of currentAssignments) {
+            if (!targetIds.includes(assignment.inspectionCenterId)) {
+              assignment.isCurrentAssignment = false;
+              await this.assignmentRepository.save(assignment);
+            }
+          }
+
+          // Activate or create assignments for targetIds
+          for (const cid of targetIds) {
+            const existing = await this.assignmentRepository.findOne({
+              where: { inspectorProfileId: inspProfile.id, inspectionCenterId: cid },
+            });
+            if (existing) {
+              if (!existing.isCurrentAssignment) {
+                existing.isCurrentAssignment = true;
+                await this.assignmentRepository.save(existing);
+              }
+            } else {
+              const newAssignment = this.assignmentRepository.create({
+                inspectorProfileId: inspProfile.id,
+                inspectionCenterId: cid,
+                isCurrentAssignment: true,
+              });
+              await this.assignmentRepository.save(newAssignment);
+            }
+          }
+        }
       }
     } else if (roleNames.includes('Driver')) {
       const driverProfile = await this.driverProfileRepository.findOneBy({ userId: id });
@@ -456,6 +669,7 @@ export class UsersService {
       if (farmerProfile) {
         if (dto.companyName !== undefined) farmerProfile.companyName = dto.companyName;
         if (dto.address !== undefined) farmerProfile.address = dto.address;
+        if (dto.regionName !== undefined) farmerProfile.regionName = dto.regionName ? dto.regionName.trim() : null;
         if (dto.bio !== undefined) farmerProfile.bio = dto.bio;
         if (dto.isCertified !== undefined) farmerProfile.isCertified = dto.isCertified;
         if (dto.avatarUrl !== undefined) farmerProfile.avatarUrl = dto.avatarUrl;
@@ -485,6 +699,20 @@ export class UsersService {
     const existing = await this.usersRepository.findOneBy({ email: dto.email });
     if (existing) {
       throw new ConflictException('Email already registered');
+    }
+
+    if (!dto.inspectionCenterIds || dto.inspectionCenterIds.length === 0) {
+      throw new BadRequestException(
+        'Au moins un centre d’inspection doit être assigné à l’inspecteur',
+      );
+    }
+
+    const uniqueCenterIds = Array.from(new Set(dto.inspectionCenterIds));
+    for (const centerId of uniqueCenterIds) {
+      const center = await this.centerRepository.findOneBy({ id: centerId });
+      if (!center || !center.isActive) {
+        throw new BadRequestException(`Centre d'inspection introuvable ou inactif : ${centerId}`);
+      }
     }
 
     const inspectorRole = await this.rolesRepository.findOneBy({ name: 'Inspector' });
@@ -524,7 +752,17 @@ export class UsersService {
       isActiveInspector: true,
     });
 
-    await this.inspectorProfileRepository.save(profile);
+    const savedProfile = await this.inspectorProfileRepository.save(profile);
+
+    // Create center assignments
+    for (const centerId of uniqueCenterIds) {
+      const assignment = this.assignmentRepository.create({
+        inspectionCenterId: centerId,
+        inspectorProfileId: savedProfile.id,
+        isCurrentAssignment: true,
+      });
+      await this.assignmentRepository.save(assignment);
+    }
 
     // Send email notification with login credentials (non-blocking)
     try {

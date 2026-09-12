@@ -119,4 +119,14 @@ export class CreateHarvestDto {
   @ValidateNested()
   @Type(() => PriceDecayConfigDto)
   priceDecayConfig?: PriceDecayConfigDto | null;
+
+  @ApiPropertyOptional({
+    example: 8.5,
+    description: 'AI-estimated quality score on a 0.00-10.00 scale',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10)
+  qualityScore?: number;
 }

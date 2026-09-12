@@ -1,23 +1,35 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { createAuctionMutation } from '@/features/auctions/api/auctions.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 
+export interface NewAuctionSearchParams {
+  harvestId?: string;
+}
+
 export const Route = createFileRoute('/farmer/auctions/new')({
+  validateSearch: (search: Record<string, unknown>): NewAuctionSearchParams => {
+    const res: NewAuctionSearchParams = {};
+    if (typeof search['harvestId'] === 'string') {
+      res.harvestId = search['harvestId'];
+    }
+    return res;
+  },
   component: DutchAuctionNewPage,
 });
 
 function DutchAuctionNewPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
 
   // Queries
   const { data: harvests } = useQuery(getFarmerHarvestsQuery());
   const approvedHarvests = harvests ? harvests.filter((h) => h.status === 'APPROVED') : [];
 
   // Form states
-  const [selectedHarvestId, setSelectedHarvestId] = useState('');
+  const [selectedHarvestId, setSelectedHarvestId] = useState(search.harvestId || '');
   const [quantity, setQuantity] = useState('');
   const [startPrice, setStartPrice] = useState('');
   const [reservePrice, setReservePrice] = useState('');
@@ -25,6 +37,19 @@ function DutchAuctionNewPage() {
   const [frequencyMinutes, setFrequencyMinutes] = useState('3');
   const [startTime, setStartTime] = useState(new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)); // 5 mins from now
   const [durationHours, setDurationHours] = useState('2');
+
+  useEffect(() => {
+    if (search.harvestId && approvedHarvests.length > 0) {
+      const h = approvedHarvests.find((item) => item.id === search.harvestId);
+      if (h) {
+        setSelectedHarvestId(h.id);
+        setQuantity(String(h.quantityInStock));
+        setStartPrice(String(h.pricePerUnit));
+        setReservePrice(String(Math.round(h.pricePerUnit * 0.75)));
+        setDecrementAmount(String(Math.round(h.pricePerUnit * 0.05)));
+      }
+    }
+  }, [search.harvestId, approvedHarvests]);
 
   const selectedHarvest = approvedHarvests.find((h) => h.id === selectedHarvestId);
   const maxStock = selectedHarvest ? Number(selectedHarvest.quantityInStock) : 0;

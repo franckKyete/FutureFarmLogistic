@@ -120,6 +120,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
       mustChangePassword: user.mustChangePassword,
@@ -135,38 +136,29 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
-    let sub: string;
-    try {
-      const payload = await this.jwtService.verifyAsync<{
-        sub: string;
-        isTemp?: boolean;
-      }>(tempToken);
-      if (!payload.isTemp || !payload.sub) {
-        throw new UnauthorizedException('Invalid temporary token');
-      }
-      sub = payload.sub;
-    } catch {
-      throw new UnauthorizedException('Temporary token expired or invalid');
-    }
+    const payload = await this.jwtService.verifyAsync<{ sub: string }>(
+      tempToken,
+      { secret: this.config.get<string>('JWT_SECRET') || 'dev-secret' },
+    );
 
     const user = await this.usersRepository.findOne({
-      where: { id: sub, isActive: true },
-      relations: ['roles'],
+      where: { id: payload.sub },
       select: [
         'id',
         'email',
         'firstName',
         'lastName',
+        'phoneNumber',
         'isActive',
-        'status',
-        'mustChangePassword',
         'isTwoFactorEnabled',
         'twoFactorSecret',
+        'mustChangePassword',
       ],
+      relations: ['roles'],
     });
 
-    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
-      throw new UnauthorizedException('2FA is not enabled for this user.');
+    if (!user || !user.twoFactorSecret) {
+      throw new UnauthorizedException('Invalid 2FA session');
     }
 
     const { valid: isValid } = await this.totp.verify(code, {
@@ -174,7 +166,7 @@ export class AuthService {
     });
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid 2FA code');
+      throw new BadRequestException('Invalid 2FA code');
     }
 
     const permissions: Permission[] = [
@@ -186,6 +178,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
       mustChangePassword: user.mustChangePassword,

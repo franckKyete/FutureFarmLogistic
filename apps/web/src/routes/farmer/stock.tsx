@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
@@ -35,6 +35,7 @@ const CATEGORY_REVERSE_MAP: Record<Category, string> = {
 };
 
 function StockPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<Category>('Tout');
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,6 +62,18 @@ function StockPage() {
 
   // Fetch harvests query
   const { data: harvests, refetch } = useQuery(getFarmerHarvestsQuery());
+
+  // Auto-expand product groups on load so batches are immediately visible
+  useEffect(() => {
+    if (harvests && harvests.length > 0 && Object.keys(expandedGroups).length === 0) {
+      const initial: Record<string, boolean> = {};
+      harvests.forEach((h) => {
+        const prodId = h.product?.id || h.productId;
+        if (prodId) initial[prodId] = true;
+      });
+      setExpandedGroups(initial);
+    }
+  }, [harvests]);
 
   // Archive harvest mutation
   const { mutate: deleteHarvest, isPending: deletePending } = useMutation({
@@ -407,26 +420,41 @@ function StockPage() {
                 <div key={group.id} className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
                   {/* Header Card */}
                   <div
-                    onClick={() => toggleGroup(group.id)}
-                    className="p-4 flex gap-4 items-center cursor-pointer hover:bg-surface-container-low transition-colors"
+                    className="p-4 flex gap-4 items-center bg-white hover:bg-surface-container-low transition-colors"
                   >
-                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30">
+                    <div
+                      onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: group.id } })}
+                      className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30 cursor-pointer hover:opacity-90"
+                    >
                       <img alt={group.name} className="w-full h-full object-cover" src={group.imgUrl} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-sm text-on-surface truncate">{group.name}</h3>
+                        <h3
+                          onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: group.id } })}
+                          className="font-bold text-sm text-on-surface truncate cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5"
+                        >
+                          {group.name}
+                          <span className="material-symbols-outlined text-xs text-on-surface-variant">open_in_new</span>
+                        </h3>
                         <span className="bg-surface-container px-2 py-0.5 rounded text-[9px] font-bold text-on-surface-variant">
                           {group.category.toUpperCase()}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
+                      <div
+                        onClick={() => toggleGroup(group.id)}
+                        className="flex items-center justify-between mt-1 cursor-pointer"
+                      >
                         <span className="text-xs text-on-surface-variant">
                           Stock total : <span className="text-on-surface font-bold">{group.totalStock} {group.unit}</span>
                         </span>
-                        <span className="material-symbols-outlined text-on-surface-variant">
+                        <button
+                          type="button"
+                          aria-label={isExpanded ? 'Réduire' : 'Déplier'}
+                          className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-0.5"
+                        >
                           {isExpanded ? 'expand_less' : 'expand_more'}
-                        </span>
+                        </button>
                       </div>
                       {/* Visual distributions */}
                       <div className="mt-2 space-y-1">
@@ -458,19 +486,31 @@ function StockPage() {
                         {group.details.map((detail) => (
                           <div
                             key={detail.id}
-                            className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm flex flex-col gap-2"
+                            onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: detail.id } })}
+                            className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-bold text-xs">{detail.month}</span>
+                              <span className="font-bold text-xs flex items-center gap-1">
+                                {detail.month}
+                                <span className="material-symbols-outlined text-[14px] text-on-surface-variant">chevron_right</span>
+                              </span>
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                   detail.status === 'APPROVED'
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : detail.status === 'PENDING_APPROVAL'
                                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : detail.status === 'FLAGGED_PHYSICAL'
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                     : 'bg-rose-50 text-rose-700 border border-rose-200'
                                 }`}>
-                                  {detail.status === 'APPROVED' ? 'Approuvé' : detail.status === 'PENDING_APPROVAL' ? 'En attente' : 'Rejeté'}
+                                  {detail.status === 'APPROVED'
+                                    ? 'Approuvé'
+                                    : detail.status === 'PENDING_APPROVAL'
+                                    ? 'En attente'
+                                    : detail.status === 'FLAGGED_PHYSICAL'
+                                    ? 'Visite requise'
+                                    : 'Rejeté'}
                                 </span>
                                 {detail.status === 'APPROVED' && (
                                   <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold">
@@ -520,6 +560,15 @@ function StockPage() {
           )}
         </div>
       </main>
+
+      {/* Floating Action Button (FAB) for New Harvest */}
+      <Link
+        to="/farmer/harvests/analyze"
+        aria-label="Nouvelle récolte"
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-primary hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-2xl">add</span>
+      </Link>
     </div>
   );
 }

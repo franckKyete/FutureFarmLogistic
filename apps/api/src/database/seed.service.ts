@@ -78,6 +78,7 @@ export class SeedService implements OnApplicationBootstrap {
       Permission.ORDER_REJECT,
       Permission.ORDER_SHIP,
       Permission.ORDER_DELIVER,
+      Permission.VISIT_READ,
     ];
 
     const buyerPermissions = [
@@ -98,6 +99,9 @@ export class SeedService implements OnApplicationBootstrap {
 
     const inspectorPermissions = [
       Permission.USER_READ,
+      Permission.PRODUCT_READ,
+      Permission.PRODUCT_CREATE,
+      Permission.HARVEST_CREATE,
       Permission.PARCEL_VERIFY,
       Permission.SESSION_MANAGE,
       Permission.NOTIFICATION_READ,
@@ -261,6 +265,7 @@ export class SeedService implements OnApplicationBootstrap {
           password: 'password', // will be hashed by @BeforeInsert
           firstName: 'Admin',
           lastName: 'User',
+          phoneNumber: '+221770000000',
           roles: [adminRole],
           isActive: true,
           status: UserStatus.APPROVED,
@@ -277,6 +282,7 @@ export class SeedService implements OnApplicationBootstrap {
           password: 'password', // will be hashed by @BeforeInsert
           firstName: 'Regular',
           lastName: 'User',
+          phoneNumber: '+221770000099',
           roles: [userRole],
           isActive: true,
           status: UserStatus.APPROVED,
@@ -382,6 +388,7 @@ export class SeedService implements OnApplicationBootstrap {
           password: 'password',
           firstName: 'Amadou',
           lastName: 'Touré',
+          phoneNumber: '+221770000001',
           roles: [farmerRole],
           isActive: true,
           status: UserStatus.APPROVED,
@@ -392,6 +399,7 @@ export class SeedService implements OnApplicationBootstrap {
           userId: farmerUser.id,
           companyName: 'Ferme Agricole du Sénégal',
           address: 'Route de Rufisque, Dakar',
+          regionName: 'Dakar',
           isCertified: true,
           bio: 'Producteur de céréales et légumes biologiques depuis 2010',
         });
@@ -491,6 +499,7 @@ export class SeedService implements OnApplicationBootstrap {
           password: 'password',
           firstName: 'Khadija',
           lastName: 'Sy',
+          phoneNumber: '+221770000002',
           roles: [buyerRole],
           isActive: true,
           status: UserStatus.APPROVED,
@@ -633,12 +642,14 @@ export class SeedService implements OnApplicationBootstrap {
           },
         ];
 
-        for (const entry of driverEntries) {
+        for (let i = 0; i < driverEntries.length; i++) {
+          const entry = driverEntries[i]!;
           const user = this.userRepository.create({
             email: entry.email,
             password: 'password',
             firstName: entry.firstName,
             lastName: entry.lastName,
+            phoneNumber: `+22177000001${i + 1}`,
             roles: [driverRole],
             isActive: true,
             status: UserStatus.APPROVED,
@@ -956,12 +967,14 @@ export class SeedService implements OnApplicationBootstrap {
           },
         ];
 
-        for (const entry of inspectorEntries) {
+        for (let i = 0; i < inspectorEntries.length; i++) {
+          const entry = inspectorEntries[i]!;
           const user = this.userRepository.create({
             email: entry.email,
             password: 'password',
             firstName: entry.firstName,
             lastName: entry.lastName,
+            phoneNumber: `+22177000002${i + 1}`,
             roles: [inspectorRole],
             isActive: true,
             status: UserStatus.APPROVED,

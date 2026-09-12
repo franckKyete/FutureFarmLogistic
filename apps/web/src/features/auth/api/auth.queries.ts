@@ -33,6 +33,7 @@ export interface RegisterFarmerPayload {
   phoneNumber?: string;
   companyName: string;
   address: string;
+  regionName: string;
   bio?: string;
 }
 

@@ -1,321 +1,929 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  getFarmerHarvestsQuery,
+  getHarvestDetailsQuery,
+  updateHarvestMutation,
+} from '@/features/harvests/api/harvests.queries';
+import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
+import { addToast } from '@/features/shared/store/toast.store';
+import type { HarvestDto } from '@futurefarm/types';
 
 export const Route = createFileRoute('/farmer/products/$id')({
   component: ProductDetailPage,
 });
 
-const PHOTOS = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuD05xBJ-cC-oQIPCGfi0xv1iBSAx0Zp4HIIfOXYbNptZrNerKVfzUp8yKiGDrssrn4n4ADie--apk-zwB5z58SjK138NytMSElb4pEw94QoY5lv5JMJ4xUEF0JeTGPJDviYJTbdtegqY9olOGagQ58dvukTMCD5HAeWCT7B2LvYl8BBGsZl0IP7YDCnIrsrm7ko2bbkWVODBN3UoQbIwtJcbvwMAMHUuLTtzzDeL5A4N00aO2g7PiEOsM9c2RKcCSx_lzIn0tzfwAc',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCgwjttNUQWYMhvVAoVo5P9oAtrDLgtcMBy_yTvuseOgmlnP1f0y79ytW9NA8wOgBq-MQoSrzzbqGpps_z_wu-nMLPZf4l9eolZfI5Kx235MZK8slgKmVGL70pxXLwMHb1TE-HJC8r97yo9oqXw91E41iC6paDb-He5SZmrKnszNAomkr0uhz-GZpHtZczHG1583588WJ9z3-suETNy7oRlNCzn1F4NjKI5aFiUe2go37PI-O_C15KGn_-8W_1SBFPu7qsJtMy9GqU',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuAQuEG4g-eAZQy-DqPGe_O1-cMvf7sJ-nK3L_RKz3--GAxWDfmJzF8FG5f4RNqMADOTrz1WbE9b3ieOdfiQD9xF2vFjMwr-l_ICUa20_ueHpFGlugP71lISZlfvlaMX--Ai2d8Y7WhL7ISqPKIvgghpdLFalMlt4bc6o5BjAV3x2Pn6yOr2MTIHjXJfnX--W3x0VoBRGzpkb9O3cr2pe_BRaHFqBZmbBodwFclDsiF2FagtAj1pQF54EVdNw3wPZoN9tETAEDukkes',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuB-Kofqhfn6ImgaUTptQqJSzm4oLwtMkHGr8hZzsGGYmVA-xL9RnvI8bJmuZuydmlZ_3UKCQDYSQdvvJAEnM1bRcUwXUaNY9BYK0iirndiM6K4nsXdt-YefVh_TNuf1rZXhNshnNlNPY7ZDsxOA_w5Ah6Ns8TSWvQozuieAZ3c8P6K85Ap7WNM40z8_0pZIVQ7Isp030ae7WyZuOS6TZDfUU9SEPqUzfPfJwZkjRKO7pdXpOoVlpECr9OQXJrhw2fmxLxEzokzP44g',
+const CATEGORY_LABELS: Record<string, string> = {
+  CEREALS: 'Céréales',
+  VEGETABLES: 'Légumes',
+  FRUITS: 'Fruits',
+  DATES: 'Dattes',
+  DAIRY: 'Laitier',
+  MEAT: 'Viande',
+  OTHER: 'Autres',
+};
+
+const MONTH_COLORS = [
+  { bg: 'bg-[#1a5c35]', dot: 'bg-[#1a5c35]', text: 'text-[#1a5c35]', hex: '#1a5c35' },
+  { bg: 'bg-[#e67e22]', dot: 'bg-[#e67e22]', text: 'text-[#e67e22]', hex: '#e67e22' },
+  { bg: 'bg-[#2c3e50]', dot: 'bg-[#2c3e50]', text: 'text-[#2c3e50]', hex: '#2c3e50' },
+  { bg: 'bg-[#27ae60]', dot: 'bg-[#27ae60]', text: 'text-[#27ae60]', hex: '#27ae60' },
+  { bg: 'bg-[#8e44ad]', dot: 'bg-[#8e44ad]', text: 'text-[#8e44ad]', hex: '#8e44ad' },
 ];
 
+function formatMonthYear(dateString: string | Date | undefined): string {
+  if (!dateString) return 'Date inconnue';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return 'Date inconnue';
+  const formatted = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function formatShortMonth(dateString: string | Date | undefined): string {
+  if (!dateString) return 'N/A';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return 'N/A';
+  const month = d.toLocaleDateString('fr-FR', { month: 'short' });
+  return month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
+}
+
+function formatDateDisplay(dateString: string | Date | undefined): string {
+  if (!dateString) return '--';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '--';
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function ProductDetailPage() {
-  // Interactive gallery state
-  const [activePhoto, setActivePhoto] = useState(PHOTOS[0]);
+  const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // Product status state
-  const [isActive, setIsActive] = useState(true);
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const [editingHarvest, setEditingHarvest] = useState<HarvestDto | null>(null);
+  const [editPrice, setEditPrice] = useState<number | ''>('');
+  const [editMarge, setEditMarge] = useState<number | ''>('');
+  const [editMethods, setEditMethods] = useState('');
 
-  // IA Score Gauge animation state
-  const [gaugeScore, setGaugeScore] = useState(0);
-  const targetScore = 94;
+  // Bottom Sheet states
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheetView, setSheetView] = useState<'actions' | 'select_harvest'>('actions');
+  const [selectedHarvestForAuction, setSelectedHarvestForAuction] = useState<string>('');
 
+  // Queries
+  const { data: allHarvests = [], isLoading: isLoadingFarmerHarvests } = useQuery(getFarmerHarvestsQuery());
+  const { data: directHarvest } = useQuery({
+    ...getHarvestDetailsQuery(id),
+    enabled: !allHarvests.some((h) => h.id === id || h.productId === id || h.product?.id === id),
+  });
+
+  // Resolve target product & its harvest batches
+  const { product, batches, primaryHarvest } = useMemo(() => {
+    let matchedHarvest = allHarvests.find((h) => h.id === id);
+    let targetProductId = matchedHarvest?.productId || matchedHarvest?.product?.id;
+
+    if (!targetProductId) {
+      const harvestWithProd = allHarvests.find((h) => h.productId === id || h.product?.id === id);
+      if (harvestWithProd) {
+        targetProductId = harvestWithProd.productId || harvestWithProd.product?.id;
+        matchedHarvest = harvestWithProd;
+      }
+    }
+
+    if (!targetProductId && directHarvest) {
+      targetProductId = directHarvest.productId || directHarvest.product?.id;
+      matchedHarvest = directHarvest;
+    }
+
+    const relevantBatches = (allHarvests.length > 0 ? allHarvests : directHarvest ? [directHarvest] : []).filter(
+      (h) => (targetProductId && (h.productId === targetProductId || h.product?.id === targetProductId)) || h.id === id
+    );
+
+    const resolvedProduct =
+      matchedHarvest?.product ||
+      relevantBatches[0]?.product ||
+      (directHarvest?.product ?? null);
+
+    return {
+      product: resolvedProduct,
+      batches: relevantBatches,
+      primaryHarvest: matchedHarvest || relevantBatches[0] || directHarvest || null,
+    };
+  }, [id, allHarvests, directHarvest]);
+
+  const productName = product?.name || primaryHarvest?.product?.name || 'Détails Produit';
+  const categoryLabel = product?.category ? (CATEGORY_LABELS[product.category] || product.category) : undefined;
+
+  // Synchronize layout topbar title & back navigation
+  useFarmerLayout({
+    title: productName,
+    showBack: true,
+    backTo: '/farmer/stock',
+  });
+
+  // Initialize selected batch for auction when batches load
   useEffect(() => {
-    let current = 0;
-    const interval = setInterval(() => {
-      if (current >= targetScore) {
-        clearInterval(interval);
-      } else {
-        current += 2;
-        if (current > targetScore) current = targetScore;
-        setGaugeScore(current);
+    if (batches.length > 0 && !selectedHarvestForAuction) {
+      const available = batches.find((b) => Number(b.quantityInStock) > 0) || batches[0];
+      if (available) {
+        setSelectedHarvestForAuction(available.id);
       }
-    }, 15);
-    return () => clearInterval(interval);
-  }, []);
+    }
+  }, [batches, selectedHarvestForAuction]);
 
-  const handleRefreshScore = () => {
-    setGaugeScore(0);
-    let current = 0;
-    const interval = setInterval(() => {
-      if (current >= targetScore) {
-        clearInterval(interval);
-      } else {
-        current += 2;
-        if (current > targetScore) current = targetScore;
-        setGaugeScore(current);
+  // Aggregate metrics across batches
+  const {
+    totalAvailableStock,
+    unit,
+    overallQualityPercent,
+    heroImage,
+    monthlyGroups,
+    distributionSegments,
+  } = useMemo(() => {
+    let totalStock = 0;
+    let totalScored = 0;
+    let scoreSum = 0;
+    let unitFound = 'kg';
+    let img: string | null = null;
+
+    const groupsMap: Record<
+      string,
+      {
+        monthKey: string;
+        monthDisplay: string;
+        shortMonth: string;
+        harvests: HarvestDto[];
+        totalRemaining: number;
+        totalAdded: number;
+        avgPrice: number;
+        avgQuality: number | null;
+        earliestExpiration: string;
+        status: 'AVAILABLE' | 'OUT_OF_STOCK' | 'PENDING' | 'FLAGGED_PHYSICAL' | 'REJECTED';
       }
-    }, 15);
+    > = {};
+
+    batches.forEach((b) => {
+      const stock = Number(b.quantityInStock || 0);
+      const originalStock = Number(b.quantityInStock || 0);
+      const price = Number(b.pricePerUnit || 0);
+      const quality = b.qualityScore != null ? Number(b.qualityScore) : null;
+      unitFound = b.unit || unitFound;
+
+      if (!img && b.photoUrls && b.photoUrls.length > 0) {
+        img = b.photoUrls[0] || null;
+      }
+
+      if (b.status === 'APPROVED') {
+        totalStock += stock;
+      }
+
+      if (quality != null && !isNaN(quality) && quality > 0) {
+        const normalizedScore = quality <= 10 ? quality * 10 : quality;
+        scoreSum += normalizedScore;
+        totalScored += 1;
+      }
+
+      const monthKey = b.harvestDate
+        ? new Date(b.harvestDate).toISOString().slice(0, 7)
+        : 'unknown';
+      const monthDisplay = formatMonthYear(b.harvestDate);
+      const shortMonth = formatShortMonth(b.harvestDate);
+
+      if (!groupsMap[monthKey]) {
+        groupsMap[monthKey] = {
+          monthKey,
+          monthDisplay,
+          shortMonth,
+          harvests: [],
+          totalRemaining: 0,
+          totalAdded: 0,
+          avgPrice: price,
+          avgQuality: null,
+          earliestExpiration: b.expirationDate ? String(b.expirationDate) : '',
+          status: 'AVAILABLE',
+        };
+      }
+
+      const group = groupsMap[monthKey]!;
+      group.harvests.push(b);
+      group.totalRemaining += stock;
+      group.totalAdded += originalStock;
+
+      if (b.expirationDate) {
+        if (!group.earliestExpiration || new Date(b.expirationDate) < new Date(group.earliestExpiration)) {
+          group.earliestExpiration = String(b.expirationDate);
+        }
+      }
+    });
+
+    const groupsList = Object.values(groupsMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+    groupsList.forEach((group) => {
+      let grpScoreSum = 0;
+      let grpScoreCount = 0;
+      let grpPriceSum = 0;
+
+      group.harvests.forEach((h) => {
+        grpPriceSum += Number(h.pricePerUnit || 0);
+        if (h.qualityScore != null && Number(h.qualityScore) > 0) {
+          const s = Number(h.qualityScore);
+          grpScoreSum += s <= 10 ? s * 10 : s;
+          grpScoreCount += 1;
+        }
+      });
+
+      group.avgPrice = group.harvests.length > 0 ? Math.round(grpPriceSum / group.harvests.length) : 0;
+      group.avgQuality = grpScoreCount > 0 ? Math.round(grpScoreSum / grpScoreCount) : null;
+
+      const hasApproved = group.harvests.some((h) => h.status === 'APPROVED');
+      const hasFlagged = group.harvests.some((h) => h.status === 'FLAGGED_PHYSICAL');
+      const hasPending = group.harvests.some((h) => h.status === 'PENDING_APPROVAL');
+
+      if (group.totalRemaining <= 0) {
+        group.status = 'OUT_OF_STOCK';
+      } else if (hasApproved) {
+        group.status = 'AVAILABLE';
+      } else if (hasFlagged) {
+        group.status = 'FLAGGED_PHYSICAL';
+      } else if (hasPending) {
+        group.status = 'PENDING';
+      } else {
+        group.status = 'REJECTED';
+      }
+    });
+
+    const sumAdded = groupsList.reduce((acc, g) => acc + (g.totalRemaining > 0 ? g.totalRemaining : g.totalAdded), 0);
+    const segments = groupsList.map((g, idx) => {
+      const weight = g.totalRemaining > 0 ? g.totalRemaining : g.totalAdded;
+      const pct = sumAdded > 0 ? Math.max(8, Math.round((weight / sumAdded) * 100)) : 100 / (groupsList.length || 1);
+      const colorScheme = MONTH_COLORS[idx % MONTH_COLORS.length] || MONTH_COLORS[0]!;
+      return {
+        month: g.shortMonth,
+        percentage: pct,
+        color: colorScheme,
+      };
+    });
+
+    const avgQualityFinal = totalScored > 0 ? Math.round(scoreSum / totalScored) : null;
+
+    return {
+      totalAvailableStock: totalStock,
+      unit: unitFound,
+      overallQualityPercent: avgQualityFinal,
+      heroImage:
+        img ||
+        'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?auto=format&fit=crop&w=800&q=80',
+      monthlyGroups: groupsList,
+      distributionSegments: segments,
+    };
+  }, [batches]);
+
+  // Update harvest mutation
+  const { mutate: updateHarvest, isPending: isUpdating } = useMutation({
+    mutationFn: async ({ harvestId, data }: { harvestId: string; data: any }) => {
+      return updateHarvestMutation(harvestId).mutationFn(data);
+    },
+    onSuccess: () => {
+      addToast('Le lot de récolte a été mis à jour.', 'success');
+      setEditingHarvest(null);
+      void queryClient.invalidateQueries({ queryKey: ['harvests'] });
+    },
+    onError: () => {
+      addToast('Erreur lors de la mise à jour du lot.', 'error');
+    },
+  });
+
+  const handleOpenEdit = (harvest: HarvestDto) => {
+    setEditingHarvest(harvest);
+    setEditPrice(harvest.pricePerUnit != null ? Number(harvest.pricePerUnit) : '');
+    setEditMarge(harvest.stockMarge != null ? Number(harvest.stockMarge) : '');
+    setEditMethods(harvest.farmingMethods || '');
   };
 
+  const handleSaveEdit = () => {
+    if (!editingHarvest) return;
+    updateHarvest({
+      harvestId: editingHarvest.id,
+      data: {
+        pricePerUnit: editPrice === '' ? undefined : Number(editPrice),
+        stockMarge: editMarge === '' ? undefined : Number(editMarge),
+        farmingMethods: editMethods || undefined,
+      },
+    });
+  };
+
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths((prev) => ({
+      ...prev,
+      [monthKey]: !prev[monthKey],
+    }));
+  };
+
+  const handleOpenAuctionSelector = () => {
+    if (batches.length === 0) {
+      addToast('Aucune récolte disponible pour ce produit.', 'warning');
+      return;
+    }
+    setSheetView('select_harvest');
+    setIsSheetOpen(true);
+  };
+
+  const handleProceedToAuction = () => {
+    if (!selectedHarvestForAuction) {
+      addToast('Veuillez sélectionner un lot de récolte.', 'warning');
+      return;
+    }
+    setIsSheetOpen(false);
+    void navigate({
+      to: '/farmer/auctions/new',
+      search: { harvestId: selectedHarvestForAuction },
+    });
+  };
+
+  if (isLoadingFarmerHarvests && batches.length === 0) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#1a5c35] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-gray-500">Chargement de la fiche produit...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-surface font-sans text-on-surface min-h-screen relative">
-      {/* Main Content Canvas */}
-      <main className="p-4 flex flex-col gap-4 max-w-[480px] mx-auto">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-on-surface">Tomates Grappe Bio</h2>
-            <span
-              className={`px-3 py-1 font-bold text-xs rounded-full flex items-center gap-1 transition-all ${
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-outline-variant/30 text-on-surface-variant'
-              }`}
+    <div className="font-sans text-gray-900 pb-16 relative">
+      {/* Main Content Body */}
+      <main className="px-4 pt-3 max-w-[480px] mx-auto space-y-5">
+        {/* Hero Stock & Image Card */}
+        <section className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-xs">
+          {/* Hero Image with Quality Badge */}
+          <div className="relative h-64 w-full bg-gray-100 overflow-hidden">
+            <img
+              src={heroImage}
+              alt={productName}
+              className="w-full h-full object-cover"
+            />
+            {overallQualityPercent !== null && (
+              <div className="absolute top-4 right-4 bg-black/65 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5 shadow-md border border-white/20">
+                <span className="text-amber-400 text-sm">★</span>
+                <span>{overallQualityPercent}% Qualité</span>
+              </div>
+            )}
+          </div>
+
+          {/* Stock Metrics & Multi-segment Bar */}
+          <div className="p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  STOCK TOTAL DISPONIBLE
+                </p>
+                <p className="text-3xl font-extrabold text-[#1a5c35] tracking-tight mt-0.5 font-display">
+                  {totalAvailableStock.toLocaleString()} {unit}
+                </p>
+              </div>
+              {categoryLabel && (
+                <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider self-start">
+                  {categoryLabel}
+                </span>
+              )}
+            </div>
+
+            {/* Multi-color Distribution Bar */}
+            {distributionSegments.length > 0 && (
+              <div className="space-y-2">
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden flex">
+                  {distributionSegments.map((seg, idx) => (
+                    <div
+                      key={idx}
+                      className={`h-full ${seg.color.bg}`}
+                      style={{ width: `${seg.percentage}%` }}
+                      title={`${seg.month} • ${seg.percentage}%`}
+                    />
+                  ))}
+                </div>
+
+                {/* Legend with Dots */}
+                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-gray-700 pt-0.5">
+                  {distributionSegments.map((seg, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <span className={`w-2.5 h-2.5 rounded-full ${seg.color.dot}`} />
+                      <span>{seg.month}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Create Auction Button */}
+            <button
+              type="button"
+              onClick={handleOpenAuctionSelector}
+              className="w-full py-3.5 bg-[#1a5c35] hover:bg-[#144a2a] text-white font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 transition-all"
             >
-              <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-primary animate-pulse' : 'bg-outline'}`}></span>
-              {isActive ? 'Actif' : 'Archivé'}
+              <span className="material-symbols-outlined text-xl">gavel</span>
+              <span>Mettre en enchère</span>
+            </button>
+          </div>
+        </section>
+
+        {/* Section: Récoltes par mois */}
+        <section className="space-y-3">
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-sm font-bold text-gray-900">Récoltes par mois</h2>
+            <span className="text-xs font-semibold text-gray-500">
+              {monthlyGroups.length} {monthlyGroups.length <= 1 ? 'période' : 'périodes'}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => alert('Modification du produit')}
-              className="flex-1 py-2.5 bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm cursor-pointer hover:opacity-95"
-            >
-              <span className="material-symbols-outlined text-[18px]">edit</span>
-              Modifier
-            </button>
-            <button
-              onClick={() => setIsActive(!isActive)}
-              className="flex-1 py-2.5 border border-error text-error font-bold rounded-xl flex items-center justify-center gap-2 text-sm cursor-pointer hover:bg-error-container/10"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {isActive ? 'archive' : 'unarchive'}
-              </span>
-              {isActive ? 'Archiver' : 'Activer'}
-            </button>
-          </div>
-        </div>
+          {monthlyGroups.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center space-y-3 shadow-2xs">
+              <span className="material-symbols-outlined text-gray-400 text-3xl">inventory_2</span>
+              <p className="text-xs text-gray-500">Aucune récolte enregistrée pour ce produit.</p>
+              <Link
+                to="/farmer/harvests/analyze"
+                search={{ productId: product?.id || id }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a5c35] text-white font-bold text-xs rounded-xl shadow-xs hover:bg-[#144a2a] transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                Ajouter une première récolte
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {monthlyGroups.map((group, groupIdx) => {
+                const isExpanded =
+                  expandedMonths[group.monthKey] ?? (groupIdx === 0);
+                const colorScheme =
+                  MONTH_COLORS[groupIdx % MONTH_COLORS.length] || MONTH_COLORS[0]!;
+                const primaryBatch = group.harvests[0]!;
 
-        {/* Photos Section */}
-        <section className="bg-white rounded-xl border border-outline-variant p-4 overflow-hidden shadow-sm">
-          <div className="relative h-[240px] w-full rounded-lg overflow-hidden mb-4 border border-outline-variant/30">
-            <img className="w-full h-full object-cover" alt="Hero product" src={activePhoto} />
-            <div className="absolute bottom-4 left-4 flex gap-2">
-              <span className="bg-white/95 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-primary flex items-center gap-1 shadow-sm">
-                <span className="material-symbols-outlined text-[16px]">verified</span>
-                Certifié Bio
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {PHOTOS.map((photoUrl, idx) => {
-              const isSelected = photoUrl === activePhoto;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setActivePhoto(photoUrl)}
-                  className={`h-16 rounded-lg overflow-hidden border transition-all cursor-pointer ${
-                    isSelected ? 'border-primary border-2 scale-105 shadow-sm' : 'border-outline-variant/50 opacity-80 hover:opacity-100'
-                  }`}
-                >
-                  <img className="w-full h-full object-cover" alt={`Miniature ${idx + 1}`} src={photoUrl} />
-                </button>
-              );
-            })}
-            <button
-              onClick={() => alert('Ajouter une photo')}
-              className="h-16 rounded-lg border-2 border-dashed border-outline-variant/60 flex items-center justify-center bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all text-primary"
-            >
-              <span className="material-symbols-outlined">add_a_photo</span>
-            </button>
-          </div>
-        </section>
+                return (
+                  <div
+                    key={group.monthKey}
+                    className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3 transition-all"
+                  >
+                    {/* Month Header row */}
+                    <div
+                      onClick={() => toggleMonth(group.monthKey)}
+                      className="flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-3 h-3 rounded-full ${colorScheme.dot}`} />
+                        <h3 className="text-sm font-bold text-gray-900">{group.monthDisplay}</h3>
+                      </div>
 
-        {/* Quality Score IA Section */}
-        <section className="bg-primary text-white rounded-xl p-4 relative overflow-hidden shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold mb-1">Analyse IA de Qualité</h3>
-              <p className="text-primary-fixed/80 text-xs font-semibold">Diagnostic temps réel</p>
-            </div>
-            <span className="px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs font-semibold">Frais</span>
-          </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-bold ${
+                            group.totalRemaining > 0 ? 'text-gray-900' : 'text-gray-400'
+                          }`}
+                        >
+                          {group.totalRemaining} {unit} restants
+                        </span>
 
-          <div className="flex items-center gap-6 mb-4">
-            {/* Custom Circular Gauge in React */}
-            <div
-              className="relative w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{
-                background: `conic-gradient(#aef2be ${gaugeScore * 3.6}deg, rgba(255, 255, 255, 0.15) 0)`,
-              }}
-            >
-              <div className="w-[68px] h-[68px] rounded-full bg-primary flex items-center justify-center">
-                <span className="text-lg font-black text-white">{gaugeScore}%</span>
-              </div>
-            </div>
-            <div className="flex-1">
-              <ul className="flex flex-col gap-1.5">
-                <li className="flex items-center gap-2 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[18px] text-[#aef2be]">check_circle</span>
-                  Aucun défaut
-                </li>
-                <li className="flex items-center gap-2 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[18px] text-white/70">schedule</span>
-                  Mise à jour : 08:42
-                </li>
-              </ul>
-            </div>
-          </div>
+                        <span
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            group.status === 'AVAILABLE'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : group.status === 'OUT_OF_STOCK'
+                              ? 'bg-gray-100 text-gray-500'
+                              : group.status === 'FLAGGED_PHYSICAL'
+                              ? 'bg-amber-100 text-amber-800'
+                              : group.status === 'PENDING'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {group.status === 'AVAILABLE'
+                            ? 'DISPONIBLE'
+                            : group.status === 'OUT_OF_STOCK'
+                            ? 'ÉPUISÉ'
+                            : group.status === 'FLAGGED_PHYSICAL'
+                            ? 'VISITE REQUISE'
+                            : group.status === 'PENDING'
+                            ? 'EN ATTENTE'
+                            : 'REJETÉ'}
+                        </span>
+                      </div>
+                    </div>
 
-          <button
-            onClick={handleRefreshScore}
-            className="w-full py-2 bg-white/10 hover:bg-white/20 active:scale-95 transition-all rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer border border-white/15"
-          >
-            <span className="material-symbols-outlined text-sm">refresh</span>
-            Relancer le scan
-          </button>
-        </section>
+                    {/* Sub-card when Expanded */}
+                    {isExpanded ? (
+                      <div className="bg-[#f8f9ff] border border-gray-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 animate-in fade-in-50 duration-150">
+                        {/* Circular Quality Gauge */}
+                        <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
+                          {group.avgQuality !== null ? (
+                            <>
+                              <svg viewBox="0 0 60 60" className="w-14 h-14 -rotate-90 block">
+                                <circle
+                                  cx="30"
+                                  cy="30"
+                                  fill="transparent"
+                                  r="24"
+                                  stroke="#E5E7EB"
+                                  strokeWidth="5"
+                                />
+                                <circle
+                                  className="text-[#1a5c35]"
+                                  cx="30"
+                                  cy="30"
+                                  fill="transparent"
+                                  r="24"
+                                  stroke="currentColor"
+                                  strokeDasharray="150.79"
+                                  strokeDashoffset={150.79 * (1 - group.avgQuality / 100)}
+                                  strokeLinecap="round"
+                                  strokeWidth="5"
+                                />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-xs font-bold text-gray-900 leading-none">
+                                  {group.avgQuality}%
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                              --
+                            </div>
+                          )}
+                        </div>
 
-        {/* Product Info Section */}
-        <section className="bg-white rounded-xl border border-outline-variant p-4 space-y-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1 bg-surface-variant text-primary rounded-full text-xs font-semibold">Maraîchage</span>
-            <span className="px-3 py-1 bg-surface-container text-tertiary rounded-full text-xs font-semibold">Grappe</span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Description du produit</h3>
-            <p className="text-xs text-on-surface-variant leading-relaxed">
-              Nos tomates grappes Bio sont cultivées selon des méthodes traditionnelles respectueuses de l'environnement au cœur de la vallée. Récoltées à pleine maturité, elles offrent un goût sucré et une texture ferme idéale pour vos étals. Aucun pesticide de synthèse utilisé, traitement naturel uniquement.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 border-t border-outline-variant/30 pt-4">
-            <div>
-              <h4 className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider mb-2">Méthodes &amp; Certifications</h4>
-              <div className="flex flex-wrap gap-2">
-                <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#E6F3EA] text-[#1A5C35] rounded-lg border border-[#1A5C35]/20 text-xs font-bold">
-                  <span className="material-symbols-outlined text-[16px]">eco</span>
-                  Bio
-                </span>
-                <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#FFF9E6] text-[#885200] rounded-lg border border-[#885200]/20 text-xs font-bold">
-                  <span className="material-symbols-outlined text-[16px]">verified_user</span>
-                  HVE
-                </span>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider mb-2">Dates clés</h4>
-              <div className="flex flex-col gap-1 text-xs">
-                <p className="text-on-surface-variant">Récolte : <span className="font-bold text-on-surface">12 Mai 2024</span></p>
-                <p className="text-on-surface-variant">Expiration : <span className="font-bold text-on-surface">26 Mai 2024</span></p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-3 bg-surface-container-low rounded-lg border border-outline-variant/40">
-            <span className="material-symbols-outlined text-secondary">location_on</span>
-            <p className="text-xs font-medium text-on-surface">
-              Disponible à : <span className="font-bold text-primary">Silo Nord - Plateforme de Distribution 4</span>
-            </p>
-          </div>
-        </section>
+                        {/* Middle Stats Grid */}
+                        <div className="flex-1 grid grid-cols-2 gap-y-2 gap-x-4">
+                          <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              TOTAL AJOUTÉ
+                            </p>
+                            <p className="text-xs font-bold text-gray-800">
+                              {group.totalAdded} {unit}
+                            </p>
+                          </div>
 
-        {/* Stock & Price Section */}
-        <section className="bg-white rounded-xl border border-outline-variant p-4 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Stock &amp; Historique</h3>
-            <span className="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed font-bold text-[10px] rounded-full">Prix fixe</span>
-          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              PRIX/{unit.toUpperCase()}
+                            </p>
+                            <p className="text-xs font-bold text-gray-800">
+                              {group.avgPrice.toLocaleString()} CDF
+                            </p>
+                          </div>
 
-          {/* Cumulative Stock Header */}
-          <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/40">
-            <span className="text-[10px] text-on-surface-variant uppercase font-bold">Stock total cumulé disponible</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-xl font-bold text-primary">840 kg</span>
-              <span className="text-xs text-on-surface-variant">/ 1200 kg total</span>
-            </div>
-            <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden mt-3">
-              <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '70%' }}></div>
-            </div>
-          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              RÉCOLTES
+                            </p>
+                            <p className="text-xs font-bold text-gray-800">
+                              {group.harvests.length} {group.harvests.length <= 1 ? 'lot' : 'lots'}
+                            </p>
+                          </div>
 
-          {/* Quality Score Evolution Chart */}
-          <div>
-            <h4 className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider mb-4">Évolution Qualité (Score IA)</h4>
-            <div className="h-24 w-full flex items-end gap-2 px-2 border-b border-outline-variant/30">
-              <div className="flex-1 bg-primary/20 rounded-t-lg relative group h-[85%] cursor-pointer hover:bg-primary/30 transition-colors">
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">85%</div>
-              </div>
-              <div className="flex-1 bg-primary/30 rounded-t-lg relative group h-[88%] cursor-pointer hover:bg-primary/45 transition-colors">
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">88%</div>
-              </div>
-              <div className="flex-1 bg-primary/50 rounded-t-lg relative group h-[92%] cursor-pointer hover:bg-primary/70 transition-colors">
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">92%</div>
-              </div>
-              <div className="flex-1 bg-primary rounded-t-lg relative group h-[94%] cursor-pointer hover:bg-primary/90 transition-colors">
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary">94%</div>
-              </div>
-            </div>
-            <div className="flex justify-between mt-2 px-2 text-[10px] text-on-surface-variant font-bold">
-              <span>Fév</span>
-              <span>Mar</span>
-              <span>Avr</span>
-              <span>Mai</span>
-            </div>
-          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              EXPIRATION
+                            </p>
+                            <p className="text-xs font-bold text-red-600">
+                              {formatDateDisplay(group.earliestExpiration)}
+                            </p>
+                          </div>
+                        </div>
 
-          {/* Vertical Monthly Timeline */}
-          <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-0.5 before:bg-outline-variant/50 pt-2">
-            {/* Current Month */}
-            <div className="relative pl-10">
-              <div className="absolute left-0 top-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center z-10 border-4 border-white">
-                <span className="material-symbols-outlined text-white text-[16px]">calendar_today</span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <h4 className="font-bold text-on-surface text-xs">Mai 2024</h4>
-                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-bold rounded-full">Ce mois</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 bg-surface-container-low p-3 rounded-lg border border-primary/20 text-xs">
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Stock ajouté</p>
-                  <p className="font-bold text-primary">+450 kg</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Score moyen</p>
-                  <p className="font-bold text-primary">94%</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Prix moyen</p>
-                  <p className="font-bold text-primary">3,45CDF/kg</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Récoltes</p>
-                  <p className="font-bold text-primary">12</p>
-                </div>
-              </div>
+                        {/* Edit Pencil Icon */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(primaryBatch);
+                          }}
+                          aria-label="Modifier le lot"
+                          className="p-2 rounded-xl text-gray-400 hover:text-[#1a5c35] hover:bg-white border border-transparent hover:border-gray-200 cursor-pointer transition-all shrink-0"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+                      </div>
+                    ) : (
+                      /* Collapsed Subtitle Row */
+                      <div
+                        onClick={() => toggleMonth(group.monthKey)}
+                        className="flex items-center justify-between text-xs font-medium text-gray-500 cursor-pointer pt-1"
+                      >
+                        <span>
+                          {group.totalAdded} {unit} ajoutés
+                          {group.avgQuality !== null ? ` • Qualité ${group.avgQuality}%` : ''}
+                        </span>
+                        <span className="material-symbols-outlined text-base text-gray-400">
+                          chevron_right
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Previous Month */}
-            <div className="relative pl-10">
-              <div className="absolute left-0 top-1 w-8 h-8 bg-outline-variant rounded-full flex items-center justify-center z-10 border-4 border-white">
-                <span className="material-symbols-outlined text-on-surface-variant text-[16px]">history</span>
-              </div>
-              <h4 className="font-bold text-on-surface-variant text-xs mb-2">Avril 2024</h4>
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border border-outline-variant/40 opacity-70 text-xs">
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Stock ajouté</p>
-                  <p className="font-bold">+380 kg</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Score moyen</p>
-                  <p className="font-bold">92%</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Prix moyen</p>
-                  <p className="font-bold">3,20CDF/kg</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-on-surface-variant uppercase font-semibold">Récoltes</p>
-                  <p className="font-bold">10</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </section>
       </main>
+
+      {/* Floating Action Button (FAB) */}
+      {!isSheetOpen && !editingHarvest && (
+        <div className="fixed bottom-20 right-4 z-40 max-w-[480px]">
+          <button
+            type="button"
+            onClick={() => {
+              setSheetView('actions');
+              setIsSheetOpen(true);
+            }}
+            aria-label="Actions rapides"
+            className="w-14 h-14 bg-[#1a5c35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 focus:outline-none focus:ring-4 focus:ring-[#1a5c35]/30"
+          >
+            <span className="material-symbols-outlined text-3xl">add</span>
+          </button>
+        </div>
+      )}
+
+      {/* Action Bottom Sheet */}
+      {isSheetOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0"
+            onClick={() => setIsSheetOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="bg-white rounded-t-3xl max-w-[480px] w-full p-6 pb-12 space-y-5 relative z-10 shadow-2xl border-t border-gray-200 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-250">
+            {/* Handle drag bar */}
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto -mt-2 mb-2" />
+
+            {sheetView === 'actions' ? (
+              /* Actions Menu View */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Actions rapides</h3>
+                    <p className="text-xs text-gray-500">{productName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSheetOpen(false)}
+                    className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xl">close</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  {/* Action 1: Add new harvest */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSheetOpen(false);
+                      void navigate({
+                        to: '/farmer/harvests/analyze',
+                        search: { productId: product?.id || id },
+                      });
+                    }}
+                    className="w-full p-4 rounded-2xl border border-gray-200 hover:border-[#1a5c35] hover:bg-emerald-50/50 flex items-center gap-3.5 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-emerald-100 text-[#1a5c35] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <span className="material-symbols-outlined text-2xl">add_circle</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">Ajouter une nouvelle récolte</p>
+                      <p className="text-xs text-gray-500 truncate">Scanner et analyser un lot pour ce produit</p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400 text-xl group-hover:text-[#1a5c35]">
+                      chevron_right
+                    </span>
+                  </button>
+
+                  {/* Action 2: Create Auction */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (batches.length === 0) {
+                        addToast('Aucune récolte disponible pour ce produit.', 'warning');
+                        return;
+                      }
+                      setSheetView('select_harvest');
+                    }}
+                    className="w-full p-4 rounded-2xl border border-gray-200 hover:border-amber-600 hover:bg-amber-50/50 flex items-center gap-3.5 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <span className="material-symbols-outlined text-2xl">gavel</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">Créer une enchère</p>
+                      <p className="text-xs text-gray-500 truncate">Choisir un lot et lancer la vente aux enchères</p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400 text-xl group-hover:text-amber-800">
+                      chevron_right
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Select Harvest for Auction View */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSheetView('actions')}
+                      className="p-1 rounded-full text-gray-600 hover:bg-gray-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-xl">arrow_back</span>
+                    </button>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Sélectionner le lot</h3>
+                      <p className="text-xs text-gray-500">Choisir le lot à mettre aux enchères</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSheetOpen(false)}
+                    className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xl">close</span>
+                  </button>
+                </div>
+
+                {batches.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-500">
+                    Aucun lot de récolte trouvé pour ce produit.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[45vh] overflow-y-auto pr-1">
+                    {batches.map((b) => {
+                      const isSelected = selectedHarvestForAuction === b.id;
+                      const hasStock = Number(b.quantityInStock) > 0;
+                      const quality = b.qualityScore != null ? Number(b.qualityScore) : null;
+                      const normalizedQuality = quality !== null ? (quality <= 10 ? quality * 10 : quality) : null;
+
+                      return (
+                        <div
+                          key={b.id}
+                          onClick={() => {
+                            if (hasStock) {
+                              setSelectedHarvestForAuction(b.id);
+                            }
+                          }}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            !hasStock
+                              ? 'opacity-50 border-gray-200 bg-gray-50 cursor-not-allowed'
+                              : isSelected
+                              ? 'border-[#1a5c35] bg-emerald-50/50 shadow-xs ring-1 ring-[#1a5c35]'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                isSelected
+                                  ? 'border-[#1a5c35] bg-[#1a5c35] text-white'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && (
+                                <span className="material-symbols-outlined text-xs">check</span>
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="text-xs font-bold text-gray-900">
+                                Récolte du {formatDateDisplay(b.harvestDate)}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
+                                <span className="font-semibold text-gray-700">
+                                  {b.quantityInStock} {b.unit || unit} dispo
+                                </span>
+                                {normalizedQuality !== null && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-emerald-700 font-semibold">
+                                      ★ {normalizedQuality}% Qualité
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <span
+                              className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                !hasStock
+                                  ? 'bg-gray-100 text-gray-500'
+                                  : b.status === 'APPROVED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : b.status === 'FLAGGED_PHYSICAL'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-amber-50 text-amber-700'
+                              }`}
+                            >
+                              {!hasStock ? 'ÉPUISÉ' : b.status === 'APPROVED' ? 'APPROUVÉ' : 'EN ATTENTE'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleProceedToAuction}
+                    disabled={!selectedHarvestForAuction}
+                    className="w-full py-3.5 bg-[#1a5c35] hover:bg-[#144a2a] disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 transition-all text-sm"
+                  >
+                    <span>Lancer l'enchère</span>
+                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Harvest Modal */}
+      {editingHarvest && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900">Modifier le lot récolté</h3>
+              <button
+                type="button"
+                onClick={() => setEditingHarvest(null)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Prix unitaire (CDF / {editingHarvest.unit || 'kg'})
+                </label>
+                <input
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="ex: 2400"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Marge de sécurité stock ({editingHarvest.unit || 'kg'})
+                </label>
+                <input
+                  type="number"
+                  value={editMarge}
+                  onChange={(e) => setEditMarge(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="ex: 50"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Méthodes de culture
+                </label>
+                <input
+                  type="text"
+                  value={editMethods}
+                  onChange={(e) => setEditMethods(e.target.value)}
+                  placeholder="ex: Culture biologique sous serre"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingHarvest(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 font-bold text-gray-700 rounded-xl cursor-pointer text-xs"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isUpdating}
+                className="flex-1 py-2.5 bg-[#1a5c35] hover:bg-[#144a2a] text-white font-bold rounded-xl cursor-pointer text-xs disabled:opacity-50 shadow-xs"
+              >
+                {isUpdating ? 'Sauvegarde...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

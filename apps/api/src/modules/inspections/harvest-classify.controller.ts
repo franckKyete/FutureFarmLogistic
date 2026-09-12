@@ -11,7 +11,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Permission } from '@futurefarm/types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { RequireAnyPermissions } from '../../common/decorators/require-permissions.decorator';
 
 import { InspectionsService } from './inspections.service';
 import { AiClassifyHarvestDtoClass } from './dto/ai-classify-harvest.dto';
@@ -24,7 +24,11 @@ export class HarvestClassifyController {
   constructor(private readonly inspectionsService: InspectionsService) {}
 
   @Post('ai-classify')
-  @RequirePermissions(Permission.HARVEST_CREATE)
+  @RequireAnyPermissions(
+    Permission.HARVEST_CREATE,
+    Permission.FARMER_PROXY_HARVEST_MANAGE,
+    Permission.INSPECTION_CREATE,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Classify crop type and pre-fill details from photos',

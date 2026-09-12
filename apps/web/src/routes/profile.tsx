@@ -1,10 +1,11 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { changePasswordMutation } from '@/features/auth/api/auth.queries';
 import { useUser, useUpdateUser } from '@/features/admin/api/users.queries';
+import { useMyCenter, useMyCenters } from '@/features/admin/api/inspections.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { Button } from '@/features/admin/components';
 
@@ -30,6 +31,8 @@ function UnifiedProfilePage() {
   const queryClient = useQueryClient();
 
   const { data: userDetails, refetch: refetchUser } = useUser(user?.id || '');
+  const { data: myCenter } = useMyCenter();
+  const { data: myCenters = [] } = useMyCenters();
   const updateUser = useUpdateUser();
 
   // Form states
@@ -44,6 +47,7 @@ function UnifiedProfilePage() {
     licenseCategory: 'B',
     agencyName: '',
     companyName: '',
+    regionName: '',
     address: '',
     bio: '',
     vatNumber: '',
@@ -92,6 +96,7 @@ function UnifiedProfilePage() {
         licenseCategory: prof.licenseCategory || 'B',
         agencyName: prof.agencyName || '',
         companyName: prof.companyName || '',
+        regionName: prof.regionName || '',
         address: prof.address || '',
         bio: prof.bio || '',
         vatNumber: prof.vatNumber || '',
@@ -116,6 +121,7 @@ function UnifiedProfilePage() {
         licenseCategory: formData.licenseCategory || undefined,
         agencyName: formData.agencyName || undefined,
         companyName: formData.companyName || undefined,
+        regionName: formData.regionName || undefined,
         address: formData.address || undefined,
         bio: formData.bio || undefined,
         vatNumber: formData.vatNumber || undefined,
@@ -339,7 +345,7 @@ function UnifiedProfilePage() {
               )}
 
               {primaryRole === 'Inspector' && (
-                <div className="pt-4 border-t border-gray-100 space-y-4">
+                <div className="pt-4 border-t border-gray-100 space-y-5">
                   <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#004322]">verified_user</span>
                     Informations Inspecteur
@@ -366,6 +372,86 @@ function UnifiedProfilePage() {
                       />
                     </div>
                   </div>
+
+                  {/* Assigned Inspection Centers Card */}
+                  <div className="bg-[#f8f9ff] border border-gray-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#004322] text-xl">corporate_fare</span>
+                        <h4 className="text-xs font-bold text-gray-900">Stations d'Inspection Assignées</h4>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-[#004322] px-2 py-0.5 rounded-full">
+                        {myCenters.length > 0 ? `${myCenters.length} station(s) active(s)` : myCenter ? 'Active' : 'Aucune'}
+                      </span>
+                    </div>
+
+                    {myCenters.length > 0 ? (
+                      <div className="space-y-2 text-xs">
+                        {myCenters.map((center) => (
+                          <div
+                            key={center.id}
+                            className="bg-white border border-gray-200/80 rounded-xl p-3 space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between text-gray-800">
+                              <span className="font-bold">{center.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-[10px] bg-gray-100 px-2 py-0.5 rounded text-[#004322] font-bold">
+                                  {center.code}
+                                </span>
+                                <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  {center.regionName}
+                                </span>
+                              </div>
+                            </div>
+                            {center.address && (
+                              <p className="text-gray-500 text-[11px] flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">location_on</span>
+                                {center.address}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t border-gray-200/60 flex justify-end">
+                          <Link
+                            to="/inspector/my-center"
+                            className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1"
+                          >
+                            Voir les détails de la station →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : myCenter ? (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-gray-700">
+                          <span className="font-semibold">{myCenter.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-[#004322] font-bold">
+                              {myCenter.code}
+                            </span>
+                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                              {myCenter.regionName}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-gray-500 text-[11px] flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">location_on</span>
+                          {myCenter.address}
+                        </p>
+                        <div className="pt-2 border-t border-gray-200/60 flex justify-end">
+                          <Link
+                            to="/inspector/my-center"
+                            className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1"
+                          >
+                            Voir les détails de la station →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">
+                        Aucun centre d'inspection assigné pour le moment.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -383,6 +469,16 @@ function UnifiedProfilePage() {
                         value={formData.companyName}
                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                         placeholder="Non renseigné"
+                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Région d'activité</label>
+                      <input
+                        type="text"
+                        value={formData.regionName}
+                        onChange={(e) => setFormData({ ...formData, regionName: e.target.value })}
+                        placeholder="Ex: Dakar, Thiès..."
                         className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
                       />
                     </div>

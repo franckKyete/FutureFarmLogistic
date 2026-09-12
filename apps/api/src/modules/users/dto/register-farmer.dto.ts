@@ -36,6 +36,10 @@ export class RegisterFarmerDto {
   @IsString()
   address: string;
 
+  @IsNotEmpty({ message: 'La région d\'activité est obligatoire' })
+  @IsString()
+  regionName: string;
+
   @IsOptional()
   @IsString()
   bio?: string;

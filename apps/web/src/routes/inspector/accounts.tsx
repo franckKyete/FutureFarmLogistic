@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useState, useEffect, useMemo } from 'react';
 import { useProducers } from '../../features/inspector/api/accounts.queries';
+import { useMyCenter, useMyCenters } from '@/features/admin/api/inspections.queries';
 import { CreateProducerModal } from '../../features/inspector/components/CreateProducerModal';
 import type { ProducerDto, ProducerFilter } from '../../features/inspector/types';
 
@@ -63,10 +64,18 @@ function SkeletonCard() {
 }
 
 function AccountsPage() {
+  const navigate = useNavigate();
+  const { data: myCenter } = useMyCenter();
+  const { data: myCenters = [] } = useMyCenters();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [regionFilter, setRegionFilter] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const availableRegions = useMemo(() => {
+    return Array.from(new Set(myCenters.map((c) => c.regionName).filter(Boolean)));
+  }, [myCenters]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -77,6 +86,7 @@ function AccountsPage() {
 
   const filter: ProducerFilter = { role: 'farmer', page: 1, limit: 50 };
   if (statusFilter) filter.status = statusFilter;
+  if (regionFilter) filter.regionName = regionFilter;
   if (debouncedSearch) filter.search = debouncedSearch;
 
   const {
@@ -86,12 +96,31 @@ function AccountsPage() {
     refetch,
   } = useProducers(filter);
 
+  const centerDisplay = myCenters.length > 0
+    ? myCenters.map((c) => `${c.code} (${c.regionName})`).join(' • ')
+    : myCenter
+      ? `${myCenter.code} • ${myCenter.regionName}`
+      : null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white px-4 py-4 border-b border-gray-100 sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-3xl text-[#1a5c35]">search</span>
-          <h1 className="text-xl font-bold text-[#1a5c35]">Gestion des comptes</h1>
+    <div className="min-h-screen bg-[#f8f9ff] font-sans pb-28">
+      <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-30 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div>
+            {centerDisplay && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a5c35] block mb-0.5">
+                {centerDisplay}
+              </span>
+            )}
+            <h1 className="text-lg font-bold text-[#0b1c30]">Producteurs de la juridiction</h1>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">person_add</span>
+            <span>Enrôler</span>
+          </button>
         </div>
       </div>
 
@@ -109,6 +138,35 @@ function AccountsPage() {
           />
         </div>
       </div>
+
+      {availableRegions.length > 1 && (
+        <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none border-b border-gray-100 bg-white/70">
+          <span className="text-xs font-medium text-gray-500 shrink-0">Régions :</span>
+          <button
+            onClick={() => setRegionFilter('')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              !regionFilter
+                ? 'bg-[#1a5c35] text-white shadow-2xs'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Toutes ({availableRegions.length})
+          </button>
+          {availableRegions.map((reg) => (
+            <button
+              key={reg}
+              onClick={() => setRegionFilter(reg)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                regionFilter === reg
+                  ? 'bg-[#1a5c35] text-white shadow-2xs'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {reg}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none">
         {STATUS_CHIPS.map((chip) => {
@@ -165,7 +223,7 @@ function AccountsPage() {
             return (
               <div
                 key={producer.id}
-                className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+                className="bg-white rounded-2xl p-4 shadow-2xs border border-gray-200 hover:border-emerald-300 transition-all space-y-3"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -180,17 +238,44 @@ function AccountsPage() {
                         {producer.firstName} {producer.lastName}
                       </span>
                       {producer.farmName && (
-                        <span className="text-sm text-gray-400 font-medium">· {producer.farmName}</span>
+                        <span className="text-xs text-gray-400 font-medium">· {producer.farmName}</span>
+                      )}
+                      {producer.regionName && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-[#1a5c35] border border-emerald-200">
+                          {producer.regionName}
+                        </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 truncate mt-0.5">{producer.email}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{producer.email}</p>
+                    {producer.phone && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">{producer.phone}</p>
+                    )}
                   </div>
 
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${statusConfig.className}`}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${statusConfig.className}`}
                   >
                     {statusConfig.label}
                   </span>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                    <span className="material-symbols-outlined text-xs text-gray-400">location_on</span>
+                    <span>{producer.regionName ? `Région : ${producer.regionName}` : 'Exploitation agricole'}</span>
+                  </div>
+                  <button
+                    onClick={() =>
+                      void navigate({
+                        to: '/inspector/proxy' as any,
+                        search: { farmerId: producer.id } as any,
+                      })
+                    }
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#1a5c35] border border-emerald-200 rounded-xl text-xs font-bold hover:bg-[#1a5c35] hover:text-white transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">add_photo_alternate</span>
+                    <span>Inspecter</span>
+                  </button>
                 </div>
               </div>
             );

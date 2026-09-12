@@ -18,7 +18,10 @@ export const Route = createFileRoute('/inspector')({
 
 function InspectorLayout() {
   const location = useLocation();
-  const hideBottomNav = location.pathname.startsWith('/inspector/harvests/analyze');
+  const hideBottomNav =
+    location.pathname.startsWith('/inspector/reports/') ||
+    location.pathname.startsWith('/inspector/harvests/analyze') ||
+    location.pathname.startsWith('/inspector/harvests/new');
 
   return (
     <div className={`min-h-screen bg-gray-50 ${!hideBottomNav ? 'pb-16' : ''}`}>

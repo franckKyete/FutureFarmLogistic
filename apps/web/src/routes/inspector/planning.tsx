@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useVisits } from '../../features/inspector/api/visits.queries';
 import { PlanVisitModal } from '../../features/inspector/components/PlanVisitModal';
@@ -226,32 +226,52 @@ function CalendarView({
 }
 
 function VisitCard({ visit }: { visit: VisitDto }) {
+  const navigate = useNavigate();
   const timeLabel = visit.plannedTime ?? 'Toute la journée';
   const reasonLabel = REASON_LABELS[visit.reason] ?? visit.reason;
   const reasonStyle = REASON_STYLES[visit.reason] ?? 'bg-gray-100 text-gray-700';
   const statusLabel = STATUS_LABELS[visit.status] ?? visit.status;
   const statusStyle = STATUS_STYLES[visit.status] ?? 'bg-gray-100 text-gray-500 border-gray-200';
 
+  const handleClick = () => {
+    if (visit.harvestId) {
+      void navigate({ to: '/inspector/reports/$id', params: { id: visit.harvestId } });
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-start gap-4">
-      <div className="shrink-0 w-16 text-center">
-        <span className="inline-block text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 leading-tight">
-          {timeLabel}
-        </span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-900 mb-2 truncate">
-          {visit.producerName ?? 'Producteur'}
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${reasonStyle}`}>
-            {reasonLabel}
-          </span>
-          <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
-            {statusLabel}
+    <div
+      onClick={handleClick}
+      className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-4 transition-all ${
+        visit.harvestId ? 'cursor-pointer hover:border-emerald-300 hover:shadow-md group' : ''
+      }`}
+    >
+      <div className="flex items-start gap-4 min-w-0 flex-1">
+        <div className="shrink-0 w-16 text-center">
+          <span className="inline-block text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 leading-tight">
+            {timeLabel}
           </span>
         </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900 mb-2 truncate group-hover:text-[#1a5c35]">
+            {visit.producerName ?? 'Producteur'}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${reasonStyle}`}>
+              {reasonLabel}
+            </span>
+            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+              {statusLabel}
+            </span>
+          </div>
+        </div>
       </div>
+
+      {visit.harvestId && (
+        <span className="material-symbols-outlined text-gray-400 group-hover:text-[#1a5c35] group-hover:translate-x-0.5 transition-all text-xl shrink-0">
+          chevron_right
+        </span>
+      )}
     </div>
   );
 }
@@ -360,7 +380,10 @@ function PlanningPage() {
       return {
         day,
         dateStr,
-        hasVisit: visits?.some((v) => v.plannedDate === dateStr) ?? false,
+        hasVisit:
+          visits?.some((v) =>
+            v.plannedDate ? v.plannedDate.split('T')[0] === dateStr : false,
+          ) ?? false,
       };
     });
   }, [year, month, visits]);
@@ -374,9 +397,11 @@ function PlanningPage() {
     const map = new Map<string, VisitDto[]>();
 
     for (const v of visits) {
-      const existing = map.get(v.plannedDate);
+      const dateKey = v.plannedDate ? v.plannedDate.split('T')[0] : '';
+      if (!dateKey) continue;
+      const existing = map.get(dateKey);
       if (existing) existing.push(v);
-      else map.set(v.plannedDate, [v]);
+      else map.set(dateKey, [v]);
     }
 
     return Array.from(map.entries())

@@ -4,6 +4,8 @@ import {
   IsString,
   IsNumber,
   IsBoolean,
+  IsArray,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 
@@ -18,7 +20,7 @@ export class CreateInspectionCenterDto {
   @MaxLength(50)
   code: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'La région d\'opération est obligatoire' })
   @IsString()
   @MaxLength(255)
   regionName: string;
@@ -34,6 +36,11 @@ export class CreateInspectionCenterDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  inspectorProfileIds?: string[];
 }
 
 export class UpdateInspectionCenterDto {
@@ -67,6 +74,11 @@ export class UpdateInspectionCenterDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  inspectorProfileIds?: string[];
 }
 
 export class AssignInspectorDto {

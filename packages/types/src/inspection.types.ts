@@ -23,7 +23,7 @@ export interface ChecklistDetail {
   notes: string;
 }
 
-export type InspectionChecklist = Record<InspectionChecklistItem, ChecklistDetail>;
+export type InspectionChecklist = Partial<Record<InspectionChecklistItem, ChecklistDetail>>;
 
 export interface InspectionPhotoDto {
   id: string;
@@ -42,13 +42,30 @@ export interface CreateInspectionPhotoDto {
   longitude?: number | null;
 }
 
+export interface AssignedCenterDto {
+  id: string;
+  name: string;
+  code: string;
+  regionName: string;
+  address: string;
+}
+
 export interface InspectorProfileDto {
   id: string;
   userId: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string | null;
+  };
   licenseNumber: string;
   agencyName: string;
   specializations: string[];
   isActiveInspector: boolean;
+  assignedCenters?: AssignedCenterDto[];
+  assignedCenterIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

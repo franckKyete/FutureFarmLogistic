@@ -23,22 +23,30 @@ import { InspectionCentersService } from './inspection-centers.service';
 import { CreateInspectionCenterDto, UpdateInspectionCenterDto, AssignInspectorDto } from './dto/inspection-center.dto';
 
 @ApiTags('Inspection Centers')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('inspection-centers')
 export class InspectionCentersController {
   constructor(private readonly centersService: InspectionCentersService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_CREATE)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Admin: Create a new inspection center' })
   createCenter(@Body() dto: CreateInspectionCenterDto) {
     return this.centersService.createCenter(dto);
   }
 
+  @Get('regions')
+  @ApiOperation({ summary: 'Public: List distinct active regions available for farmer registration' })
+  getActiveRegions() {
+    return this.centersService.getActiveRegions();
+  }
+
   @Get()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'List all active/inactive inspection centers' })
   listCenters(
     @Query('regionName') regionName?: string,
@@ -55,28 +63,45 @@ export class InspectionCentersController {
   }
 
   @Get('my-center')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Inspector: Get own currently assigned inspection center' })
   getMyCenter(@CurrentUser() user: AuthUser) {
     return this.centersService.getAssignedCenter(user.id);
   }
 
-  @Get(':id')
+  @Get('my-centers')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Inspector: Get all currently assigned inspection centers' })
+  getMyCenters(@CurrentUser() user: AuthUser) {
+    return this.centersService.getAssignedCenters(user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get details of an inspection center' })
   getCenter(@Param('id') id: string) {
     return this.centersService.getCenter(id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_UPDATE)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Update inspection center details' })
   updateCenter(@Param('id') id: string, @Body() dto: UpdateInspectionCenterDto) {
     return this.centersService.updateCenter(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_DELETE)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Admin: Soft-delete/deactivate an inspection center' })
   deactivateCenter(@Param('id') id: string) {
@@ -84,7 +109,9 @@ export class InspectionCentersController {
   }
 
   @Post(':id/assign')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_ASSIGN)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Admin/Dispatcher: Assign an inspector to an inspection center' })
   assignInspector(
@@ -94,8 +121,23 @@ export class InspectionCentersController {
     return this.centersService.assignInspector(id, dto.inspectorProfileId);
   }
 
+  @Delete(':id/inspectors/:inspectorProfileId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.INSPECTION_CENTER_ASSIGN)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Admin: Unassign an inspector from an inspection center' })
+  unassignInspector(
+    @Param('id') id: string,
+    @Param('inspectorProfileId') inspectorProfileId: string,
+  ) {
+    return this.centersService.unassignInspector(id, inspectorProfileId);
+  }
+
   @Get(':id/inspectors')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'List all currently assigned inspectors at a center' })
   listInspectors(@Param('id') id: string) {
     return this.centersService.listInspectorsForCenter(id);

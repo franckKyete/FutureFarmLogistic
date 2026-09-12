@@ -50,7 +50,6 @@ import { Route as AdminTransactionsRouteImport } from './routes/admin/transactio
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
 import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
 import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
-import { Route as AdminInspectionCentersRouteImport } from './routes/admin/inspection-centers'
 import { Route as AdminHarvestsRouteImport } from './routes/admin/harvests'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
@@ -59,6 +58,7 @@ import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
 import { Route as DriverRunsIndexRouteImport } from './routes/driver/runs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminInspectionCentersIndexRouteImport } from './routes/admin/inspection-centers/index'
 import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
 import { Route as InspectorReportsIdRouteImport } from './routes/inspector/reports/$id'
 import { Route as InspectorHarvestsNewRouteImport } from './routes/inspector/harvests/new'
@@ -72,6 +72,7 @@ import { Route as FarmerAuctionsBidsRouteImport } from './routes/farmer/auctions
 import { Route as DriverRunsIdRouteImport } from './routes/driver/runs/$id'
 import { Route as AuctionsIdAutoBidRouteImport } from './routes/auctions/$id/auto-bid'
 import { Route as AdminUsersNewRouteImport } from './routes/admin/users/new'
+import { Route as AdminInspectionCentersNewRouteImport } from './routes/admin/inspection-centers/new'
 import { Route as FarmerAuctionsIdBiddersRouteImport } from './routes/farmer/auctions/$id.bidders'
 
 const ProfileRoute = ProfileRouteImport.update({
@@ -279,11 +280,6 @@ const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
   path: '/inspections',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminInspectionCentersRoute = AdminInspectionCentersRouteImport.update({
-  id: '/inspection-centers',
-  path: '/inspection-centers',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminHarvestsRoute = AdminHarvestsRouteImport.update({
   id: '/harvests',
   path: '/harvests',
@@ -324,6 +320,12 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminInspectionCentersIndexRoute =
+  AdminInspectionCentersIndexRouteImport.update({
+    id: '/inspection-centers/',
+    path: '/inspection-centers/',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const OrdersIdTrackingRoute = OrdersIdTrackingRouteImport.update({
   id: '/tracking',
   path: '/tracking',
@@ -390,6 +392,12 @@ const AdminUsersNewRoute = AdminUsersNewRouteImport.update({
   path: '/users/new',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminInspectionCentersNewRoute =
+  AdminInspectionCentersNewRouteImport.update({
+    id: '/inspection-centers/new',
+    path: '/inspection-centers/new',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const FarmerAuctionsIdBiddersRoute = FarmerAuctionsIdBiddersRouteImport.update({
   id: '/auctions/$id/bidders',
   path: '/auctions/$id/bidders',
@@ -413,7 +421,6 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -457,6 +465,7 @@ export interface FileRoutesByFullPath {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers/': typeof AdminInspectionCentersIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
@@ -477,7 +486,6 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -508,6 +516,7 @@ export interface FileRoutesByTo {
   '/auctions': typeof AuctionsIndexRoute
   '/inspector': typeof InspectorIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -521,6 +530,7 @@ export interface FileRoutesByTo {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers': typeof AdminInspectionCentersIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/driver/runs': typeof DriverRunsIndexRoute
   '/farmer/auctions': typeof FarmerAuctionsIndexRoute
@@ -544,7 +554,6 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -575,6 +584,7 @@ export interface FileRoutesById {
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -588,6 +598,7 @@ export interface FileRoutesById {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers/': typeof AdminInspectionCentersIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
@@ -612,7 +623,6 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/disputes'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -643,6 +653,7 @@ export interface FileRouteTypes {
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/inspection-centers/new'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -656,6 +667,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
@@ -676,7 +688,6 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/disputes'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -707,6 +718,7 @@ export interface FileRouteTypes {
     | '/auctions'
     | '/inspector'
     | '/orders'
+    | '/admin/inspection-centers/new'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -720,6 +732,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers'
     | '/admin/users'
     | '/driver/runs'
     | '/farmer/auctions'
@@ -742,7 +755,6 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/disputes'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -773,6 +785,7 @@ export interface FileRouteTypes {
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/inspection-centers/new'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -786,6 +799,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
@@ -1104,13 +1118,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminInspectionsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/inspection-centers': {
-      id: '/admin/inspection-centers'
-      path: '/inspection-centers'
-      fullPath: '/admin/inspection-centers'
-      preLoaderRoute: typeof AdminInspectionCentersRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/harvests': {
       id: '/admin/harvests'
       path: '/harvests'
@@ -1165,6 +1172,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/admin/users/'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inspection-centers/': {
+      id: '/admin/inspection-centers/'
+      path: '/inspection-centers'
+      fullPath: '/admin/inspection-centers/'
+      preLoaderRoute: typeof AdminInspectionCentersIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/orders/$id/tracking': {
@@ -1258,6 +1272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersNewRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/inspection-centers/new': {
+      id: '/admin/inspection-centers/new'
+      path: '/inspection-centers/new'
+      fullPath: '/admin/inspection-centers/new'
+      preLoaderRoute: typeof AdminInspectionCentersNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/farmer/auctions/$id/bidders': {
       id: '/farmer/auctions/$id/bidders'
       path: '/auctions/$id/bidders'
@@ -1274,12 +1295,13 @@ interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDisputesRoute: typeof AdminDisputesRoute
   AdminHarvestsRoute: typeof AdminHarvestsRoute
-  AdminInspectionCentersRoute: typeof AdminInspectionCentersRoute
   AdminInspectionsRoute: typeof AdminInspectionsRoute
   AdminLogisticsRoute: typeof AdminLogisticsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
+  AdminInspectionCentersNewRoute: typeof AdminInspectionCentersNewRoute
   AdminUsersNewRoute: typeof AdminUsersNewRoute
+  AdminInspectionCentersIndexRoute: typeof AdminInspectionCentersIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
@@ -1289,12 +1311,13 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDisputesRoute: AdminDisputesRoute,
   AdminHarvestsRoute: AdminHarvestsRoute,
-  AdminInspectionCentersRoute: AdminInspectionCentersRoute,
   AdminInspectionsRoute: AdminInspectionsRoute,
   AdminLogisticsRoute: AdminLogisticsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
+  AdminInspectionCentersNewRoute: AdminInspectionCentersNewRoute,
   AdminUsersNewRoute: AdminUsersNewRoute,
+  AdminInspectionCentersIndexRoute: AdminInspectionCentersIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
 

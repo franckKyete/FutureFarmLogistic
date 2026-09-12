@@ -704,46 +704,39 @@ export function HarvestFormView({
             </p>
           )}
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-[#404941] block">Méthodes de culture</label>
-            <input
-              value={farmingMethods}
-              onChange={(e) => setFarmingMethods(e.target.value)}
-              className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
-              placeholder="Ex: Culture sous serre, sans pesticide chimique..."
-            />
-          </div>
         </section>
 
-        {/* Section 4: Assistant IA Textuel (optionnel) */}
-        <section className="bg-emerald-50/50 border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#004322]">smart_toy</span>
-            <h2 className="text-sm font-bold text-[#004322]">Assistant IA (Optionnel)</h2>
-          </div>
-          <p className="text-[11px] text-[#707970]">
-            Décrivez votre lot en quelques mots pour générer automatiquement les paramètres.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              className="flex-1 bg-white border border-[#c0c9be] rounded-lg p-2 text-xs outline-none focus:border-[#004322]"
-              placeholder="Ex: 300kg de bananes plantains bio récoltées hier..."
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (!aiPrompt.trim()) return;
-                aiSuggest.mutate(aiPrompt.trim());
-              }}
-              disabled={aiSuggest.isPending || !aiPrompt.trim()}
-              className="bg-[#004322] text-white px-3 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
-            >
-              {aiSuggest.isPending ? 'Analyse...' : 'Suggérer'}
-            </button>
-          </div>
-        </section>
+        {/* Section 4: Assistant IA Textuel (optionnel - Producteur uniquement) */}
+        {!isProxy && (
+          <section className="bg-emerald-50/50 border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#004322]">smart_toy</span>
+              <h2 className="text-sm font-bold text-[#004322]">Assistant IA (Optionnel)</h2>
+            </div>
+            <p className="text-[11px] text-[#707970]">
+              Décrivez votre lot en quelques mots pour générer automatiquement les paramètres.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                className="flex-1 bg-white border border-[#c0c9be] rounded-lg p-2 text-xs outline-none focus:border-[#004322]"
+                placeholder="Ex: 300kg de bananes plantains bio récoltées hier..."
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!aiPrompt.trim()) return;
+                  aiSuggest.mutate(aiPrompt.trim());
+                }}
+                disabled={aiSuggest.isPending || !aiPrompt.trim()}
+                className="bg-[#004322] text-white px-3 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
+              >
+                {aiSuggest.isPending ? 'Analyse...' : 'Suggérer'}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Submit Actions */}
         <div className="pt-2 space-y-2">
