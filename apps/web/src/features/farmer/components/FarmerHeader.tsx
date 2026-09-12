@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getFarmerProfileQuery } from '@/features/profile/api/profile.queries';
 import { farmerLayoutStore } from '../store/farmer-layout.store';
 import { useStore } from '@tanstack/react-store';
+import { useOfflineSyncState } from '@/features/harvests/offline';
 import type { ReactNode } from 'react';
 
 export function FarmerHeader() {
@@ -12,6 +13,7 @@ export function FarmerHeader() {
   const { user } = useAuth();
   const { data: profile } = useQuery(getFarmerProfileQuery());
   const override = useStore(farmerLayoutStore);
+  const { isOnline, pendingCount, isSyncing, readyForReviewCount } = useOfflineSyncState();
 
   const pathname = location.pathname;
 
@@ -63,12 +65,32 @@ export function FarmerHeader() {
               </p>
             </div>
           </div>
-          <Link
-            to="/notifications"
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            {!isOnline && (
+              <span className="flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full" title="Mode hors-ligne actif">
+                <span className="material-symbols-outlined text-[12px]">cloud_off</span>
+                Hors-ligne
+              </span>
+            )}
+            {readyForReviewCount > 0 && (
+              <span className="flex items-center gap-1 bg-[#eff4ff] text-[#004322] border border-[#004322]/30 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse" title={`${readyForReviewCount} récolte(s) prête(s) à réviser`}>
+                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                {readyForReviewCount}
+              </span>
+            )}
+            {isOnline && pendingCount > 0 && (
+              <span className="flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full" title={`${pendingCount} récolte(s) en attente de synchronisation`}>
+                <span className={`material-symbols-outlined text-[12px] ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                {pendingCount}
+              </span>
+            )}
+            <Link
+              to="/notifications"
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface"
+            >
+              <span className="material-symbols-outlined">notifications</span>
+            </Link>
+          </div>
         </div>
       </header>
     );

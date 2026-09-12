@@ -1,1047 +1,538 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { useProducers } from '@/features/inspector/api/accounts.queries';
-import { useCamera } from '@/hooks/useCamera';
-import {
-  aiClassifyHarvestMutation,
-  mediaUploadMutation,
-} from '@/features/harvests/api/harvests.queries';
-import { CreateProducerModal } from '@/features/inspector/components/CreateProducerModal';
-import {
-  HarvestUnit,
-  InspectionChecklistItem,
-  InspectionChecklist,
-} from '@futurefarm/types';
 import { addToast } from '@/features/shared/store/toast.store';
+import { requireAuth } from '@/features/auth/utils/auth-guard';
+import { requireRole } from '@/features/auth/utils/role-guard';
+import { Permission } from '@futurefarm/types';
+import { useProducers } from '@/features/inspector/api/accounts.queries';
+import { useOfflineSyncState } from '@/features/harvests/offline';
 
-export const Route = createFileRoute('/inspector/proxy')({
-  component: InspectorProactiveInspectionPage,
-});
-
-interface ProductTemplate {
-  id: string;
-  name: string;
-  category: string;
+export interface InspectorProxySearchParams {
+  tab?: 'register' | 'harvest' | undefined;
 }
 
-const DEFAULT_CHECKLIST: InspectionChecklist = {
-  [InspectionChecklistItem.VISUAL_QUALITY]: {
-    passed: true,
-    notes: 'Aspect visuel conforme et frais',
+export const Route = createFileRoute('/inspector/proxy')({
+  validateSearch: (search: Record<string, unknown>): InspectorProxySearchParams => {
+    const result: InspectorProxySearchParams = {
+      tab: (search.tab as 'register' | 'harvest') || 'register',
+    };
+    return result;
   },
-  [InspectionChecklistItem.MICROBIAL_COUNT]: {
-    passed: true,
-    notes: 'Aucune trace de moisissure ou contamination',
+  beforeLoad: () => {
+    requireAuth(
+      [Permission.FARMER_PROXY_HARVEST_MANAGE, Permission.INSPECTION_CREATE, Permission.INSPECTION_READ],
+      'any',
+    );
+    requireRole(['Inspector']);
   },
-  [InspectionChecklistItem.WEIGHT_CALIBRATION]: {
-    passed: true,
-    notes: 'Poids et calibre conformes aux spécifications',
-  },
-  [InspectionChecklistItem.PACKAGING]: {
-    passed: true,
-    notes: 'Conditionnement adapté au transport',
-  },
-};
+  component: InspectorProxyPage,
+});
 
-const CHECKLIST_LABELS: Record<
-  Exclude<InspectionChecklistItem, InspectionChecklistItem.LABELING>,
-  { title: string; subtitle: string; icon: string }
-> = {
-  [InspectionChecklistItem.VISUAL_QUALITY]: {
-    title: 'Qualité visuelle & Fraîcheur',
-    subtitle: 'Couleur, maturité, absence de flétrissement',
-    icon: 'visibility',
-  },
-  [InspectionChecklistItem.MICROBIAL_COUNT]: {
-    title: 'Conformité sanitaire',
-    subtitle: 'Absence de pourriture, parasites ou champignons',
-    icon: 'health_and_safety',
-  },
-  [InspectionChecklistItem.WEIGHT_CALIBRATION]: {
-    title: 'Calibrage & Pesée',
-    subtitle: 'Homogénéité de taille et poids conforme',
-    icon: 'scale',
-  },
-  [InspectionChecklistItem.PACKAGING]: {
-    title: 'Conditionnement',
-    subtitle: 'Caisses ou sacs propres et aérés',
-    icon: 'inventory_2',
-  },
-};
-
-function InspectorProactiveInspectionPage() {
+function InspectorProxyPage() {
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isOnline, tempDrafts } = useOfflineSyncState();
 
-  // Wizard Step: 1 = Choose Farmer, 2 = AI Camera Analysis, 3 = Audit & Certification Form
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [activeTab, setActiveTab] = useState<'register' | 'harvest'>(search.tab || 'register');
 
-  // Step 1: Farmer Selection
-  const [farmerSearch, setFarmerSearch] = useState('');
+  // Tab 1: Register Farmer state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [address, setAddress] = useState('');
+  const [bio, setBio] = useState('');
+  const [createdTempPassword, setCreatedTempPassword] = useState<string | null>(null);
+
+  // Tab 2: Producer Selection state
+  const { data: producers = [], isLoading: isLoadingProducers } = useProducers({ role: 'Farmer' });
   const [selectedFarmerId, setSelectedFarmerId] = useState('');
-  const [showCreateFarmerModal, setShowCreateFarmerModal] = useState(false);
+  const [farmerSearchQuery, setFarmerSearchQuery] = useState('');
 
-  const farmerFilter = { role: 'farmer' as const, ...(farmerSearch ? { search: farmerSearch } : {}) };
-  const { data: producers = [], isLoading: producersLoading } = useProducers(farmerFilter);
+  // Filter proxy drafts
+  const proxyDraftsReadyForReview = tempDrafts.filter(
+    (d) => d.isProxy && d.status === 'ANALYZED_READY_FOR_REVIEW',
+  );
+  const proxyDraftsPendingAnalysis = tempDrafts.filter(
+    (d) => d.isProxy && (d.status === 'PENDING_AI_ANALYSIS' || d.status === 'ANALYZING'),
+  );
 
-  const selectedFarmer = producers.find((p) => p.id === selectedFarmerId);
-
-  // Step 2: Camera & AI Vision Classification
-  const [images, setImages] = useState<string[]>([]);
-  const [additionalNotes, setAdditionalNotes] = useState('');
-  const [classifiedData, setClassifiedData] = useState<any | null>(null);
-
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
-  const { videoRef, isActive, capture } = useCamera();
-
-  // Step 3: Audit Form & Certification
-  const { data: products = [] } = useQuery<ProductTemplate[]>({
-    queryKey: ['products', 'templates'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<{ data: ProductTemplate[] }>('/products');
-      return data.data || [];
-    },
+  // Filter producers by search query
+  const filteredProducers = producers.filter((p) => {
+    const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+    const email = (p.email || '').toLowerCase();
+    const farm = (p.farmName || '').toLowerCase();
+    const query = farmerSearchQuery.toLowerCase();
+    return fullName.includes(query) || email.includes(query) || farm.includes(query);
   });
 
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [cropCustomName, setCropCustomName] = useState('');
-  const [productMode, setProductMode] = useState<'select' | 'new'>('select');
-  const [newProductName, setNewProductName] = useState('');
-  const [newProductCategory, setNewProductCategory] = useState<string>('VEGETABLES');
-  const [newProductDescription, setNewProductDescription] = useState('');
-  const [quantity, setQuantity] = useState<number | ''>('');
-  const [stockMarge, setStockMarge] = useState<number | ''>(0);
-  const [pricePerUnit, setPricePerUnit] = useState<number | ''>('');
-  const [unit, setUnit] = useState<HarvestUnit>(HarvestUnit.KG);
-  const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0] ?? '');
-  const [shelfLifeDays, setShelfLifeDays] = useState<number | ''>(30);
-  const [farmingMethods, setFarmingMethods] = useState('');
-  const [finalQualityScore, setFinalQualityScore] = useState<number>(8.5);
-  const [checklist, setChecklist] = useState<InspectionChecklist>(DEFAULT_CHECKLIST);
-  const [overallAuditNotes, setOverallAuditNotes] = useState('');
+  const selectedProducer = producers.find((p) => p.id === selectedFarmerId);
+  const selectedFarmerName = selectedProducer
+    ? `${selectedProducer.firstName || ''} ${selectedProducer.lastName || ''}`.trim() ||
+      selectedProducer.farmName ||
+      'Agriculteur'
+    : '';
 
-  // Create Product Mutation (when template doesn't exist)
-  const createProductMutation = useMutation({
-    mutationFn: async (dto: { name: string; category: string; description?: string }) => {
-      const { data } = await apiClient.post<{ data: ProductTemplate }>('/products', dto);
+  // Mutation: Register Farmer Proxy
+  const registerFarmerProxy = useMutation({
+    mutationFn: async (payload: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phoneNumber?: string;
+      companyName: string;
+      address: string;
+      bio?: string;
+    }) => {
+      const { data } = await apiClient.post<{ data: { temporaryPassword?: string } }>(
+        '/users/register/farmer/proxy',
+        payload,
+      );
       return data.data;
     },
-    onSuccess: (product) => {
-      addToast(`Produit "${product.name}" créé avec succès !`, 'success');
-      queryClient.invalidateQueries({ queryKey: ['products', 'templates'] });
-      setSelectedProductId(product.id);
-      setCropCustomName(product.name);
-      setProductMode('select');
-    },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message || 'Erreur lors de la création du produit';
-      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
-    },
-  });
-
-  // AI Classification Mutation
-  const classifyMutation = useMutation({
-    ...aiClassifyHarvestMutation(),
     onSuccess: (data) => {
-      setClassifiedData(data);
-      addToast('Analyse de récolte IA terminée !', 'success');
-
-      // Pre-fill Step 3 fields
-      if (data.suggestedProductId) {
-        setSelectedProductId(data.suggestedProductId);
-        setProductMode('select');
-      } else if (data.suggestedName) {
-        setNewProductName(data.suggestedName);
-        setProductMode('new');
+      addToast('Compte producteur créé avec succès !', 'success');
+      if (data?.temporaryPassword) {
+        setCreatedTempPassword(data.temporaryPassword);
       }
-      if (data.suggestedName) {
-        setCropCustomName(data.suggestedName);
-      }
-      if (data.estimatedQuantity) {
-        setQuantity(Number(data.estimatedQuantity));
-      }
-      if (data.suggestedPricePerUnit) {
-        setPricePerUnit(Number(data.suggestedPricePerUnit));
-      }
-      if (data.recommendedShelfLifeDays) {
-        setShelfLifeDays(Number(data.recommendedShelfLifeDays));
-      }
-      if (data.farmingMethods) {
-        setFarmingMethods(data.farmingMethods);
-      }
-      if (data.aiQualityScore) {
-        setFinalQualityScore(Number(data.aiQualityScore));
-      }
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPhone('');
+      setCompanyName('');
+      setAddress('');
+      setBio('');
+      void queryClient.invalidateQueries({ queryKey: ['inspector', 'producers'] });
     },
-    onError: (err: any) => {
-      addToast(err?.message || 'Erreur lors de la classification IA', 'error');
+    onError: (err: unknown) => {
+      const errorObj = err as { response?: { data?: { message?: string | string[] } } };
+      const msg = errorObj.response?.data?.message || 'Erreur lors de la création du compte';
+      addToast(Array.isArray(msg) ? msg[0] || 'Erreur' : msg, 'error');
     },
   });
 
-  // Media upload mutation
-  const uploadMutation = useMutation({
-    ...mediaUploadMutation(),
-    onSuccess: (result) => {
-      setImages((prev) => [...prev, result.url]);
-    },
-    onError: () => {
-      addToast("Erreur lors de l'upload de l'image", 'error');
-    },
-  });
-
-  // Create & Certify Harvest Proxy Mutation
-  const createAndCertifyMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const { data } = await apiClient.post('/harvests/proxy', payload);
-      return data.data;
-    },
-    onSuccess: () => {
-      addToast('Récolte enregistrée et certifiée avec succès !', 'success');
-      queryClient.invalidateQueries({ queryKey: ['inspector'] });
-      queryClient.invalidateQueries({ queryKey: ['harvests'] });
-      queryClient.invalidateQueries({ queryKey: ['inspections'] });
-      void navigate({ to: '/inspector/validate' });
-    },
-    onError: (err: any) => {
-      const msg =
-        err?.response?.data?.message ||
-        "Erreur lors de l'enregistrement de la récolte";
-      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
-    },
-  });
-
-  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate(file);
-    e.target.value = '';
-  };
-
-  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) Array.from(files).forEach((file) => uploadMutation.mutate(file));
-    e.target.value = '';
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleCameraClick = async () => {
-    if (isActive) {
-      const file = await capture();
-      if (file) uploadMutation.mutate(file);
-    } else {
-      cameraInputRef.current?.click();
-    }
-  };
-
-  const handleTriggerAiAnalysis = () => {
-    if (images.length === 0) {
-      addToast('Veuillez ajouter au moins une photo de la récolte.', 'warning');
-      return;
-    }
-    const payload: { photoUrls: string[]; additionalNotes?: string } = {
-      photoUrls: images,
-    };
-    if (additionalNotes) {
-      payload.additionalNotes = additionalNotes;
-    }
-    classifyMutation.mutate(payload);
-  };
-
-  const handleToggleChecklist = (key: InspectionChecklistItem) => {
-    setChecklist((prev) => {
-      const current = prev[key] || { passed: true, notes: '' };
-      return {
-        ...prev,
-        [key]: {
-          ...current,
-          passed: !current.passed,
-        },
-      };
-    });
-  };
-
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFarmerId || (!selectedProductId && !cropCustomName) || !quantity || !pricePerUnit) {
-      addToast('Veuillez renseigner tous les champs obligatoires.', 'error');
+    if (!firstName || !lastName || !email || !companyName || !address) {
+      addToast('Veuillez remplir tous les champs obligatoires.', 'warning');
+      return;
+    }
+    const payload: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phoneNumber?: string;
+      companyName: string;
+      address: string;
+      bio?: string;
+    } = {
+      firstName,
+      lastName,
+      email,
+      companyName,
+      address,
+    };
+    if (phone.trim()) payload.phoneNumber = phone.trim();
+    if (bio.trim()) payload.bio = bio.trim();
+    registerFarmerProxy.mutate(payload);
+  };
+
+  const handleStartHarvestFlow = () => {
+    if (!selectedFarmerId || !selectedProducer) {
+      addToast('Veuillez sélectionner un agriculteur.', 'warning');
       return;
     }
 
-    const harvestDateTime = new Date(harvestDate);
-    const durationDays = typeof shelfLifeDays === 'number' && !isNaN(shelfLifeDays) ? shelfLifeDays : 30;
-    const expirationDateTime = new Date(harvestDateTime.getTime() + durationDays * 86400000);
-    const expirationDate = expirationDateTime.toISOString().split('T')[0] ?? '';
-
-    createAndCertifyMutation.mutate({
-      farmerUserId: selectedFarmerId,
-      productId: selectedProductId || undefined,
-      productName: cropCustomName || undefined,
-      quantityInStock: Number(quantity),
-      stockMarge: Number(stockMarge) || 0,
-      pricePerUnit: Number(pricePerUnit),
-      unit,
-      harvestDate,
-      expirationDate,
-      farmingMethods: farmingMethods || 'Culture traditionnelle locale',
-      photoUrls: images,
-      qualityScore: finalQualityScore,
-      status: 'APPROVED',
-      auditNotes: overallAuditNotes,
-      checklist,
+    void navigate({
+      to: '/inspector/harvests/analyze',
+      search: {
+        farmerUserId: selectedProducer.id,
+        farmerName: selectedFarmerName,
+      },
     });
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] font-sans pb-28">
-      {/* Wizard Step Indicator Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 pb-24 text-[#0b1c30]">
+      {/* Top Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a5c35]">
-              Nouvelle Inspection Terrain
-            </span>
-            <h1 className="text-base font-bold text-[#0b1c30]">
-              {currentStep === 1 && 'Étape 1 : Sélectionner le Producteur'}
-              {currentStep === 2 && 'Étape 2 : Photo & Analyse IA Vision'}
-              {currentStep === 3 && 'Étape 3 : Audit Physique & Certification'}
+            <div className="text-[11px] font-bold text-[#1a5c35] uppercase tracking-wider">
+              Assistance Terrain
+            </div>
+            <h1 className="font-display text-2xl font-black text-[#004322] tracking-tight">
+              Actions par Procuration
             </h1>
           </div>
-
-          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-            <span className={currentStep === 1 ? 'text-[#1a5c35]' : ''}>1</span>
-            <span>•</span>
-            <span className={currentStep === 2 ? 'text-[#1a5c35]' : ''}>2</span>
-            <span>•</span>
-            <span className={currentStep === 3 ? 'text-[#1a5c35]' : ''}>3</span>
-          </div>
+          {!isOnline && (
+            <div className="flex items-center gap-1.5 bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-semibold">
+              <span className="material-symbols-outlined text-sm text-amber-700 animate-pulse">
+                cloud_off
+              </span>
+              <span>Hors-ligne</span>
+            </div>
+          )}
         </div>
-      </header>
+      </div>
 
-      <main className="p-4 max-w-3xl mx-auto w-full space-y-5">
-        {/* ==================================================================== */}
-        {/* STEP 1: CHOOSE FARMER                                                */}
-        {/* ==================================================================== */}
-        {currentStep === 1 && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold text-[#0b1c30]">
-                    Producteur visité
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    Sélectionnez le producteur pour lequel vous inspectez la récolte.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateFarmerModal(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-[#1a5c35] border border-emerald-200 rounded-xl text-xs font-bold hover:bg-[#1a5c35] hover:text-white transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-base">person_add</span>
-                  <span>Enrôler un nouveau</span>
-                </button>
-              </div>
+      {/* Tabs Switcher */}
+      <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('register');
+            void navigate({ to: '/inspector/proxy', search: { tab: 'register' } });
+          }}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'register' ? 'bg-white text-[#004322] shadow-xs' : 'text-gray-500'
+          }`}
+        >
+          Créer Producteur
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('harvest');
+            void navigate({ to: '/inspector/proxy', search: { tab: 'harvest' } });
+          }}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer relative ${
+            activeTab === 'harvest' ? 'bg-white text-[#004322] shadow-xs' : 'text-gray-500'
+          }`}
+        >
+          <span>Déclarer Récolte</span>
+          {proxyDraftsReadyForReview.length > 0 && (
+            <span className="ml-2 bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+              {proxyDraftsReadyForReview.length}
+            </span>
+          )}
+        </button>
+      </div>
 
-              {/* Search bar */}
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
-                  search
-                </span>
-                <input
-                  type="text"
-                  value={farmerSearch}
-                  onChange={(e) => setFarmerSearch(e.target.value)}
-                  placeholder="Rechercher par nom, ferme ou email..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#1a5c35] focus:outline-none"
-                />
-              </div>
-
-              {/* Farmers list */}
-              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                {producersLoading ? (
-                  <div className="p-6 text-center text-xs text-gray-400">
-                    Chargement des producteurs...
-                  </div>
-                ) : producers.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    Aucun producteur trouvé. Enrôlez-en un pour démarrer.
-                  </div>
-                ) : (
-                  producers.map((farmer) => {
-                    const isSelected = selectedFarmerId === farmer.id;
-                    return (
-                      <div
-                        key={farmer.id}
-                        onClick={() => setSelectedFarmerId(farmer.id)}
-                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-[#1a5c35] bg-emerald-50/40 ring-1 ring-[#1a5c35]'
-                            : 'border-gray-200 bg-white hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-[#1a5c35] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                            {farmer.firstName?.charAt(0)}
-                            {farmer.lastName?.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h3 className="text-xs font-bold text-gray-900 truncate">
-                                {farmer.firstName} {farmer.lastName}
-                              </h3>
-                              {farmer.regionName && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-[#1a5c35] border border-emerald-200">
-                                  {farmer.regionName}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-gray-500 truncate">
-                              {farmer.farmName || farmer.email}
-                            </p>
-                          </div>
-                        </div>
-
-                        <span
-                          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                            isSelected
-                              ? 'border-[#1a5c35] bg-[#1a5c35] text-white'
-                              : 'border-gray-300 bg-white'
-                          }`}
-                        >
-                          {isSelected && (
-                            <span className="material-symbols-outlined text-xs">check</span>
-                          )}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Next Button */}
-            <button
-              type="button"
-              onClick={() => setCurrentStep(2)}
-              disabled={!selectedFarmerId}
-              className="w-full py-3.5 bg-[#1a5c35] text-white rounded-xl font-bold text-xs shadow-sm hover:bg-[#144a2a] disabled:opacity-50 disabled:cursor-not-allowed active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Continuer vers la prise de vue & analyse IA</span>
-              <span className="material-symbols-outlined text-base">arrow_forward</span>
-            </button>
+      {/* TAB 1: Register Farmer */}
+      {activeTab === 'register' && (
+        <div className="bg-white rounded-2xl p-5 md:p-6 border border-gray-200 shadow-xs space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-[#0b1c30]">
+              Enregistrement d'un Producteur sans Smartphone
+            </h2>
+            <p className="text-xs text-gray-500">
+              Créez un compte pour un agriculteur non digitalisé. Un mot de passe temporaire sera
+              généré pour lui permettre d'accéder ultérieurement à son compte.
+            </p>
           </div>
-        )}
 
-        {/* ==================================================================== */}
-        {/* STEP 2: CAMERA CAPTURE & AI VISION PRE-SCREENING                     */}
-        {/* ==================================================================== */}
-        {currentStep === 2 && (
-          <div className="space-y-4">
-            {/* Farmer context badge */}
-            <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-200 shadow-2xs">
-              <div className="flex items-center gap-2 text-xs flex-wrap">
-                <span className="material-symbols-outlined text-[#1a5c35]">person</span>
-                <span className="font-bold text-gray-900">
-                  {selectedFarmer?.firstName} {selectedFarmer?.lastName}
-                </span>
-                {selectedFarmer?.farmName && (
-                  <span className="text-gray-500">({selectedFarmer.farmName})</span>
-                )}
-                {selectedFarmer?.regionName && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-[#1a5c35] border border-emerald-200">
-                    {selectedFarmer.regionName}
-                  </span>
-                )}
+          {createdTempPassword && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+                <span className="material-symbols-outlined text-sm">key</span>
+                Mot de passe temporaire généré avec succès
               </div>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(1)}
-                className="text-[11px] font-bold text-[#1a5c35] hover:underline cursor-pointer"
-              >
-                Changer
-              </button>
+              <p className="text-xs text-emerald-700">
+                Communiquez ce code au producteur pour sa première connexion :
+              </p>
+              <div className="font-mono text-base font-black bg-white px-3 py-1.5 rounded-lg border border-emerald-300 inline-block text-emerald-950 select-all">
+                {createdTempPassword}
+              </div>
             </div>
+          )}
 
-            {/* Camera Viewfinder / Photo Capture Card */}
-            <div className="bg-black rounded-2xl overflow-hidden border border-gray-900 shadow-md relative min-h-[300px] flex flex-col justify-between">
-              {/* Camera viewfinder */}
-              {isActive ? (
-                <div className="absolute inset-0 z-0">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/15 z-1" />
-                </div>
-              ) : (
-                <div className="p-8 text-center text-white/70 flex flex-col items-center justify-center flex-1 space-y-2">
-                  <span className="material-symbols-outlined text-4xl text-emerald-400">
-                    photo_camera
-                  </span>
-                  <p className="text-xs font-bold text-white">
-                    Prenez des photos nettes de la récolte
-                  </p>
-                  <p className="text-[11px] text-gray-400">
-                    L'IA Gemini analysera la qualité, la variété et le calibre
-                  </p>
-                </div>
-              )}
-
-              {/* Top bar on camera */}
-              <div className="relative z-10 p-3 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent">
-                <span className="text-[11px] font-bold text-white bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-md">
-                  {images.length} photo{images.length > 1 ? 's' : ''} capturée{images.length > 1 ? 's' : ''}
-                </span>
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Prénom *</label>
+                <input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: Jean"
+                  required
+                />
               </div>
-
-              {/* Bottom camera controls */}
-              <div className="relative z-10 p-4 bg-gradient-to-t from-black/80 to-transparent space-y-3">
-                {/* Thumbnails */}
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-                  {images.map((imgUrl, idx) => (
-                    <div key={idx} className="relative shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-white/40">
-                      <img src={imgUrl} alt="Vignette" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="absolute top-0.5 right-0.5 bg-rose-600 rounded-full w-4 h-4 flex items-center justify-center text-white text-[10px] cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-
-                  {uploadMutation.isPending && (
-                    <div className="w-12 h-12 rounded-lg border border-dashed border-emerald-400 flex items-center justify-center bg-white/10 shrink-0">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-400 border-t-transparent" />
-                    </div>
-                  )}
-
-                  {/* Add from gallery */}
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="w-12 h-12 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/10 text-white shrink-0 hover:bg-white/20 cursor-pointer"
-                    title="Galerie"
-                  >
-                    <span className="material-symbols-outlined text-lg">photo_library</span>
-                  </button>
-                </div>
-
-                {/* Capture & File Inputs */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Nom *</label>
                 <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleCameraCapture}
-                  className="hidden"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: Mutombo"
+                  required
                 />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleGallerySelect}
-                  className="hidden"
-                />
-
-                <div className="flex justify-center pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCameraClick}
-                    disabled={uploadMutation.isPending}
-                    className="w-16 h-16 rounded-full bg-white/20 border-4 border-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white" />
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Optional Additional Notes for AI */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-2">
-              <label className="block text-xs font-bold text-gray-700">
-                Remarques / Précisions pour l'analyse IA (Optionnel)
-              </label>
-              <input
-                type="text"
-                value={additionalNotes}
-                onChange={(e) => setAdditionalNotes(e.target.value)}
-                placeholder="Ex: Récolté ce matin à l'aube, culture sous ombrage..."
-                className="w-full text-xs border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35] focus:outline-none"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Email *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: jean.mutombo@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Téléphone</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: +243 812 345 678"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Nom de la ferme / Exploitation *</label>
+                <input
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: Ferme Mutombo & Fils"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Localisation / Adresse *</label>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                  placeholder="Ex: Village Mbanza-Ngungu, Kongo-Central"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-700">Description / Notes</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={2}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                placeholder="Ex: Producteur spécialisé dans le manioc et le maïs..."
               />
             </div>
 
-            {/* AI Classification Trigger & Result */}
-            {classifiedData ? (
-              <div className="bg-emerald-950 text-white rounded-2xl p-5 border border-emerald-800 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-emerald-800 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-emerald-400 text-2xl">
-                      auto_awesome
-                    </span>
-                    <h3 className="text-sm font-bold">Résultat de l'analyse IA</h3>
-                  </div>
-                  <span className="text-[10px] font-bold bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded-full">
-                    {classifiedData.isIdentified ? 'Culture Détectée ✓' : 'Non identifié'}
-                  </span>
-                </div>
+            <button
+              type="submit"
+              disabled={registerFarmerProxy.isPending}
+              className="w-full bg-[#1a5c35] text-white font-bold py-3 rounded-xl hover:bg-[#144a2a] active:scale-98 transition-all cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">person_add</span>
+              {registerFarmerProxy.isPending ? 'Création en cours...' : 'Créer le compte producteur'}
+            </button>
+          </form>
+        </div>
+      )}
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-emerald-300 text-[10px] uppercase font-bold block">Culture</span>
-                    <span className="font-bold text-sm text-white">{classifiedData.suggestedName || 'Produit'}</span>
-                  </div>
-                  <div>
-                    <span className="text-emerald-300 text-[10px] uppercase font-bold block">Score Qualité Estimé</span>
-                    <span className="font-bold text-sm text-white font-mono">
-                      {classifiedData.aiQualityScore ? `${Number(classifiedData.aiQualityScore).toFixed(1)}/10` : '8.5/10'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-emerald-300 text-[10px] uppercase font-bold block">Quantité Estimée</span>
-                    <span className="font-bold text-white font-mono">
-                      {classifiedData.estimatedQuantity ? `${classifiedData.estimatedQuantity} Kg` : '—'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-emerald-300 text-[10px] uppercase font-bold block">Prix Suggéré</span>
-                    <span className="font-bold text-white font-mono">
-                      {classifiedData.suggestedPricePerUnit ? `${classifiedData.suggestedPricePerUnit.toLocaleString()} CDF` : '—'}
-                    </span>
-                  </div>
-                </div>
+      {/* TAB 2: Declare Harvest Flow (Farmer Selector -> Analyze -> Form) */}
+      {activeTab === 'harvest' && (
+        <div className="space-y-6">
+          {/* Section A: Ready-for-review proxy drafts */}
+          {proxyDraftsReadyForReview.length > 0 && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 text-emerald-950 font-bold text-xs">
+                <span className="material-symbols-outlined text-emerald-700">auto_awesome</span>
+                <span>Récoltes analysées prêtes pour révision ({proxyDraftsReadyForReview.length})</span>
+              </div>
+              <div className="space-y-2">
+                {proxyDraftsReadyForReview.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="bg-white p-3 rounded-xl border border-emerald-200 flex items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      {draft.localPhotos?.[0] ? (
+                        <img
+                          src={draft.localPhotos[0]}
+                          alt="Récolte"
+                          className="w-12 h-12 rounded-lg object-cover border border-emerald-200"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-xl">psychiatry</span>
+                        </div>
+                      )}
+                      <div>
+                        <div className="text-xs font-bold text-gray-900">
+                          {draft.manualForm?.productName || draft.aiResult?.suggestedName || 'Culture'}
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          Producteur : <strong className="text-gray-700">{draft.farmerName || 'Agriculteur'}</strong>
+                        </div>
+                        {draft.aiResult?.aiQualityScore && (
+                          <div className="text-[10px] text-emerald-700 font-semibold">
+                            Qualité IA : {Math.round(draft.aiResult.aiQualityScore * 10)}% ★
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold rounded-xl text-xs transition-colors active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>Valider et passer au formulaire d'audit</span>
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                </button>
+                    <Link
+                      to="/inspector/harvests/new"
+                      search={{
+                        reviewDraftId: draft.id,
+                        farmerUserId: draft.farmerUserId,
+                        farmerName: draft.farmerName,
+                      }}
+                      className="bg-[#004322] hover:bg-[#1a5c35] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 shadow-xs"
+                    >
+                      Réviser & Valider
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section B: Pending AI analysis drafts */}
+          {proxyDraftsPendingAnalysis.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-xs space-y-2">
+              <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+                <span className="material-symbols-outlined text-amber-700 animate-spin">sync</span>
+                <span>Lots en attente d'analyse IA en arrière-plan ({proxyDraftsPendingAnalysis.length})</span>
+              </div>
+              <p className="text-[11px] text-amber-800">
+                Ces lots ont été enregistrés hors-ligne. Dès que votre connexion est stable, ils seront
+                automatiquement analysés et disponibles pour révision.
+              </p>
+            </div>
+          )}
+
+          {/* Section C: Select Farmer and Start Harvest Flow */}
+          <div className="bg-white rounded-2xl p-5 md:p-6 border border-gray-200 shadow-xs space-y-5">
+            <div>
+              <h2 className="text-base font-bold text-[#004322]">
+                1. Sélectionner l'agriculteur
+              </h2>
+              <p className="text-xs text-gray-500">
+                Choisissez le producteur pour lequel vous souhaitez déclarer une nouvelle récolte sur le terrain.
+              </p>
+            </div>
+
+            {/* Farmer Search input */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-sm">
+                search
+              </span>
+              <input
+                type="text"
+                value={farmerSearchQuery}
+                onChange={(e) => setFarmerSearchQuery(e.target.value)}
+                placeholder="Rechercher par nom, email ou exploitation..."
+                className="w-full bg-gray-50 border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-xs outline-none focus:border-[#1a5c35] focus:bg-white"
+              />
+            </div>
+
+            {/* Farmer Cards / Selector Grid */}
+            {isLoadingProducers ? (
+              <div className="py-8 text-center text-xs text-gray-500">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#1a5c35] mx-auto mb-2" />
+                Chargement des producteurs...
+              </div>
+            ) : filteredProducers.length === 0 ? (
+              <div className="py-6 text-center text-xs text-gray-500 border border-dashed border-gray-200 rounded-xl">
+                Aucun agriculteur trouvé. Créez-en un dans l'onglet "Créer Producteur".
               </div>
             ) : (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs cursor-pointer hover:bg-gray-200"
-                >
-                  Retour
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTriggerAiAnalysis}
-                  disabled={images.length === 0 || classifyMutation.isPending}
-                  className="flex-1 py-3 bg-[#1a5c35] text-white rounded-xl font-bold text-xs shadow-sm hover:bg-[#144a2a] active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                  <span>{classifyMutation.isPending ? 'Analyse Gemini en cours...' : 'Analyser la récolte avec l\'IA'}</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* STEP 3: PHYSICAL AUDIT & FINAL CERTIFIED CREATION                   */}
-        {/* ==================================================================== */}
-        {currentStep === 3 && (
-          <form onSubmit={handleFinalSubmit} className="space-y-5">
-            {/* Header Summary */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a5c35] block">
-                Récapitulatif Terrain
-              </span>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900">
-                    {cropCustomName || 'Lot Agricole'}
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Producteur : {selectedFarmer?.firstName} {selectedFarmer?.lastName}
-                    {selectedFarmer?.regionName && ` (${selectedFarmer.regionName})`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 font-mono text-sm font-bold text-[#1a5c35]">
-                  <span>{finalQualityScore.toFixed(1)}</span>
-                  <span className="text-xs text-gray-400">/10</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Product & Quantity Specification */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                  Données du Lot
-                </h3>
-                <div className="flex rounded-lg bg-gray-100 p-0.5 text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setProductMode('select')}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                      productMode === 'select'
-                        ? 'bg-white text-gray-900 shadow-xs font-bold'
-                        : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                  >
-                    Produit existant
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProductMode('new')}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                      productMode === 'new'
-                        ? 'bg-white text-[#1a5c35] shadow-xs font-bold'
-                        : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                  >
-                    + Nouveau produit
-                  </button>
-                </div>
-              </div>
-
-              {productMode === 'new' ? (
-                <div className="bg-emerald-50/40 border border-emerald-200 rounded-xl p-3.5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#1a5c35] flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">add_circle</span>
-                      Créer un nouveau produit
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      Ce produit sera enregistré dans le catalogue
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="block font-bold text-gray-700 mb-1">
-                        Nom du produit <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={newProductName}
-                        onChange={(e) => {
-                          setNewProductName(e.target.value);
-                          setCropCustomName(e.target.value);
-                        }}
-                        placeholder="Ex: Haricots Rouges Bio"
-                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-gray-700 mb-1">
-                        Catégorie <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={newProductCategory}
-                        onChange={(e) => setNewProductCategory(e.target.value)}
-                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                      >
-                        <option value="VEGETABLES">Légumes (VEGETABLES)</option>
-                        <option value="FRUITS">Fruits (FRUITS)</option>
-                        <option value="CEREALS">Céréales (CEREALS)</option>
-                        <option value="DATES">Dattes (DATES)</option>
-                        <option value="DAIRY">Produits Laitiers (DAIRY)</option>
-                        <option value="MEAT">Viande / Élevage (MEAT)</option>
-                        <option value="OTHER">Autre (OTHER)</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block font-bold text-gray-700 mb-1">
-                        Description (Optionnel)
-                      </label>
-                      <input
-                        type="text"
-                        value={newProductDescription}
-                        onChange={(e) => setNewProductDescription(e.target.value)}
-                        placeholder="Ex: Variété locale riche en fer, séchée au soleil..."
-                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      disabled={!newProductName.trim() || createProductMutation.isPending}
-                      onClick={() => {
-                        const payload: { name: string; category: string; description?: string } = {
-                          name: newProductName.trim(),
-                          category: newProductCategory,
-                        };
-                        if (newProductDescription.trim()) {
-                          payload.description = newProductDescription.trim();
-                        }
-                        createProductMutation.mutate(payload);
-                      }}
-                      className="px-3.5 py-2 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <span className="material-symbols-outlined text-sm">check</span>
-                      <span>
-                        {createProductMutation.isPending
-                          ? 'Création...'
-                          : 'Enregistrer dans le catalogue'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {productMode === 'select' && (
-                  <div>
-                    <label className="block font-bold text-gray-700 mb-1">
-                      Modèle de produit (Catalogue)
-                    </label>
-                    <select
-                      value={selectedProductId}
-                      onChange={(e) => {
-                        setSelectedProductId(e.target.value);
-                        const found = products.find((p) => p.id === e.target.value);
-                        if (found) setCropCustomName(found.name);
-                      }}
-                      className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                    >
-                      <option value="">-- Sélectionner dans le catalogue --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.category})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Nom / Variété affichée
-                  </label>
-                  <input
-                    type="text"
-                    value={cropCustomName}
-                    onChange={(e) => setCropCustomName(e.target.value)}
-                    required
-                    placeholder="Ex: Maïs Jaune Grain"
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Quantité certifiée
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    required
-                    placeholder="Ex: 500"
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Marge autorisée (± tolérance stock)
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    value={stockMarge}
-                    onChange={(e) => setStockMarge(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    placeholder="Ex: 10"
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Unité
-                  </label>
-                  <select
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value as HarvestUnit)}
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  >
-                    <option value={HarvestUnit.KG}>Kilogrammes (KG)</option>
-                    <option value={HarvestUnit.TON}>Tonnes (TON)</option>
-                    <option value={HarvestUnit.PIECE}>Pièces (PIECE)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Prix unitaire officiel (CDF / {unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={pricePerUnit}
-                    onChange={(e) => setPricePerUnit(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    required
-                    placeholder="Ex: 2500"
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Date de récolte
-                  </label>
-                  <input
-                    type="date"
-                    value={harvestDate}
-                    onChange={(e) => setHarvestDate(e.target.value)}
-                    required
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Durée de conservation (jours)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={shelfLifeDays}
-                    onChange={(e) =>
-                      setShelfLifeDays(
-                        e.target.value === '' ? '' : parseInt(e.target.value, 10),
-                      )
-                    }
-                    placeholder="Ex: 30"
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Quality Checklist */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">
-                Grille de Conformité Qualité
-              </h3>
-
-              <div className="space-y-2.5">
-                {(Object.keys(CHECKLIST_LABELS) as (keyof typeof CHECKLIST_LABELS)[]).map((key) => {
-                  const meta = CHECKLIST_LABELS[key];
-                  const item = checklist[key] || { passed: true, notes: '' };
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                {filteredProducers.map((producer) => {
+                  const pId = producer.id;
+                  const isSelected = selectedFarmerId === pId;
+                  const name =
+                    `${producer.firstName || ''} ${producer.lastName || ''}`.trim() ||
+                    producer.farmName ||
+                    'Agriculteur';
 
                   return (
                     <div
-                      key={key}
-                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                        item.passed ? 'border-emerald-200 bg-emerald-50/20' : 'border-rose-200 bg-rose-50/20'
+                      key={pId}
+                      onClick={() => setSelectedFarmerId(pId)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left flex items-center justify-between ${
+                        isSelected
+                          ? 'border-[#004322] bg-emerald-50/70 ring-2 ring-[#004322]/20 shadow-xs'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined text-base text-[#1a5c35]">
-                          {meta.icon}
-                        </span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                            isSelected ? 'bg-[#004322] text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {producer.firstName?.[0] || 'A'}
+                        </div>
                         <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-gray-900">{meta.title}</h4>
-                          <p className="text-[10px] text-gray-500">{meta.subtitle}</p>
+                          <div className="text-xs font-bold text-gray-900 truncate">{name}</div>
+                          <div className="text-[11px] text-gray-500 truncate">
+                            {producer.farmName || producer.email || 'Exploitation agricole'}
+                          </div>
+                          {producer.phone && (
+                            <div className="text-[10px] text-gray-400 truncate">
+                              {producer.phone}
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChecklist(key)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          item.passed ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-                        }`}
-                      >
-                        {item.passed ? 'Conforme' : 'Non-conforme'}
-                      </button>
+                      <div className="flex-shrink-0 ml-2">
+                        <span
+                          className={`material-symbols-outlined text-lg ${
+                            isSelected ? 'text-[#004322]' : 'text-gray-300'
+                          }`}
+                        >
+                          {isSelected ? 'check_circle' : 'radio_button_unchecked'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            )}
 
-            {/* Quality Score Slider */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Score de Qualité Final
-                  </h3>
-                  <p className="text-[11px] text-gray-500">Note attribuée et certifiée par l'inspecteur</p>
+            {/* Selected Farmer Action Box */}
+            {selectedProducer && (
+              <div className="pt-3 border-t border-gray-200 space-y-4">
+                <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#004322]">how_to_reg</span>
+                    <div>
+                      <div className="text-[11px] font-bold text-emerald-950">Agriculteur sélectionné</div>
+                      <div className="text-xs font-bold text-[#004322]">{selectedFarmerName}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFarmerId('')}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline cursor-pointer"
+                  >
+                    Changer
+                  </button>
                 </div>
-                <span className="font-mono text-xl font-bold text-[#1a5c35]">
-                  {finalQualityScore.toFixed(1)} / 10.0
-                </span>
+
+                <button
+                  type="button"
+                  onClick={handleStartHarvestFlow}
+                  className="w-full bg-[#004322] hover:bg-[#1a5c35] text-white font-bold py-4 rounded-xl active:scale-98 transition-all cursor-pointer shadow-md text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-base">add_a_photo</span>
+                  Commencer l'analyse de récolte pour {selectedFarmerName}
+                </button>
               </div>
-
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="0.1"
-                value={finalQualityScore}
-                onChange={(e) => setFinalQualityScore(parseFloat(e.target.value))}
-                className="w-full accent-[#1a5c35] cursor-pointer"
-              />
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Observations finales de l'inspecteur
-                </label>
-                <textarea
-                  rows={2}
-                  value={overallAuditNotes}
-                  onChange={(e) => setOverallAuditNotes(e.target.value)}
-                  placeholder="Observations sur le calibrage, l'emballage et les conditions de stockage..."
-                  className="w-full text-xs border border-gray-300 rounded-xl p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs cursor-pointer hover:bg-gray-200"
-              >
-                Retour
-              </button>
-              <button
-                type="submit"
-                disabled={createAndCertifyMutation.isPending}
-                className="flex-1 py-3.5 bg-[#1a5c35] text-white rounded-xl font-bold text-xs shadow-md hover:bg-[#144a2a] active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-base">verified</span>
-                <span>{createAndCertifyMutation.isPending ? 'Enregistrement...' : 'Enregistrer et Certifier la Récolte'}</span>
-              </button>
-            </div>
-          </form>
-        )}
-      </main>
-
-      {/* Modal for creating a new farmer */}
-      <CreateProducerModal
-        isOpen={showCreateFarmerModal}
-        onClose={() => setShowCreateFarmerModal(false)}
-      />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

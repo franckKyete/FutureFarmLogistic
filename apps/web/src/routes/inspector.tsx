@@ -18,14 +18,15 @@ export const Route = createFileRoute('/inspector')({
 
 function InspectorLayout() {
   const location = useLocation();
-  const isWorkflowRoute =
+  const hideBottomNav =
     location.pathname.startsWith('/inspector/reports/') ||
-    location.pathname === '/inspector/proxy';
+    location.pathname.startsWith('/inspector/harvests/analyze') ||
+    location.pathname.startsWith('/inspector/harvests/new');
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isWorkflowRoute ? '' : 'pb-16'}`}>
+    <div className={`min-h-screen bg-gray-50 ${!hideBottomNav ? 'pb-16' : ''}`}>
       <Outlet />
-      {!isWorkflowRoute && <InspectorBottomNav />}
+      {!hideBottomNav && <InspectorBottomNav />}
     </div>
   );
 }
