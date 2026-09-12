@@ -10,6 +10,7 @@ import {
   useResendWelcomeNotification,
   useUpdateUser,
 } from '@/features/admin/api/users.queries';
+import { useInspectionCenters } from '@/features/admin/api/inspections.queries';
 import type {
   AdminUserDto,
   DriverProfileInfo,
@@ -61,6 +62,7 @@ function getInitials(u: AdminUserDto): string {
 
 function UsersListPage() {
   const { data: users, isLoading } = useUsers();
+  const { data: inspectionCenters = [] } = useInspectionCenters();
   const updateStatus = useUpdateUserStatus();
   const updateUserMutation = useUpdateUser();
   const resendWelcomeMutation = useResendWelcomeNotification();
@@ -97,6 +99,7 @@ function UsersListPage() {
     vatNumber: '',
     shippingAddress: '',
     isCertified: false,
+    inspectionCenterIds: [] as string[],
   });
 
   const AVAILABLE_SPECIALIZATIONS = [
@@ -111,6 +114,9 @@ function UsersListPage() {
 
   const startEditing = (u: AdminUserDto) => {
     const prof = (u.profile as any) || {};
+    const assignedCenterIds = Array.isArray(prof.assignedCenters)
+      ? prof.assignedCenters.map((c: any) => c.id)
+      : [];
     setEditFormData({
       firstName: u.firstName || '',
       lastName: u.lastName || '',
@@ -127,6 +133,7 @@ function UsersListPage() {
       vatNumber: prof.vatNumber || '',
       shippingAddress: prof.shippingAddress || '',
       isCertified: !!prof.isCertified,
+      inspectionCenterIds: assignedCenterIds,
     });
     setCustomSpecInput('');
     setIsEditingUser(true);
@@ -157,6 +164,12 @@ function UsersListPage() {
   };
 
   const handleSaveUserEdit = (userId: string) => {
+    const roleName = selectedUser?.roles?.[0]?.name || '';
+    if (roleName === 'Inspector' && editFormData.inspectionCenterIds.length === 0) {
+      addToast("Un inspecteur doit être assigné à au moins un centre d'inspection.", 'error');
+      return;
+    }
+
     updateUserMutation.mutate(
       {
         id: userId,
@@ -175,6 +188,7 @@ function UsersListPage() {
         vatNumber: editFormData.vatNumber || undefined,
         shippingAddress: editFormData.shippingAddress || undefined,
         isCertified: editFormData.isCertified,
+        inspectionCenterIds: roleName === 'Inspector' ? editFormData.inspectionCenterIds : undefined,
       },
       {
         onSuccess: () => {
@@ -820,6 +834,85 @@ function UsersListPage() {
                               </Button>
                             </div>
                           </div>
+
+                          <div className="pt-2 border-t border-[var(--admin-outline-variant)]/20 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)]">
+                                Centres d'inspection assignés *
+                              </label>
+                              <span className="text-[10px] font-semibold text-gray-500">
+                                {editFormData.inspectionCenterIds.length} sélectionné{editFormData.inspectionCenterIds.length > 1 ? 's' : ''} (min. 1)
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-[var(--admin-on-surface-variant)]">
+                              Cochez les centres dans lesquels cet inspecteur effectue ses audits qualité :
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-2 max-h-44 overflow-y-auto pr-1">
+                              {inspectionCenters
+                                .filter((c) => c.isActive)
+                                .map((center) => {
+                                  const isSelected = editFormData.inspectionCenterIds.includes(center.id);
+                                  return (
+                                    <div
+                                      key={center.id}
+                                      onClick={() => {
+                                        setEditFormData((prev) => {
+                                          const exists = prev.inspectionCenterIds.includes(center.id);
+                                          const next = exists
+                                            ? prev.inspectionCenterIds.filter((id) => id !== center.id)
+                                            : [...prev.inspectionCenterIds, center.id];
+                                          return { ...prev, inspectionCenterIds: next };
+                                        });
+                                      }}
+                                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                                        isSelected
+                                          ? 'border-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 ring-1 ring-[var(--admin-primary)]'
+                                          : 'border-gray-200 bg-white hover:border-gray-300'
+                                      }`}
+                                    >
+                                      <div className="min-w-0 flex-1 mr-2">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-semibold text-gray-900 truncate">
+                                            {center.name}
+                                          </span>
+                                          <span className="font-mono text-[9px] bg-gray-100 px-1 py-0.2 rounded text-gray-600 font-bold">
+                                            {center.code}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          <span className="text-[9px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                            {center.regionName}
+                                          </span>
+                                          {center.address && (
+                                            <span className="text-[10px] text-gray-500 truncate">
+                                              {center.address}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <span
+                                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                          isSelected
+                                            ? 'border-[var(--admin-primary)] bg-[var(--admin-primary)] text-white'
+                                            : 'border-gray-300'
+                                        }`}
+                                      >
+                                        {isSelected && (
+                                          <span className="material-symbols-outlined text-xs">check</span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                            {editFormData.inspectionCenterIds.length === 0 && (
+                              <p className="text-[10px] text-rose-600 font-semibold">
+                                * Un inspecteur doit être assigné à au moins un centre d'inspection.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1089,6 +1182,47 @@ function UsersListPage() {
                               </div>
                             ) : (
                               <p className="text-gray-500 italic text-[11px]">Aucune spécialisation enregistrée</p>
+                            )}
+                          </div>
+
+                          {/* Assigned Centers & Regions */}
+                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs text-[var(--admin-primary)]">corporate_fare</span>
+                                Centres d'Inspection & Régions Assignés
+                              </p>
+                              <span className="text-[10px] font-bold text-gray-500">
+                                {inspectorProfile?.assignedCenters?.length || 0} centre(s)
+                              </span>
+                            </div>
+
+                            {inspectorProfile?.assignedCenters && inspectorProfile.assignedCenters.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {inspectorProfile.assignedCenters.map((center) => (
+                                  <div
+                                    key={center.id}
+                                    className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-xl p-2.5 flex items-center justify-between"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-gray-800 truncate">{center.name}</span>
+                                        <span className="font-mono text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-semibold">
+                                          {center.code}
+                                        </span>
+                                      </div>
+                                      {center.address && (
+                                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{center.address}</p>
+                                      )}
+                                    </div>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 ml-2">
+                                      {center.regionName}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-amber-600 italic text-[11px]">Aucun centre d'inspection assigné</p>
                             )}
                           </div>
                         </div>

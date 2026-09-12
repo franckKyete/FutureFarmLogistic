@@ -21,6 +21,7 @@ export interface CreateVisitDto {
   plannedTime?: string;
   reason: VisitReason;
   notes?: string;
+  harvestId?: string;
 }
 
 export interface UpdateVisitDto {
@@ -33,6 +34,7 @@ export interface VisitDto {
   id: string;
   inspectorId: string;
   producerId: string;
+  harvestId?: string;
   plannedDate: string;
   plannedTime?: string;
   reason: VisitReason;
@@ -44,6 +46,7 @@ export interface VisitDto {
   producerFarmName?: string;
   producerPhone?: string;
   producerEmail?: string;
+  inspectorName?: string;
 }
 
 export interface DashboardStatsDto {
@@ -53,12 +56,13 @@ export interface DashboardStatsDto {
   monthlyValidationsCount: number;
   regionalFarmersCount?: number;
   orderVolume?: number;
-  averageQualityScore?: number;
+  averageQualityScore?: number | null;
   priorityAlerts: {
     overdueVisits: number;
     suspiciousHarvests: number;
   };
   todayVisits: VisitDto[];
+  upcomingVisits?: VisitDto[];
   weeklyStats?: { day: string; count: number }[];
 }
 

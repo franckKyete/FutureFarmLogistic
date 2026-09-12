@@ -12,9 +12,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Accueil', to: '/farmer/dashboard', icon: 'home' },
   { label: 'Produits', to: '/farmer/stock', icon: 'inventory_2' },
-  { label: 'Analyses', to: '/farmer/harvests/analyze', icon: 'query_stats' },
+  { label: 'Enchères', to: '/farmer/auctions', icon: 'gavel' },
   { label: 'Commandes', to: '/farmer/orders', icon: 'local_shipping' },
-  { label: 'Profil', to: '/farmer/profile', icon: 'person' },
 ];
 
 export function FarmerBottomNav() {

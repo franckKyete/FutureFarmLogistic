@@ -19,6 +19,7 @@ import { InspectionPhotoEntity } from './entities/inspection-photo.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { ProductEntity } from '../products/entities/product.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
 
 describe('InspectionsService', () => {
   let service: InspectionsService;
@@ -99,13 +100,20 @@ describe('InspectionsService', () => {
           },
         },
         {
+          provide: getRepositoryToken(VisitEntity),
+          useValue: {
+            findOne: jest.fn(),
+            update: jest.fn().mockResolvedValue({ affected: 1 }),
+          },
+        },
+        {
           provide: 'QUALITY_VISION_PROVIDER',
           useValue: mockVisionProvider,
         },
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn(),
+            get: jest.fn().mockReturnValue(4.0),
           },
         },
       ],
@@ -116,10 +124,10 @@ describe('InspectionsService', () => {
       getRepositoryToken(InspectorProfileEntity),
     );
     reportRepo = module.get(getRepositoryToken(InspectionReportEntity));
-    photoRepo = module.get(getRepositoryToken(InspectionPhotoEntity));
     userRepo = module.get(getRepositoryToken(UserEntity));
     harvestRepo = module.get(getRepositoryToken(HarvestEntity));
     productRepo = module.get(getRepositoryToken(ProductEntity));
+    photoRepo = module.get(getRepositoryToken(InspectionPhotoEntity));
     configService = module.get(ConfigService);
     configService.get.mockReturnValue(4.0);
   });

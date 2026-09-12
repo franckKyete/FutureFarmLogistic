@@ -8,6 +8,8 @@ import { FarmerProfileEntity } from './entities/farmer-profile.entity';
 import { BuyerProfileEntity } from './entities/buyer-profile.entity';
 import { ParcelEntity } from './entities/parcel.entity';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
+import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -29,6 +31,7 @@ describe('UsersService', () => {
 
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
@@ -51,6 +54,7 @@ describe('UsersService', () => {
   };
 
   const mockFarmerProfileRepository = {
+    find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn(),
     findOneBy: jest.fn(),
     create: jest.fn(),
@@ -85,6 +89,23 @@ describe('UsersService', () => {
     findOneBy: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+  };
+
+  const mockCenterRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockAssignmentRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    count: jest.fn(),
   };
 
   const mockNotificationsService = {
@@ -122,6 +143,14 @@ describe('UsersService', () => {
         {
           provide: getRepositoryToken(InspectorProfileEntity),
           useValue: mockInspectorProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(InspectionCenterEntity),
+          useValue: mockCenterRepository,
+        },
+        {
+          provide: getRepositoryToken(InspectorCenterAssignmentEntity),
+          useValue: mockAssignmentRepository,
         },
         {
           provide: getRepositoryToken(DriverProfileEntity),
@@ -184,6 +213,53 @@ describe('UsersService', () => {
       expect(result.data).toEqual([]);
       expect(result.meta.total).toBe(0);
     });
+
+    it('should return empty list if inspector has no assigned regions', async () => {
+      mockInspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        assignments: [],
+      });
+      const inspectorUser: any = {
+        id: 'inspector-id',
+        roles: ['Inspector'],
+      };
+      const result = await service.findAll({ role: 'farmer' }, inspectorUser);
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
+    });
+
+    it('should filter farmers by inspector assigned regions and hydrate profile', async () => {
+      mockInspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        assignments: [
+          {
+            isCurrentAssignment: true,
+            center: { isActive: true, regionName: 'Dakar' },
+          },
+        ],
+      });
+      const inspectorUser: any = {
+        id: 'inspector-id',
+        roles: ['Inspector'],
+      };
+      const mockFarmers = [
+        { id: 'farmer-1', firstName: 'Amadou', lastName: 'Toure', phoneNumber: '+221770000000' },
+      ];
+      mockQueryBuilder.getManyAndCount.mockResolvedValueOnce([mockFarmers, 1]);
+      mockFarmerProfileRepository.find.mockResolvedValueOnce([
+        { userId: 'farmer-1', companyName: 'Touba Agri', regionName: 'Dakar', isCertified: true },
+      ]);
+
+      const result = await service.findAll({ role: 'farmer' }, inspectorUser);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].farmName).toBe('Touba Agri');
+      expect(result.data[0].regionName).toBe('Dakar');
+      expect(result.data[0].phone).toBe('+221770000000');
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'LOWER(farmerProfile.regionName) IN (:...assignedRegionsLower)',
+        { assignedRegionsLower: ['dakar'] },
+      );
+    });
   });
 
   describe('findOne', () => {
@@ -208,6 +284,7 @@ describe('UsersService', () => {
       lastName: 'Bob',
       companyName: 'Farm Co',
       address: '123 Farm Rd',
+      regionName: 'Dakar',
       bio: 'Organic crops',
     };
 
@@ -513,6 +590,61 @@ describe('UsersService', () => {
       });
       expect(result.id).toBe('parcel-1');
     });
+
+    it('should throw ForbiddenException if inspector registers farmer outside assigned regions', async () => {
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-id', name: 'Farmer' });
+      mockInspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        assignments: [
+          {
+            isCurrentAssignment: true,
+            center: { isActive: true, regionName: 'Dakar' },
+          },
+        ],
+      });
+
+      await expect(
+        service.registerFarmerProxy('inspector-actor-id', {
+          email: 'farmer@thies.sn',
+          firstName: 'Moussa',
+          lastName: 'Kone',
+          companyName: 'Kone Farm',
+          address: 'Thies',
+          regionName: 'Thiès',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should auto-populate inspector primary region when registering farmer without region', async () => {
+      mockInspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        assignments: [
+          {
+            isCurrentAssignment: true,
+            center: { isActive: true, regionName: 'Dakar' },
+          },
+        ],
+      });
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-id', name: 'Farmer' });
+      usersRepository.create.mockReturnValue({ id: 'user-id' });
+      usersRepository.save.mockResolvedValue({ id: 'user-id' });
+      farmerProfileRepository.create.mockImplementation((dto: any) => ({ id: 'profile-id', ...dto }));
+      farmerProfileRepository.save.mockImplementation((p: any) => Promise.resolve(p));
+
+      await service.registerFarmerProxy('inspector-actor-id', {
+        email: 'farmer@dakar.sn',
+        firstName: 'Cheikh',
+        lastName: 'Diop',
+        companyName: 'Diop Agri',
+        address: 'Dakar',
+      });
+
+      expect(farmerProfileRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ regionName: 'Dakar' }),
+      );
+    });
   });
 
   describe('soft delete and update', () => {
@@ -544,6 +676,10 @@ describe('UsersService', () => {
     it('should register inspector with isActive: false and dispatch notification without returning plain password', async () => {
       usersRepository.findOneBy.mockResolvedValue(null);
       rolesRepository.findOneBy.mockResolvedValue({ id: 'role-inspector', name: 'Inspector' });
+      mockCenterRepository.findOneBy.mockResolvedValue({ id: 'center-1', isActive: true });
+      mockAssignmentRepository.create.mockReturnValue({ id: 'assign-1' });
+      mockAssignmentRepository.save.mockResolvedValue({ id: 'assign-1' });
+
       const createdUser = { id: 'user-insp', email: 'insp@farm.com', firstName: 'John', lastName: 'Doe', isActive: false };
       usersRepository.create.mockReturnValue(createdUser);
       usersRepository.save.mockResolvedValue(createdUser);
@@ -555,6 +691,7 @@ describe('UsersService', () => {
         firstName: 'John',
         lastName: 'Doe',
         phoneNumber: '+22501020304',
+        inspectionCenterIds: ['center-1'],
       });
 
       expect(result.id).toBe('user-insp');
@@ -563,6 +700,7 @@ describe('UsersService', () => {
         expect.objectContaining({ isActive: false }),
       );
       expect(mockNotificationsService.send).toHaveBeenCalled();
+      expect(mockAssignmentRepository.save).toHaveBeenCalled();
     });
 
     it('should register driver with isActive: false and dispatch notification without returning plain password', async () => {

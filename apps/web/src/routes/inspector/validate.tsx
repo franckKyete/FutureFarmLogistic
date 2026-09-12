@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { usePendingHarvests } from '@/features/inspector/api/harvests.queries';
-import { useMyCenter } from '@/features/admin/api/inspections.queries';
+import { useMyCenter, useMyCenters } from '@/features/admin/api/inspections.queries';
 import type { HarvestDto } from '@/features/inspector/types';
 
 type TabKey = 'all' | 'pending' | 'flagged' | 'approved' | 'rejected';
@@ -21,16 +21,27 @@ export const Route = createFileRoute('/inspector/validate')({
 function ValidatePage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('pending');
+  const [selectedCenterId, setSelectedCenterId] = useState<string>('');
   const currentTab = TABS.find((t) => t.key === activeTab)!;
 
   const { data: myCenter } = useMyCenter();
+  const { data: myCenters = [] } = useMyCenters();
+
+  const effectiveCenterId =
+    selectedCenterId || (myCenters.length === 1 ? myCenters[0]?.id : undefined);
+  const effectiveCenter =
+    myCenters.find((c) => c.id === effectiveCenterId) || myCenter;
+
   const {
     data: harvests,
     isLoading,
     isError,
     refetch,
-  } = usePendingHarvests(currentTab.status, myCenter?.id);
-  const { data: pendingHarvests } = usePendingHarvests('PENDING_APPROVAL', myCenter?.id);
+  } = usePendingHarvests(currentTab.status, effectiveCenterId);
+  const { data: pendingHarvests } = usePendingHarvests(
+    'PENDING_APPROVAL',
+    effectiveCenterId,
+  );
   const pendingCount = pendingHarvests?.length ?? 0;
 
   const handleSelectHarvest = (harvest: HarvestDto) => {
@@ -45,9 +56,14 @@ function ValidatePage() {
       <header className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-30 shadow-2xs">
         <div className="flex items-center justify-between">
           <div>
-            {myCenter && (
+            {myCenters.length > 0 && (
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a5c35] block mb-0.5">
-                {myCenter.code} • {myCenter.regionName}
+                {effectiveCenter
+                  ? `${effectiveCenter.code} • ${effectiveCenter.regionName}`
+                  : myCenters
+                      .map((c) => c.regionName)
+                      .filter(Boolean)
+                      .join(', ')}
               </span>
             )}
             <h1 className="text-lg font-bold text-[#0b1c30]">Inspections</h1>
@@ -57,6 +73,40 @@ function ValidatePage() {
           </span>
         </div>
       </header>
+
+      {/* Multi-center selector chips */}
+      {myCenters.length > 1 && (
+        <div className="bg-[#f0fdf4] border-b border-emerald-100 px-4 py-2 flex items-center gap-2 overflow-x-auto text-xs scrollbar-none">
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">
+            Centre :
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedCenterId('')}
+            className={`px-2.5 py-1 rounded-lg font-bold text-xs shrink-0 transition-colors cursor-pointer ${
+              !selectedCenterId
+                ? 'bg-[#1a5c35] text-white shadow-2xs'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Tous mes centres ({myCenters.length})
+          </button>
+          {myCenters.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setSelectedCenterId(c.id)}
+              className={`px-2.5 py-1 rounded-lg font-bold text-xs shrink-0 transition-colors cursor-pointer ${
+                selectedCenterId === c.id
+                  ? 'bg-[#1a5c35] text-white shadow-2xs'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {c.regionName} ({c.code})
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white px-4 border-b border-gray-200 overflow-x-auto">
         <div className="flex space-x-2 min-w-max">

@@ -86,6 +86,7 @@ export interface CreateHarvestDto {
   farmingMethods: string;
   photoUrls: string[];
   priceDecayConfig?: PriceDecayConfig | null;
+  qualityScore?: number;
 }
 
 export interface UpdateHarvestDto {
@@ -98,6 +99,7 @@ export interface UpdateHarvestDto {
   farmingMethods?: string;
   photoUrls?: string[];
   priceDecayConfig?: PriceDecayConfig | null;
+  qualityScore?: number;
 }
 
 export interface VerifyHarvestDto {

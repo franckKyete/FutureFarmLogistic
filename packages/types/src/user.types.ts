@@ -24,6 +24,7 @@ export enum ParcelStatus {
 export interface FarmerProfileDto {
   companyName: string;
   address: string;
+  regionName?: string | null;
   bio?: string;
   avatarUrl?: string | null;
   isCertified: boolean;

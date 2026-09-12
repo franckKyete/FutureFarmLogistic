@@ -6,6 +6,7 @@ import {
   useCreateInspector,
   useCreateDriver,
 } from '@/features/admin/api/users.queries';
+import { useInspectionCenters } from '@/features/admin/api/inspections.queries';
 import { AdminCard, Button } from '@/features/admin/components';
 import { addToast } from '@/features/shared/store/toast.store';
 
@@ -38,6 +39,7 @@ function CreateFieldAgentPage() {
   const navigate = useNavigate();
   const createInspectorMutation = useCreateInspector();
   const createDriverMutation = useCreateDriver();
+  const { data: inspectionCenters = [] } = useInspectionCenters();
 
   const [agentRole, setAgentRole] = useState<AgentRole>('inspector');
 
@@ -52,6 +54,7 @@ function CreateFieldAgentPage() {
     'Céréales & Grains',
     'Fruits & Légumes',
   ]);
+  const [selectedCenterIds, setSelectedCenterIds] = useState<string[]>([]);
 
   // Driver specific fields
   const [driverLicenseNumber, setDriverLicenseNumber] = useState('');
@@ -71,6 +74,12 @@ function CreateFieldAgentPage() {
     );
   };
 
+  const toggleCenter = (centerId: string) => {
+    setSelectedCenterIds((prev) =>
+      prev.includes(centerId) ? prev.filter((id) => id !== centerId) : [...prev, centerId]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -80,12 +89,18 @@ function CreateFieldAgentPage() {
     }
 
     if (agentRole === 'inspector') {
+      if (selectedCenterIds.length === 0) {
+        addToast("Veuillez affecter au moins un centre d'inspection à l'inspecteur", 'error');
+        return;
+      }
+
       const payload = {
         firstName,
         lastName,
         email,
         phoneNumber: phone.trim(),
         specializations: selectedSpecializations,
+        inspectionCenterIds: selectedCenterIds,
       };
 
       createInspectorMutation.mutate(payload, {
@@ -149,6 +164,7 @@ function CreateFieldAgentPage() {
     setLastName('');
     setEmail('');
     setPhone('');
+    setSelectedCenterIds([]);
     setDriverLicenseNumber('');
     setLicenseExpiresAt('');
   };
@@ -438,6 +454,80 @@ function CreateFieldAgentPage() {
             )}
           </AdminCard>
 
+          {/* Section 3: Centers for Inspectors */}
+          {agentRole === 'inspector' && (
+            <AdminCard className="p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-[var(--admin-outline-variant)]/20 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[var(--admin-primary)]">corporate_fare</span>
+                  <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
+                    3. Affectation aux Centres d'Inspection Régionaux <span className="text-rose-600">*</span>
+                  </h2>
+                </div>
+                <span className="text-xs font-semibold text-gray-500">
+                  {selectedCenterIds.length} sélectionné{selectedCenterIds.length > 1 ? 's' : ''} (min. 1)
+                </span>
+              </div>
+
+              <p className="text-xs text-[var(--admin-on-surface-variant)]">
+                Sélectionnez le ou les centres d'inspection auxquels cet auditeur sera rattaché pour ses opérations d'audit. Un inspecteur doit avoir au moins un centre actif.
+              </p>
+
+              {inspectionCenters.filter((c) => c.isActive).length === 0 ? (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                  Aucun centre d'inspection actif disponible. Veuillez créer un centre d'inspection avant de créer un inspecteur.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {inspectionCenters
+                    .filter((c) => c.isActive)
+                    .map((center) => {
+                      const isSelected = selectedCenterIds.includes(center.id);
+                      return (
+                        <div
+                          key={center.id}
+                          onClick={() => toggleCenter(center.id)}
+                          className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 ring-1 ring-[var(--admin-primary)]'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-sm text-[var(--admin-on-surface)] truncate">
+                              {center.name}
+                            </span>
+                            <span
+                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ml-2 ${
+                                isSelected
+                                  ? 'border-[var(--admin-primary)] bg-[var(--admin-primary)] text-white'
+                                  : 'border-gray-300'
+                              }`}
+                            >
+                              {isSelected && <span className="material-symbols-outlined text-xs">check</span>}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="font-mono text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-bold">
+                              {center.code}
+                            </span>
+                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                              {center.regionName}
+                            </span>
+                          </div>
+                          {center.address && (
+                            <p className="text-[11px] text-gray-500 mt-1 truncate">
+                              {center.address}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </AdminCard>
+          )}
+
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
@@ -505,11 +595,11 @@ function CreateFieldAgentPage() {
                 </div>
                 <div>
                   <p className="text-[9px] text-emerald-300 font-semibold uppercase">
-                    {agentRole === 'inspector' ? 'Expertise' : 'Permis'}
+                    {agentRole === 'inspector' ? 'Centres' : 'Permis'}
                   </p>
                   <p className="font-medium text-white truncate">
                     {agentRole === 'inspector'
-                      ? `${selectedSpecializations.length} filière(s)`
+                      ? `${selectedCenterIds.length} centre(s)`
                       : `Cat. ${licenseCategory}`}
                   </p>
                 </div>

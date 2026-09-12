@@ -43,14 +43,10 @@ const DEFAULT_CHECKLIST: InspectionChecklist = {
     passed: true,
     notes: 'Conditionnement adapté au transport',
   },
-  [InspectionChecklistItem.LABELING]: {
-    passed: true,
-    notes: 'Étiquetage et traçabilité vérifiés',
-  },
 };
 
 const CHECKLIST_LABELS: Record<
-  InspectionChecklistItem,
+  Exclude<InspectionChecklistItem, InspectionChecklistItem.LABELING>,
   { title: string; subtitle: string; icon: string }
 > = {
   [InspectionChecklistItem.VISUAL_QUALITY]: {
@@ -72,11 +68,6 @@ const CHECKLIST_LABELS: Record<
     title: 'Conditionnement',
     subtitle: 'Caisses ou sacs propres et aérés',
     icon: 'inventory_2',
-  },
-  [InspectionChecklistItem.LABELING]: {
-    title: 'Étiquetage & Traçabilité',
-    subtitle: 'Origine parcelle et numéro de lot',
-    icon: 'qr_code_2',
   },
 };
 
@@ -117,14 +108,39 @@ function InspectorProactiveInspectionPage() {
 
   const [selectedProductId, setSelectedProductId] = useState('');
   const [cropCustomName, setCropCustomName] = useState('');
+  const [productMode, setProductMode] = useState<'select' | 'new'>('select');
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductCategory, setNewProductCategory] = useState<string>('VEGETABLES');
+  const [newProductDescription, setNewProductDescription] = useState('');
   const [quantity, setQuantity] = useState<number | ''>('');
+  const [stockMarge, setStockMarge] = useState<number | ''>(0);
   const [pricePerUnit, setPricePerUnit] = useState<number | ''>('');
   const [unit, setUnit] = useState<HarvestUnit>(HarvestUnit.KG);
-  const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0] ?? '');
+  const [shelfLifeDays, setShelfLifeDays] = useState<number | ''>(30);
   const [farmingMethods, setFarmingMethods] = useState('');
   const [finalQualityScore, setFinalQualityScore] = useState<number>(8.5);
   const [checklist, setChecklist] = useState<InspectionChecklist>(DEFAULT_CHECKLIST);
   const [overallAuditNotes, setOverallAuditNotes] = useState('');
+
+  // Create Product Mutation (when template doesn't exist)
+  const createProductMutation = useMutation({
+    mutationFn: async (dto: { name: string; category: string; description?: string }) => {
+      const { data } = await apiClient.post<{ data: ProductTemplate }>('/products', dto);
+      return data.data;
+    },
+    onSuccess: (product) => {
+      addToast(`Produit "${product.name}" créé avec succès !`, 'success');
+      queryClient.invalidateQueries({ queryKey: ['products', 'templates'] });
+      setSelectedProductId(product.id);
+      setCropCustomName(product.name);
+      setProductMode('select');
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Erreur lors de la création du produit';
+      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+    },
+  });
 
   // AI Classification Mutation
   const classifyMutation = useMutation({
@@ -136,6 +152,10 @@ function InspectorProactiveInspectionPage() {
       // Pre-fill Step 3 fields
       if (data.suggestedProductId) {
         setSelectedProductId(data.suggestedProductId);
+        setProductMode('select');
+      } else if (data.suggestedName) {
+        setNewProductName(data.suggestedName);
+        setProductMode('new');
       }
       if (data.suggestedName) {
         setCropCustomName(data.suggestedName);
@@ -145,6 +165,9 @@ function InspectorProactiveInspectionPage() {
       }
       if (data.suggestedPricePerUnit) {
         setPricePerUnit(Number(data.suggestedPricePerUnit));
+      }
+      if (data.recommendedShelfLifeDays) {
+        setShelfLifeDays(Number(data.recommendedShelfLifeDays));
       }
       if (data.farmingMethods) {
         setFarmingMethods(data.farmingMethods);
@@ -178,6 +201,8 @@ function InspectorProactiveInspectionPage() {
     onSuccess: () => {
       addToast('Récolte enregistrée et certifiée avec succès !', 'success');
       queryClient.invalidateQueries({ queryKey: ['inspector'] });
+      queryClient.invalidateQueries({ queryKey: ['harvests'] });
+      queryClient.invalidateQueries({ queryKey: ['inspections'] });
       void navigate({ to: '/inspector/validate' });
     },
     onError: (err: any) => {
@@ -228,13 +253,16 @@ function InspectorProactiveInspectionPage() {
   };
 
   const handleToggleChecklist = (key: InspectionChecklistItem) => {
-    setChecklist((prev) => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        passed: !prev[key].passed,
-      },
-    }));
+    setChecklist((prev) => {
+      const current = prev[key] || { passed: true, notes: '' };
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          passed: !current.passed,
+        },
+      };
+    });
   };
 
   const handleFinalSubmit = (e: React.FormEvent) => {
@@ -244,21 +272,27 @@ function InspectorProactiveInspectionPage() {
       return;
     }
 
+    const harvestDateTime = new Date(harvestDate);
+    const durationDays = typeof shelfLifeDays === 'number' && !isNaN(shelfLifeDays) ? shelfLifeDays : 30;
+    const expirationDateTime = new Date(harvestDateTime.getTime() + durationDays * 86400000);
+    const expirationDate = expirationDateTime.toISOString().split('T')[0] ?? '';
+
     createAndCertifyMutation.mutate({
       farmerUserId: selectedFarmerId,
       productId: selectedProductId || undefined,
       productName: cropCustomName || undefined,
       quantityInStock: Number(quantity),
-      stockMarge: 0,
+      stockMarge: Number(stockMarge) || 0,
       pricePerUnit: Number(pricePerUnit),
       unit,
       harvestDate,
-      expirationDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      expirationDate,
       farmingMethods: farmingMethods || 'Culture traditionnelle locale',
       photoUrls: images,
       qualityScore: finalQualityScore,
       status: 'APPROVED',
       auditNotes: overallAuditNotes,
+      checklist,
     });
   };
 
@@ -357,9 +391,16 @@ function InspectorProactiveInspectionPage() {
                             {farmer.lastName?.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <h3 className="text-xs font-bold text-gray-900 truncate">
-                              {farmer.firstName} {farmer.lastName}
-                            </h3>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="text-xs font-bold text-gray-900 truncate">
+                                {farmer.firstName} {farmer.lastName}
+                              </h3>
+                              {farmer.regionName && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-[#1a5c35] border border-emerald-200">
+                                  {farmer.regionName}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-gray-500 truncate">
                               {farmer.farmName || farmer.email}
                             </p>
@@ -404,13 +445,18 @@ function InspectorProactiveInspectionPage() {
           <div className="space-y-4">
             {/* Farmer context badge */}
             <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-200 shadow-2xs">
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="material-symbols-outlined text-[#1a5c35]">person</span>
                 <span className="font-bold text-gray-900">
                   {selectedFarmer?.firstName} {selectedFarmer?.lastName}
                 </span>
                 {selectedFarmer?.farmName && (
                   <span className="text-gray-500">({selectedFarmer.farmName})</span>
+                )}
+                {selectedFarmer?.regionName && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-[#1a5c35] border border-emerald-200">
+                    {selectedFarmer.regionName}
+                  </span>
                 )}
               </div>
               <button
@@ -625,6 +671,7 @@ function InspectorProactiveInspectionPage() {
                   </h3>
                   <p className="text-xs text-gray-600">
                     Producteur : {selectedFarmer?.firstName} {selectedFarmer?.lastName}
+                    {selectedFarmer?.regionName && ` (${selectedFarmer.regionName})`}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 font-mono text-sm font-bold text-[#1a5c35]">
@@ -636,32 +683,153 @@ function InspectorProactiveInspectionPage() {
 
             {/* Product & Quantity Specification */}
             <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-4">
-              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">
-                Données du Lot
-              </h3>
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  Données du Lot
+                </h3>
+                <div className="flex rounded-lg bg-gray-100 p-0.5 text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setProductMode('select')}
+                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                      productMode === 'select'
+                        ? 'bg-white text-gray-900 shadow-xs font-bold'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    Produit existant
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProductMode('new')}
+                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                      productMode === 'new'
+                        ? 'bg-white text-[#1a5c35] shadow-xs font-bold'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    + Nouveau produit
+                  </button>
+                </div>
+              </div>
+
+              {productMode === 'new' ? (
+                <div className="bg-emerald-50/40 border border-emerald-200 rounded-xl p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#1a5c35] flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">add_circle</span>
+                      Créer un nouveau produit
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      Ce produit sera enregistré dans le catalogue
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Nom du produit <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newProductName}
+                        onChange={(e) => {
+                          setNewProductName(e.target.value);
+                          setCropCustomName(e.target.value);
+                        }}
+                        placeholder="Ex: Haricots Rouges Bio"
+                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Catégorie <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={newProductCategory}
+                        onChange={(e) => setNewProductCategory(e.target.value)}
+                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                      >
+                        <option value="VEGETABLES">Légumes (VEGETABLES)</option>
+                        <option value="FRUITS">Fruits (FRUITS)</option>
+                        <option value="CEREALS">Céréales (CEREALS)</option>
+                        <option value="DATES">Dattes (DATES)</option>
+                        <option value="DAIRY">Produits Laitiers (DAIRY)</option>
+                        <option value="MEAT">Viande / Élevage (MEAT)</option>
+                        <option value="OTHER">Autre (OTHER)</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Description (Optionnel)
+                      </label>
+                      <input
+                        type="text"
+                        value={newProductDescription}
+                        onChange={(e) => setNewProductDescription(e.target.value)}
+                        placeholder="Ex: Variété locale riche en fer, séchée au soleil..."
+                        className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      disabled={!newProductName.trim() || createProductMutation.isPending}
+                      onClick={() => {
+                        const payload: { name: string; category: string; description?: string } = {
+                          name: newProductName.trim(),
+                          category: newProductCategory,
+                        };
+                        if (newProductDescription.trim()) {
+                          payload.description = newProductDescription.trim();
+                        }
+                        createProductMutation.mutate(payload);
+                      }}
+                      className="px-3.5 py-2 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-sm">check</span>
+                      <span>
+                        {createProductMutation.isPending
+                          ? 'Création...'
+                          : 'Enregistrer dans le catalogue'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Modèle de produit
-                  </label>
-                  <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-                  >
-                    <option value="">-- Sélectionner ou personnaliser --</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.category})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {productMode === 'select' && (
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1">
+                      Modèle de produit (Catalogue)
+                    </label>
+                    <select
+                      value={selectedProductId}
+                      onChange={(e) => {
+                        setSelectedProductId(e.target.value);
+                        const found = products.find((p) => p.id === e.target.value);
+                        if (found) setCropCustomName(found.name);
+                      }}
+                      className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                    >
+                      <option value="">-- Sélectionner dans le catalogue --</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.category})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">
-                    Nom / Variété du produit
+                    Nom / Variété affichée
                   </label>
                   <input
                     type="text"
@@ -684,6 +852,21 @@ function InspectorProactiveInspectionPage() {
                     onChange={(e) => setQuantity(e.target.value === '' ? '' : parseFloat(e.target.value))}
                     required
                     placeholder="Ex: 500"
+                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Marge autorisée (± tolérance stock)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={stockMarge}
+                    onChange={(e) => setStockMarge(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    placeholder="Ex: 10"
                     className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
                   />
                 </div>
@@ -730,6 +913,24 @@ function InspectorProactiveInspectionPage() {
                     className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
                   />
                 </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Durée de conservation (jours)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={shelfLifeDays}
+                    onChange={(e) =>
+                      setShelfLifeDays(
+                        e.target.value === '' ? '' : parseInt(e.target.value, 10),
+                      )
+                    }
+                    placeholder="Ex: 30"
+                    className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
+                  />
+                </div>
               </div>
             </div>
 
@@ -740,7 +941,7 @@ function InspectorProactiveInspectionPage() {
               </h3>
 
               <div className="space-y-2.5">
-                {(Object.keys(CHECKLIST_LABELS) as InspectionChecklistItem[]).map((key) => {
+                {(Object.keys(CHECKLIST_LABELS) as (keyof typeof CHECKLIST_LABELS)[]).map((key) => {
                   const meta = CHECKLIST_LABELS[key];
                   const item = checklist[key] || { passed: true, notes: '' };
 

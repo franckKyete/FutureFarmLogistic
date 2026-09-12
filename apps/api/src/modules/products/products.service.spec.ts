@@ -9,13 +9,18 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 
-import { ProductCategory, HarvestStatus, HarvestUnit } from '@futurefarm/types';
+import { ProductCategory, HarvestStatus, HarvestUnit, InspectionStatus } from '@futurefarm/types';
 import { ProductsService } from './products.service';
 import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
 import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
+import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { InspectionReportEntity } from '../inspections/entities/inspection-report.entity';
+import { InspectionPhotoEntity } from '../inspections/entities/inspection-photo.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -23,6 +28,9 @@ describe('ProductsService', () => {
   let harvestRepository: any;
   let farmerProfileRepository: any;
   let parcelRepository: any;
+  let inspectorProfileRepository: any;
+  let inspectionReportRepository: any;
+  let inspectionPhotoRepository: any;
   let configService: any;
 
   const mockProductQueryBuilder = {
@@ -40,8 +48,8 @@ describe('ProductsService', () => {
 
   const mockHarvestRepository = {
     findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'mock-harvest-id', ...dto })),
+    save: jest.fn().mockImplementation((h) => Promise.resolve({ id: 'mock-harvest-id', ...h })),
     createQueryBuilder: jest.fn(),
   };
 
@@ -56,6 +64,26 @@ describe('ProductsService', () => {
   const mockInspectionCenterRepository = {
     findOne: jest.fn(),
     find: jest.fn(),
+  };
+
+  const mockInspectorProfileRepository = {
+    findOne: jest.fn(),
+  };
+
+  const mockInspectionReportRepository = {
+    findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'mock-report-id', ...dto })),
+    save: jest.fn().mockImplementation((r) => Promise.resolve({ id: 'mock-report-id', ...r })),
+  };
+
+  const mockInspectionPhotoRepository = {
+    create: jest.fn().mockImplementation((dto) => ({ id: 'mock-photo-id', ...dto })),
+    save: jest.fn().mockImplementation((p) => Promise.resolve(p)),
+  };
+
+  const mockVisitRepository = {
+    findOne: jest.fn(),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
   const mockConfigService = {
@@ -87,8 +115,30 @@ describe('ProductsService', () => {
           useValue: mockInspectionCenterRepository,
         },
         {
+          provide: getRepositoryToken(InspectorProfileEntity),
+          useValue: mockInspectorProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(InspectionReportEntity),
+          useValue: mockInspectionReportRepository,
+        },
+        {
+          provide: getRepositoryToken(InspectionPhotoEntity),
+          useValue: mockInspectionPhotoRepository,
+        },
+        {
+          provide: getRepositoryToken(VisitEntity),
+          useValue: mockVisitRepository,
+        },
+        {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            send: jest.fn().mockResolvedValue({ id: 'mock-notif-id' }),
+          },
         },
       ],
     }).compile();
@@ -100,6 +150,15 @@ describe('ProductsService', () => {
       getRepositoryToken(FarmerProfileEntity),
     );
     parcelRepository = module.get(getRepositoryToken(ParcelEntity));
+    inspectorProfileRepository = module.get(
+      getRepositoryToken(InspectorProfileEntity),
+    );
+    inspectionReportRepository = module.get(
+      getRepositoryToken(InspectionReportEntity),
+    );
+    inspectionPhotoRepository = module.get(
+      getRepositoryToken(InspectionPhotoEntity),
+    );
     configService = module.get<ConfigService>(ConfigService);
     jest.clearAllMocks();
 
@@ -206,6 +265,161 @@ describe('ProductsService', () => {
       expect(result.status).toBe(HarvestStatus.PENDING_APPROVAL);
       expect(result.farmerProfileId).toBe(farmerProfile.id);
       expect(result.productId).toBe(product.id);
+    });
+
+    it('should throw ForbiddenException if inspector creates harvest for farmer outside assigned center regions', async () => {
+      const inspectorUserId = 'inspector-user-id';
+      const targetFarmerUserId = 'target-farmer-id';
+      const targetFarmerProfile = { id: 'farmer-profile-id', userId: targetFarmerUserId, regionName: 'Thies' };
+      farmerProfileRepository.findOne.mockResolvedValue(targetFarmerProfile);
+      productRepository.findOne.mockResolvedValue(product);
+      inspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        userId: inspectorUserId,
+        assignments: [
+          {
+            isCurrentAssignment: true,
+            center: { isActive: true, regionName: 'Dakar' },
+          },
+        ],
+      });
+
+      await expect(
+        service.createHarvest(inspectorUserId, createDto, { onBehalfOfUserId: targetFarmerUserId }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should successfully create harvest when inspector is assigned to farmer region', async () => {
+      const inspectorUserId = 'inspector-user-id';
+      const targetFarmerUserId = 'target-farmer-id';
+      const targetFarmerProfile = { id: 'farmer-profile-id', userId: targetFarmerUserId, regionName: 'Dakar' };
+      farmerProfileRepository.findOne.mockResolvedValue(targetFarmerProfile);
+      productRepository.findOne.mockResolvedValue(product);
+      inspectorProfileRepository.findOne.mockResolvedValue({
+        id: 'inspector-profile-id',
+        userId: inspectorUserId,
+        assignments: [
+          {
+            isCurrentAssignment: true,
+            center: { isActive: true, regionName: 'Dakar' },
+          },
+        ],
+      });
+      harvestRepository.create.mockImplementation((args: any) => args);
+      harvestRepository.save.mockImplementation((harvest: any) =>
+        Promise.resolve({ id: 'harvest-id', ...harvest }),
+      );
+
+      const result = await service.createHarvest(inspectorUserId, createDto, { onBehalfOfUserId: targetFarmerUserId });
+      expect(result.farmerProfileId).toBe(targetFarmerProfile.id);
+      expect(result.status).toBe(HarvestStatus.PENDING_APPROVAL);
+    });
+  });
+
+  describe('createHarvestProxy', () => {
+    const actorId = 'inspector-user-id';
+    const farmerUserId = 'target-farmer-user-id';
+    const farmerProfile = {
+      id: 'farmer-profile-id',
+      userId: farmerUserId,
+      regionName: 'Kasenga',
+    };
+    const inspectorProfile = {
+      id: 'inspector-profile-id',
+      userId: actorId,
+      assignments: [
+        {
+          isCurrentAssignment: true,
+          center: { id: 'c-1', regionName: 'Kasenga', isActive: true },
+        },
+      ],
+    };
+    const product = { id: 'product-id', name: 'Tomates Fraîches' };
+
+    const proxyDto = {
+      farmerUserId,
+      productId: 'product-id',
+      harvestDate: '2026-07-01',
+      expirationDate: '2026-08-01',
+      quantityInStock: 500,
+      pricePerUnit: 1500,
+      unit: HarvestUnit.KG,
+      qualityScore: 8.5,
+      photoUrls: ['/uploads/photo1.jpg'],
+      auditNotes: 'Inspection terrain conforme',
+    };
+
+    it('should create and certify harvest with APPROVED status and save InspectionReport & Photos', async () => {
+      mockFarmerProfileRepository.findOne.mockResolvedValue(farmerProfile);
+      mockInspectorProfileRepository.findOne.mockResolvedValue(inspectorProfile);
+      mockProductRepository.findOne.mockResolvedValue(product);
+
+      const result = await service.createHarvestProxy(actorId, proxyDto);
+
+      expect(harvestRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          farmerProfileId: farmerProfile.id,
+          status: HarvestStatus.APPROVED,
+          qualityScore: 8.5,
+          approvedById: actorId,
+        }),
+      );
+      expect(mockInspectionReportRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          harvestId: result.id,
+          inspectorProfileId: inspectorProfile.id,
+          status: InspectionStatus.SUBMITTED,
+          finalQualityScore: 8.5,
+          overallNotes: 'Inspection terrain conforme',
+        }),
+      );
+      expect(mockInspectionPhotoRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/uploads/photo1.jpg',
+        }),
+      );
+      expect(result).toHaveProperty('id');
+      expect(inspectionReportRepository).toBeDefined();
+      expect(inspectionPhotoRepository).toBeDefined();
+    });
+
+    it('should auto-resolve product template by productName if productId is not provided', async () => {
+      mockFarmerProfileRepository.findOne.mockResolvedValue(farmerProfile);
+      mockInspectorProfileRepository.findOne.mockResolvedValue(inspectorProfile);
+      mockProductRepository.findOne.mockResolvedValue(null);
+      mockProductQueryBuilder.getOne.mockResolvedValue({ id: 'resolved-prod-id', name: 'Oignons' });
+
+      const dtoWithoutId = {
+        ...proxyDto,
+        productId: undefined,
+        productName: 'Oignons',
+      };
+
+      await service.createHarvestProxy(actorId, dtoWithoutId);
+
+      expect(harvestRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          productId: 'resolved-prod-id',
+          status: HarvestStatus.APPROVED,
+        }),
+      );
+    });
+
+    it('should set status to REJECTED if quality score is below 4.0', async () => {
+      mockFarmerProfileRepository.findOne.mockResolvedValue(farmerProfile);
+      mockInspectorProfileRepository.findOne.mockResolvedValue(inspectorProfile);
+      mockProductRepository.findOne.mockResolvedValue(product);
+
+      const lowScoreDto = { ...proxyDto, qualityScore: 3.5 };
+
+      await service.createHarvestProxy(actorId, lowScoreDto);
+
+      expect(harvestRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: HarvestStatus.REJECTED,
+          qualityScore: 3.5,
+        }),
+      );
     });
   });
 
@@ -435,7 +649,7 @@ describe('ProductsService', () => {
   });
 
   describe('findAllHarvests and findFarmerOwnHarvests', () => {
-    it('should list all harvests query build successfully', async () => {
+    it('should list all harvests query build successfully for public view with APPROVED status', async () => {
       const mockQueryBuilder = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
@@ -447,6 +661,49 @@ describe('ProductsService', () => {
 
       const result = await service.findAllHarvests({ isPublicView: true });
       expect(result).toEqual([]);
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'harvest.status = :approvedStatus',
+        { approvedStatus: HarvestStatus.APPROVED },
+      );
+    });
+
+    it('should filter by specific status when isPublicView is false', async () => {
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      await service.findAllHarvests({
+        isPublicView: false,
+        status: HarvestStatus.PENDING_APPROVAL,
+      });
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'harvest.status = :status',
+        { status: HarvestStatus.PENDING_APPROVAL },
+      );
+    });
+
+    it('should exclude archived status when isPublicView is false and status is not specified', async () => {
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      await service.findAllHarvests({ isPublicView: false });
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'harvest.status != :archivedStatus',
+        { archivedStatus: HarvestStatus.ARCHIVED },
+      );
     });
 
     it('should list farmer own harvests successfully', async () => {
@@ -457,6 +714,10 @@ describe('ProductsService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       };
+      mockFarmerProfileRepository.findOne.mockResolvedValue({
+        id: 'fp-1',
+        userId: 'farmer-user-1',
+      });
       harvestRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       const result = await service.findFarmerOwnHarvests('farmer-user-1');

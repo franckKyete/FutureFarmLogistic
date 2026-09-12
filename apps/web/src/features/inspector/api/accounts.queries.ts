@@ -16,7 +16,17 @@ export function useProducers(filters: ProducerFilter) {
 
 export function useCreateProducer() {
   return useMutation({
-    mutationFn: async (payload: { firstName: string; lastName: string; email: string; phone?: string; password: string; farmName: string }) => {
+    mutationFn: async (payload: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      password: string;
+      farmName?: string;
+      companyName?: string;
+      address?: string;
+      regionName?: string;
+    }) => {
       const { data } = await apiClient.post<{ data: ProducerDto }>('/users/register/farmer/proxy', payload);
       return data.data;
     },

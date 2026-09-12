@@ -8,7 +8,14 @@ import { addToast } from '@/features/shared/store/toast.store';
 import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
 import { Permission } from '@futurefarm/types';
 
+export interface AnalyzeSearch {
+  productId?: string | undefined;
+}
+
 export const Route = createFileRoute('/farmer/harvests/analyze')({
+  validateSearch: (search: Record<string, unknown>): AnalyzeSearch => ({
+    productId: typeof search.productId === 'string' ? search.productId : undefined,
+  }),
   beforeLoad: () => {
     requireAuth(Permission.HARVEST_CREATE);
   },
@@ -17,6 +24,7 @@ export const Route = createFileRoute('/farmer/harvests/analyze')({
 
 function AnalyzePage() {
   useFarmerLayout({ hideTopBar: true, hideBottomNav: true });
+  const { productId: initialProductId } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [images, setImages] = useState<string[]>([]);
@@ -104,22 +112,20 @@ function AnalyzePage() {
   const handleContinue = () => {
     if (!classifiedData) return;
 
-    // Map and round quality score (0.0 - 10.0 range mapped to 0-100 percentage)
-    const qualityPercent = classifiedData.aiQualityScore
-      ? Math.round(classifiedData.aiQualityScore * 10)
-      : 90;
+    const primaryPhoto = images[0] || images[activeImageIndex] || '';
 
     void navigate({
       to: '/farmer/harvests/new',
       search: {
         isIdentified: classifiedData.isIdentified ? 'true' : 'false',
-        productId: classifiedData.suggestedProductId || '',
+        productId: classifiedData.suggestedProductId || initialProductId || '',
         quantity: classifiedData.estimatedQuantity ? String(classifiedData.estimatedQuantity) : '',
         pricePerUnit: classifiedData.suggestedPricePerUnit ? String(classifiedData.suggestedPricePerUnit) : '',
         shelfLifeDays: classifiedData.recommendedShelfLifeDays ? String(classifiedData.recommendedShelfLifeDays) : '30',
         farmingMethods: classifiedData.farmingMethods || '',
-        photoUrl: images[activeImageIndex] || '',
-        qualityScore: String(qualityPercent),
+        photoUrl: primaryPhoto,
+        photoUrls: images.join(','),
+        qualityScore: classifiedData.aiQualityScore != null ? String(classifiedData.aiQualityScore) : '8.5',
       },
     });
   };

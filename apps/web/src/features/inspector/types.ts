@@ -13,6 +13,7 @@ export interface DashboardStats {
     suspiciousHarvests: number;
   };
   todayVisits: VisitDto[];
+  upcomingVisits?: VisitDto[];
   weeklyStats?: { day: string; count: number }[];
 }
 
@@ -20,6 +21,7 @@ export interface VisitDto {
   id: string;
   inspectorId: string;
   producerId: string;
+  harvestId?: string;
   plannedDate: string;
   plannedTime?: string | null;
   reason: VisitReason;
@@ -31,6 +33,7 @@ export interface VisitDto {
   producerFarmName?: string;
   producerPhone?: string;
   producerEmail?: string;
+  inspectorName?: string;
 }
 
 export interface CreateVisitDto {
@@ -39,6 +42,7 @@ export interface CreateVisitDto {
   plannedTime?: string;
   reason: VisitReason;
   notes?: string;
+  harvestId?: string;
 }
 
 export interface UpdateVisitDto {
@@ -63,23 +67,28 @@ export interface ProducerDto {
   status: string;
   phone?: string;
   farmName?: string;
+  regionName?: string;
 }
 
 export interface ProducerFilter {
   role: string;
   status?: string;
   search?: string;
+  regionName?: string;
   page?: number;
   limit?: number;
 }
 
 export interface HarvestDto {
   id: string;
-  productId?: string;
-  farmerProfileId?: string;
+  productId?: string | undefined;
+  farmerProfileId?: string | undefined;
+  farmerUserId?: string | undefined;
   productName: string;
   producerName: string;
   quantity: number;
+  stockMarge?: number | undefined;
+  pricePerUnit?: number | undefined;
   unit: string;
   qualityScore?: number | null | undefined;
   status: string;

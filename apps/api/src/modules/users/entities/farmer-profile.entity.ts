@@ -32,6 +32,9 @@ export class FarmerProfileEntity {
   @Column('text')
   address: string;
 
+  @Column({ name: 'region_name', type: 'varchar', length: 255, nullable: true })
+  regionName: string | null;
+
   @Column('text', { nullable: true })
   bio: string | null;
 

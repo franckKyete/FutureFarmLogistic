@@ -11,6 +11,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -140,9 +141,12 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.USER_READ)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: List all users (paginated). Supports role, status, and search filters' })
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.usersService.findAll(query);
+  @ApiOperation({ summary: 'List all users (paginated). Supports role, status, search, and region filters' })
+  findAll(
+    @Query() query: PaginationQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.usersService.findAll(query, user);
   }
 
   @Get('profile/farmer')
@@ -234,20 +238,41 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.USER_READ)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a user by ID' })
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    const isSelf = currentUser?.id === id;
+    const hasUserRead = currentUser?.permissions?.includes(Permission.USER_READ);
+    if (!isSelf && !hasUserRead) {
+      throw new ForbiddenException('Missing required permissions: user:read');
+    }
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.USER_UPDATE)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: Update user details' })
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  @ApiOperation({ summary: 'Update user details' })
+  update(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+    @Body() dto: UpdateUserDto,
+  ) {
+    const isSelf = currentUser?.id === id;
+    const hasAdminUpdate = currentUser?.permissions?.includes(Permission.USER_UPDATE);
+    const hasProfileUpdate = currentUser?.permissions?.includes(Permission.PROFILE_UPDATE);
+
+    if (!isSelf && !hasAdminUpdate) {
+      throw new ForbiddenException('Missing required permissions: user:update');
+    }
+    if (isSelf && !hasAdminUpdate && !hasProfileUpdate) {
+      throw new ForbiddenException('Missing required permissions: profile:update');
+    }
+
     return this.usersService.updateUser(id, dto);
   }
 

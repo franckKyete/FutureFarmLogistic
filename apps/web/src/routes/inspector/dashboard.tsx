@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useDashboardStats } from '@/features/inspector/api/dashboard.queries';
 import { usePendingHarvests } from '@/features/inspector/api/harvests.queries';
@@ -25,6 +26,7 @@ const REASON_STYLES: Record<VisitReason, string> = {
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
   const { data: myCenter } = useMyCenter();
   const { data: stats, isLoading, isError, refetch } = useDashboardStats();
   const { data: pendingHarvests = [], isLoading: pendingLoading } = usePendingHarvests(
@@ -33,14 +35,11 @@ function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] pb-24 font-sans">
+    <div className="min-h-screen bg-[#f8f9ff] pb-24 font-sans relative">
       {/* Header with Inspector & Assigned Center Badge */}
       <Header user={user} center={myCenter} />
 
       <div className="p-4 space-y-6 max-w-5xl mx-auto">
-        {/* Quick Action CTAs */}
-        <QuickActions onNavigate={(path) => void navigate({ to: path as any })} />
-
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
@@ -62,15 +61,140 @@ function DashboardPage() {
 
               {/* Scheduled Inspections Queue */}
               <ScheduledInspectionsQueue
-                visits={stats.todayVisits}
+                visits={
+                  stats.upcomingVisits && stats.upcomingVisits.length > 0
+                    ? stats.upcomingVisits
+                    : stats.todayVisits
+                }
                 onPlanning={() => void navigate({ to: '/inspector/planning' })}
+                onSelectVisit={(harvestId) => {
+                  if (harvestId) {
+                    void navigate({ to: '/inspector/reports/$id', params: { id: harvestId } });
+                  } else {
+                    void navigate({ to: '/inspector/planning' });
+                  }
+                }}
               />
             </div>
           </>
         ) : null}
       </div>
+
+      {/* Floating Action Button (FAB) */}
+      <button
+        type="button"
+        onClick={() => setShowBottomSheet(true)}
+        aria-label="Actions rapides"
+        className="fixed bottom-20 right-5 z-40 w-14 h-14 bg-[#1a5c35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-2xl">add</span>
+      </button>
+
+      {/* Action Bottom Sheet */}
+      {showBottomSheet && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-20 md:pb-6 px-3">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowBottomSheet(false)}
+          />
+
+          {/* Sheet */}
+          <div className="relative z-10 w-full max-w-md bg-white rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200 border border-gray-200">
+            {/* Grab handle */}
+            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Actions rapides</h3>
+                <p className="text-xs text-gray-500">Choisissez une opération à effectuer</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBottomSheet(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBottomSheet(false);
+                  void navigate({ to: '/inspector/proxy' });
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 bg-emerald-50/60 hover:bg-emerald-100/60 border border-emerald-200 rounded-2xl text-left transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#1a5c35] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <span className="material-symbols-outlined text-xl">add_circle</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1a5c35]">
+                    Nouvelle Inspection Terrain
+                  </h4>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    Enregistrer et certifier une récolte par procuration
+                  </p>
+                </div>
+                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBottomSheet(false);
+                  void navigate({ to: '/inspector/accounts' });
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl text-left transition-colors cursor-pointer group shadow-2xs"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-100 text-[#1a5c35] border border-gray-200 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">person_add</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1a5c35]">
+                    Enrôler un Producteur
+                  </h4>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    Créer ou valider le compte d'un agriculteur local
+                  </p>
+                </div>
+                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function formatVisitScheduleBadge(
+  plannedDate: string,
+  plannedTime?: string | null,
+): string {
+  const timeStr = plannedTime
+    ? plannedTime.length > 5
+      ? plannedTime.slice(0, 5)
+      : plannedTime
+    : '09:00';
+  if (!plannedDate) return timeStr;
+
+  const dateOnly = plannedDate.split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  if (dateOnly === todayStr) {
+    return timeStr;
+  }
+
+  const d = new Date(dateOnly + 'T00:00:00');
+  const dayMonth = d.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+  });
+
+  return `${dayMonth} • ${timeStr}`;
 }
 
 function Header({ user, center }: { user: any; center: any }) {
@@ -108,34 +232,18 @@ function Header({ user, center }: { user: any; center: any }) {
   );
 }
 
-function QuickActions({ onNavigate }: { onNavigate: (path: string) => void }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button
-        onClick={() => onNavigate('/inspector/proxy')}
-        className="flex items-center justify-center gap-2.5 py-3.5 px-4 bg-[#1a5c35] text-white rounded-2xl font-bold text-sm shadow-sm hover:bg-[#144a2a] active:scale-98 transition-all cursor-pointer"
-      >
-        <span className="material-symbols-outlined text-xl">add_circle</span>
-        Nouvelle Inspection Terrain
-      </button>
-
-      <button
-        onClick={() => onNavigate('/inspector/accounts')}
-        className="flex items-center justify-center gap-2.5 py-3.5 px-4 bg-white text-[#1a5c35] border border-[#1a5c35]/30 rounded-2xl font-bold text-sm shadow-2xs hover:bg-[#1a5c35]/5 active:scale-98 transition-all cursor-pointer"
-      >
-        <span className="material-symbols-outlined text-xl">person_add</span>
-        Enrôler un Producteur
-      </button>
-    </div>
-  );
-}
 
 function MetricsSection({ stats }: { stats: DashboardStats }) {
+  const hasQualityScore = stats.averageQualityScore != null && Number(stats.averageQualityScore) > 0;
+
   const cards = [
     {
       label: 'Producteurs région',
-      value: `${stats.regionalFarmersCount ?? stats.pendingAccountsCount}`,
-      trend: `${stats.pendingAccountsCount} en attente`,
+      value: `${stats.regionalFarmersCount ?? 0}`,
+      trend:
+        stats.pendingAccountsCount > 0
+          ? `${stats.pendingAccountsCount} en attente`
+          : 'Comptes à jour',
       icon: 'groups',
       iconColor: 'text-emerald-700',
       bgColor: 'bg-emerald-50',
@@ -143,7 +251,7 @@ function MetricsSection({ stats }: { stats: DashboardStats }) {
     {
       label: 'Commandes traitées',
       value: `${stats.orderVolume ?? 0}`,
-      trend: 'Activité globale',
+      trend: 'Activité régionale',
       icon: 'local_shipping',
       iconColor: 'text-blue-700',
       bgColor: 'bg-blue-50',
@@ -151,15 +259,20 @@ function MetricsSection({ stats }: { stats: DashboardStats }) {
     {
       label: 'Audits validés (mois)',
       value: `${stats.monthlyValidationsCount || 0}`,
-      trend: `${stats.pendingHarvestsCount} en attente`,
+      trend:
+        stats.pendingHarvestsCount > 0
+          ? `${stats.pendingHarvestsCount} en attente`
+          : 'Aucune récolte en attente',
       icon: 'fact_check',
       iconColor: 'text-purple-700',
       bgColor: 'bg-purple-50',
     },
     {
       label: 'Score qualité moyen',
-      value: stats.averageQualityScore ? `${Number(stats.averageQualityScore).toFixed(1)} / 10` : '8.5 / 10',
-      trend: 'Conformité certifiée',
+      value: hasQualityScore
+        ? `${Number(stats.averageQualityScore).toFixed(1)} / 10`
+        : '-- / 10',
+      trend: hasQualityScore ? 'Conformité certifiée' : 'Aucune récolte évaluée',
       icon: 'verified',
       iconColor: 'text-amber-700',
       bgColor: 'bg-amber-50',
@@ -278,9 +391,11 @@ function PendingHarvestsQueue({
 function ScheduledInspectionsQueue({
   visits,
   onPlanning,
+  onSelectVisit,
 }: {
   visits: VisitDto[];
   onPlanning: () => void;
+  onSelectVisit?: (harvestId?: string) => void;
 }) {
   const displayVisits = visits.slice(0, 3);
 
@@ -304,19 +419,25 @@ function ScheduledInspectionsQueue({
           {displayVisits.length === 0 ? (
             <div className="text-center py-8 text-gray-400 space-y-1">
               <span className="material-symbols-outlined text-3xl">event_busy</span>
-              <p className="text-xs font-medium text-gray-500">Aucune visite programmée aujourd'hui</p>
+              <p className="text-xs font-medium text-gray-500">Aucune visite programmée à venir</p>
             </div>
           ) : (
             displayVisits.map((visit) => (
               <div
                 key={visit.id}
-                onClick={onPlanning}
-                className="p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50/40 hover:border-blue-200 transition-all cursor-pointer flex items-center justify-between gap-3"
+                onClick={() => {
+                  if (visit.harvestId && onSelectVisit) {
+                    onSelectVisit(visit.harvestId);
+                  } else {
+                    onPlanning();
+                  }
+                }}
+                className="p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50/40 hover:border-blue-200 transition-all cursor-pointer flex items-center justify-between gap-3 group"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700">
-                      {visit.plannedTime || '09:00'}
+                      {formatVisitScheduleBadge(visit.plannedDate, visit.plannedTime)}
                     </span>
                     <h3 className="text-xs font-bold text-gray-900 truncate">
                       {visit.producerName || 'Producteur'}

@@ -115,6 +115,7 @@ function FarmerProfilePage() {
             firstName: tempFirstName.trim(),
             lastName: tempLastName.trim(),
             email: tempEmail.trim(),
+            phoneNumber: tempPhone.trim() || null,
           });
           setIsEditing(false);
           void refetchProfile();

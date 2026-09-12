@@ -24,6 +24,7 @@ export function usePendingHarvests(
           id: h.id,
           productId: h.productId,
           farmerProfileId: h.farmerProfileId ?? h.farmerProfile?.id,
+          farmerUserId: h.farmerProfile?.userId ?? h.farmerProfile?.user?.id ?? h.producerId,
           productName: h.product?.name ?? h.productName ?? 'Produit Agricole',
           producerName:
             h.farmerProfile?.user
@@ -32,6 +33,8 @@ export function usePendingHarvests(
                 h.producerName ??
                 'Producteur local',
           quantity: Number(h.quantityInStock ?? h.quantity ?? 0),
+          stockMarge: h.stockMarge != null ? Number(h.stockMarge) : 0,
+          pricePerUnit: h.pricePerUnit != null ? Number(h.pricePerUnit) : undefined,
           unit: h.unit ?? 'KG',
           qualityScore:
             h.qualityScore != null ? Number(h.qualityScore) : null,
@@ -39,7 +42,7 @@ export function usePendingHarvests(
           harvestDate: h.harvestDate,
           images: h.photoUrls ?? h.images ?? [],
           parcelId: h.parcelId,
-          farmingMethods: h.farmingMethods,
+          farmingMethods: h.farmingMethods ?? undefined,
           rejectionReason: h.rejectionReason,
         }),
       );

@@ -5,10 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
+import { InspectorCenterAssignmentEntity } from './inspector-center-assignment.entity';
 
 @Entity('inspector_profiles')
 export class InspectorProfileEntity {
@@ -34,6 +36,12 @@ export class InspectorProfileEntity {
 
   @Column({ name: 'is_active_inspector', default: true })
   isActiveInspector: boolean;
+
+  @OneToMany(
+    () => InspectorCenterAssignmentEntity,
+    (assignment) => assignment.inspectorProfile,
+  )
+  assignments: InspectorCenterAssignmentEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

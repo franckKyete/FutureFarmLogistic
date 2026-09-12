@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { BuyerBusinessType } from '@futurefarm/types';
 import { registerFarmerMutation, registerBuyerMutation, loginMutation } from '@/features/auth/api/auth.queries';
+import { useActiveRegions } from '@/features/admin/api/inspections.queries';
 import { setAuth } from '@/features/auth/store/auth.store';
 import type { RegisterFarmerPayload, RegisterBuyerPayload } from '@/features/auth/api/auth.queries';
 
@@ -16,6 +17,9 @@ function RegisterPage() {
   const [step, setStep] = useState(1);
   const [success, setSuccess] = useState(false);
 
+  // Active regions query for farmers
+  const { data: activeRegions = [], isLoading: regionsLoading } = useActiveRegions();
+
   // Form Field States
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -25,6 +29,7 @@ function RegisterPage() {
 
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [regionName, setRegionName] = useState(''); // Only Farmer
   const [address, setAddress] = useState(''); // Address (Farmer) or Billing Address (Buyer)
   const [shippingAddress, setShippingAddress] = useState(''); // Only Buyer
 
@@ -83,6 +88,10 @@ function RegisterPage() {
         setValidationError('L\'adresse email et l\'adresse physique sont requises.');
         return;
       }
+      if (role === 'FARMER' && !regionName) {
+        setValidationError('Veuillez sélectionner la région dans laquelle vous opérez.');
+        return;
+      }
       if (role === 'BUYER' && !shippingAddress) {
         setValidationError('L\'adresse de livraison est requise.');
         return;
@@ -127,6 +136,7 @@ function RegisterPage() {
       const payload: RegisterFarmerPayload = {
         ...baseData,
         address,
+        regionName,
       };
       if (bio) payload.bio = bio;
       registerFarmer(payload);
@@ -392,6 +402,36 @@ function RegisterPage() {
                     type="tel"
                   />
                 </div>
+
+                {role === 'FARMER' && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="regionName">
+                        Région d'activité <span className="text-red-500">*</span>
+                      </label>
+                      {regionsLoading && (
+                        <span className="text-[10px] text-[#707970] animate-pulse">Chargement des régions...</span>
+                      )}
+                    </div>
+                    <select
+                      id="regionName"
+                      value={regionName}
+                      onChange={(e) => setRegionName(e.target.value)}
+                      required
+                      className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-on-surface"
+                    >
+                      <option value="">-- Sélectionnez votre région d'activité --</option>
+                      {activeRegions.map((reg) => (
+                        <option key={reg} value={reg}>
+                          {reg}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-[#707970] leading-tight mt-0.5">
+                      Indiquez la région d'implantation de votre exploitation pour être rattaché au centre d'inspection local.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="address">

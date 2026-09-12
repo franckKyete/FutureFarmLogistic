@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
   getProductsQuery,
   createProductMutation,
   createHarvestMutation,
-  aiSuggestHarvestMutation,
+  mediaUploadMutation,
 } from '@/features/harvests/api/harvests.queries';
 
 import { addToast } from '@/features/shared/store/toast.store';
@@ -20,6 +20,7 @@ export interface NewHarvestSearchParams {
   shelfLifeDays?: string;
   farmingMethods?: string;
   photoUrl?: string;
+  photoUrls?: string;
   qualityScore?: string;
 }
 
@@ -33,6 +34,7 @@ export const Route = createFileRoute('/farmer/harvests/new')({
     if (typeof search['shelfLifeDays'] === 'string') res.shelfLifeDays = search['shelfLifeDays'];
     if (typeof search['farmingMethods'] === 'string') res.farmingMethods = search['farmingMethods'];
     if (typeof search['photoUrl'] === 'string') res.photoUrl = search['photoUrl'];
+    if (typeof search['photoUrls'] === 'string') res.photoUrls = search['photoUrls'];
     if (typeof search['qualityScore'] === 'string') res.qualityScore = search['qualityScore'];
     return res;
   },
@@ -63,10 +65,22 @@ function AddHarvestPage() {
   const [shelfLifeDays, setShelfLifeDays] = useState(search.shelfLifeDays || '30');
   const [stockMarge, setStockMarge] = useState('50');
   const [farmingMethods, setFarmingMethods] = useState(search.farmingMethods || '');
-  const [photoUrl, setPhotoUrl] = useState(search.photoUrl || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // AI Assistant states (text-based helper)
-  const [aiPrompt, setAiPrompt] = useState('');
+  const initialPhotos = search.photoUrls
+    ? search.photoUrls.split(',').filter(Boolean)
+    : search.photoUrl
+      ? [search.photoUrl]
+      : [];
+  const [photos, setPhotos] = useState<string[]>(initialPhotos);
+
+  useEffect(() => {
+    if (search.photoUrls) {
+      setPhotos(search.photoUrls.split(',').filter(Boolean));
+    } else if (search.photoUrl) {
+      setPhotos([search.photoUrl]);
+    }
+  }, [search.photoUrls, search.photoUrl]);
 
   // Queries
   const { data: products } = useQuery(getProductsQuery());
@@ -81,6 +95,42 @@ function AddHarvestPage() {
   }, [search.productId, search.isIdentified]);
 
   // Mutations
+  const uploadFile = useMutation({
+    ...mediaUploadMutation(),
+    onSuccess: (result) => {
+      setPhotos((prev) => [...prev, result.url]);
+      addToast('Photo ajoutée avec succès !', 'success');
+    },
+    onError: (err) => {
+      addToast(
+        err instanceof Error ? err.message : "Erreur lors de l'upload de la photo",
+        'error',
+      );
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach((file) => uploadFile.mutate(file));
+    }
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSetPrimaryPhoto = (index: number) => {
+    if (index === 0) return;
+    setPhotos((prev) => {
+      const selected = prev[index];
+      if (!selected) return prev;
+      const rest = prev.filter((_, i) => i !== index);
+      return [selected, ...rest];
+    });
+  };
+
   const createProduct = useMutation({
     ...createProductMutation(),
   });
@@ -95,40 +145,6 @@ function AddHarvestPage() {
       addToast(err instanceof Error ? err.message : 'Erreur lors de la création de la récolte', 'error');
     },
   });
-
-  const aiSuggest = useMutation({
-    ...aiSuggestHarvestMutation(),
-    onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['products'] });
-      if (data.suggestedProductId) {
-        setProductId(data.suggestedProductId);
-        setIsCustomCrop(false);
-      } else if (data.suggestedName) {
-        setIsCustomCrop(true);
-        setNewCropName(data.suggestedName);
-        if (data.category) setNewCropCategory(data.category);
-        if (data.description) setNewCropDescription(data.description);
-      }
-      if (data.recommendedShelfLifeDays) {
-        setShelfLifeDays(String(data.recommendedShelfLifeDays));
-      }
-      if (data.farmingMethods) {
-        setFarmingMethods(data.farmingMethods);
-      }
-      addToast('Suggestions de récolte générées avec succès !', 'success');
-    },
-    onError: (err) => {
-      addToast(err instanceof Error ? err.message : 'Erreur IA', 'error');
-    },
-  });
-
-  const handleAiSuggest = () => {
-    if (!aiPrompt.trim()) {
-      addToast('Veuillez saisir une description pour l\'assistant IA.', 'warning');
-      return;
-    }
-    aiSuggest.mutate(aiPrompt);
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -179,7 +195,8 @@ function AddHarvestPage() {
       expirationDate,
       stockMarge: Number(stockMarge),
       farmingMethods: farmingMethods || '',
-      photoUrls: photoUrl ? [photoUrl] : [],
+      photoUrls: photos,
+      qualityScore: search.qualityScore ? Number(search.qualityScore) : 8.5,
     });
   };
 
@@ -219,36 +236,6 @@ function AddHarvestPage() {
             </div>
           </section>
         )}
-
-        {/* AI Suggestions Card */}
-        <section className="bg-[#e5eeff] border border-[#c0c9be] p-5 rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center gap-2 text-[#0b1c30]">
-            <span className="material-symbols-outlined text-[#004322]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              reviews
-            </span>
-            <h2 className="text-sm font-bold text-[#004322]">Assistant IA Récolte</h2>
-          </div>
-          <p className="text-[11px] text-[#404941] leading-relaxed">
-            Décrivez votre lot (ex: "J'ai récolté 5 tonnes de soja biologique hier matin dans le champ Nord") pour que l'IA remplisse automatiquement les formulaires.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              className="flex-1 bg-white border border-[#c0c9be] rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#004322]"
-              placeholder="Décrivez votre lot..."
-              type="text"
-            />
-            <button
-              type="button"
-              onClick={handleAiSuggest}
-              disabled={aiSuggest.isPending}
-              className="bg-[#004322] text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0 disabled:opacity-50 cursor-pointer"
-            >
-              {aiSuggest.isPending ? 'Analyse...' : 'Suggérer'}
-            </button>
-          </div>
-        </section>
 
         {/* Harvest Creation Form */}
         <form onSubmit={handleSubmit} className="space-y-4 bg-white border border-[#c0c9be] p-5 rounded-2xl shadow-sm">
@@ -415,16 +402,88 @@ function AddHarvestPage() {
             />
           </div>
 
-          {/* Optional Photo URL */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-[#404941] block">URL de la photo (Optionnel)</label>
+          {/* Photo Gallery & Image Picker */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-[#404941] block">
+                Photos de la récolte ({photos.length})
+              </label>
+              <span className="text-[10px] text-gray-500">
+                La première photo sert d'image principale
+              </span>
+            </div>
+
+            {/* Hidden file input */}
             <input
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              className="w-full bg-[#f8f9ff] border border-[#c0c9be] rounded-lg p-3 text-[13px] outline-none focus:border-[#004322]"
-              placeholder="https://images.unsplash.com/photo-..."
-              type="url"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
             />
+
+            <div className="grid grid-cols-3 gap-2.5">
+              {photos.map((url, idx) => (
+                <div
+                  key={idx}
+                  className={`relative rounded-xl overflow-hidden border group aspect-square bg-gray-100 shadow-2xs ${
+                    idx === 0
+                      ? 'border-[#004322] ring-2 ring-[#004322]/20'
+                      : 'border-[#c0c9be]'
+                  }`}
+                >
+                  <img
+                    src={url}
+                    alt={`Photo récolte ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {idx === 0 && (
+                    <span className="absolute top-1.5 left-1.5 bg-[#004322] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                      Principale
+                    </span>
+                  )}
+                  {idx !== 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleSetPrimaryPhoto(idx)}
+                      className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/60 hover:bg-[#004322] text-white text-[9px] font-bold py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity text-center cursor-pointer"
+                    >
+                      Définir principale
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(idx)}
+                    className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-red-700 active:scale-90 transition-all cursor-pointer shadow-sm"
+                    title="Supprimer la photo"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+
+              {/* Upload loading tile */}
+              {uploadFile.isPending && (
+                <div className="aspect-square rounded-xl border border-dashed border-[#004322] bg-[#f8f9ff] flex flex-col items-center justify-center gap-1">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#004322] border-t-transparent" />
+                  <span className="text-[10px] text-gray-500 font-semibold">Envoi...</span>
+                </div>
+              )}
+
+              {/* Add photo button tile */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadFile.isPending}
+                className="aspect-square rounded-xl border-2 border-dashed border-[#c0c9be] hover:border-[#004322] bg-[#f8f9ff] hover:bg-emerald-50/40 flex flex-col items-center justify-center gap-1 text-[#404941] hover:text-[#004322] transition-colors cursor-pointer group disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">
+                  add_photo_alternate
+                </span>
+                <span className="text-[10px] font-bold">Ajouter</span>
+              </button>
+            </div>
           </div>
 
           <div className="pt-4">
