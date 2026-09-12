@@ -42,6 +42,11 @@ export class UpdateHarvestDto {
   @Min(0)
   pricePerUnit?: number;
 
+  @ApiPropertyOptional({ example: 'USD' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
   @ApiPropertyOptional({ enum: HarvestUnit, example: HarvestUnit.KG })
   @IsOptional()
   @IsEnum(HarvestUnit)

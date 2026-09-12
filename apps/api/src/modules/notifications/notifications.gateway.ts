@@ -60,7 +60,21 @@ export class NotificationsGateway implements OnGatewayConnection {
 
   emitNewNotification(userId: string, notification: NotificationEntity) {
     const room = `user:${userId}`;
-    this.server.to(room).emit('notification:new', notification);
+    this.server?.to(room).emit('notification:new', notification);
     this.logger.debug(`Emitted notification:new to room ${room}`);
+  }
+
+  emitOrderStatusChanged(
+    userId: string,
+    payload: {
+      orderId: string;
+      status: string;
+      paymentStatus: string;
+      message?: string;
+    },
+  ) {
+    const room = `user:${userId}`;
+    this.server?.to(room).emit('order:status_changed', payload);
+    this.logger.debug(`Emitted order:status_changed to room ${room}: ${JSON.stringify(payload)}`);
   }
 }

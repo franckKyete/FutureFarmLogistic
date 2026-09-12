@@ -110,6 +110,7 @@ describe('LoginPage', () => {
         {
           email: 'farmer@futurefarm.com',
           password: 'Secret1234',
+          rememberMe: true,
         },
         expect.anything(),
       );

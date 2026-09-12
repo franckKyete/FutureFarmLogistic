@@ -33,6 +33,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
@@ -54,6 +57,8 @@ export class UsersService {
     @InjectRepository(DriverProfileEntity)
     private readonly driverProfileRepository: Repository<DriverProfileEntity>,
     private readonly notificationsService: NotificationsService,
+    private readonly stripePaymentGateway: StripePaymentGateway,
+    private readonly configService: ConfigService,
   ) {}
 
   async findAll(
@@ -205,6 +210,8 @@ export class UsersService {
       firstName: dto.firstName,
       lastName: dto.lastName,
       phoneNumber: dto.phoneNumber ?? null,
+      country: dto.country || 'COD',
+      preferredCurrency: dto.preferredCurrency || 'CDF',
       roles: [buyerRole],
       status: UserStatus.APPROVED,
       isActive: true,
@@ -250,6 +257,17 @@ export class UsersService {
     const profile = await this.farmerProfileRepository.findOne({
       where: { userId },
       relations: ['parcels'],
+    });
+    if (!profile) {
+      throw new NotFoundException('Farmer profile not found');
+    }
+    return profile;
+  }
+
+  async getFarmerProfileById(id: string): Promise<FarmerProfileEntity> {
+    const profile = await this.farmerProfileRepository.findOne({
+      where: [{ id }, { userId: id }],
+      relations: ['user', 'parcels'],
     });
     if (!profile) {
       throw new NotFoundException('Farmer profile not found');
@@ -666,5 +684,187 @@ export class UsersService {
       success: true,
       message: "Email d'activation renvoyé avec succès.",
     };
+  }
+
+  async updatePreferences(
+    userId: string,
+    dto: { country?: string; preferredCurrency?: string },
+  ): Promise<{ country: string; preferredCurrency: string }> {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (dto.country) {
+      user.country = dto.country.toUpperCase();
+    }
+    if (dto.preferredCurrency) {
+      user.preferredCurrency = dto.preferredCurrency.toUpperCase();
+    }
+    await this.usersRepository.save(user);
+    return {
+      country: user.country,
+      preferredCurrency: user.preferredCurrency,
+    };
+  }
+
+  async getPaymentMethod(userId: string) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      hasPaymentMethod: !!user.stripePaymentMethodId,
+      brand: user.cardBrand || null,
+      last4: user.cardLast4 || null,
+      expMonth: user.cardExpMonth || null,
+      expYear: user.cardExpYear || null,
+    };
+  }
+
+  async createSetupIntent(userId: string) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.stripeCustomerId) {
+      const customer = await this.stripePaymentGateway.createCustomer({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        userId: user.id,
+      });
+      user.stripeCustomerId = customer.id;
+      await this.usersRepository.save(user);
+    }
+
+    const { clientSecret } = await this.stripePaymentGateway.createSetupIntent(user.stripeCustomerId);
+    return { clientSecret };
+  }
+
+  async attachPaymentMethod(userId: string, paymentMethodId: string) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.stripeCustomerId) {
+      const customer = await this.stripePaymentGateway.createCustomer({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        userId: user.id,
+      });
+      user.stripeCustomerId = customer.id;
+    }
+
+    const pm = await this.stripePaymentGateway.attachPaymentMethod(user.stripeCustomerId, paymentMethodId);
+    user.stripePaymentMethodId = pm.id;
+    user.cardBrand = pm.brand;
+    user.cardLast4 = pm.last4;
+    user.cardExpMonth = pm.expMonth;
+    user.cardExpYear = pm.expYear;
+    await this.usersRepository.save(user);
+
+    return {
+      hasPaymentMethod: true,
+      brand: user.cardBrand,
+      last4: user.cardLast4,
+      expMonth: user.cardExpMonth,
+      expYear: user.cardExpYear,
+    };
+  }
+
+  async createSetupSession(
+    userId: string,
+    options?: { returnUrl?: string; auctionId?: string },
+  ) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.stripeCustomerId) {
+      const customer = await this.stripePaymentGateway.createCustomer({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        userId: user.id,
+      });
+      user.stripeCustomerId = customer.id;
+      await this.usersRepository.save(user);
+    }
+
+    const defaultOrigin =
+      this.configService.get<string>('CORS_ORIGINS', 'http://localhost:3001').split(',')[0] ||
+      'http://localhost:3001';
+
+    let successUrl = options?.returnUrl;
+    let cancelUrl = options?.returnUrl;
+
+    if (!successUrl) {
+      successUrl = options?.auctionId
+        ? `${defaultOrigin}/auctions/${options.auctionId}`
+        : `${defaultOrigin}/auctions`;
+    }
+    if (!cancelUrl) {
+      cancelUrl = options?.auctionId
+        ? `${defaultOrigin}/auctions/${options.auctionId}`
+        : `${defaultOrigin}/auctions`;
+    }
+
+    const setupParams: {
+      customerId: string;
+      successUrl: string;
+      cancelUrl: string;
+      userId: string;
+      metadata?: Record<string, string>;
+    } = {
+      customerId: user.stripeCustomerId,
+      successUrl,
+      cancelUrl,
+      userId: user.id,
+    };
+
+    if (options?.auctionId) {
+      setupParams.metadata = { auctionId: options.auctionId };
+    }
+
+    return this.stripePaymentGateway.createSetupCheckoutSession(setupParams);
+  }
+
+  async confirmSetupSession(userId: string, sessionId: string) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const pm = await this.stripePaymentGateway.confirmSetupCheckoutSession(sessionId);
+
+    user.stripePaymentMethodId = pm.paymentMethodId;
+    user.cardBrand = pm.brand;
+    user.cardLast4 = pm.last4;
+    user.cardExpMonth = pm.expMonth;
+    user.cardExpYear = pm.expYear;
+    await this.usersRepository.save(user);
+
+    return {
+      hasPaymentMethod: true,
+      brand: user.cardBrand,
+      last4: user.cardLast4,
+      expMonth: user.cardExpMonth,
+      expYear: user.cardExpYear,
+    };
+  }
+
+  async detachPaymentMethod(userId: string) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.stripePaymentMethodId) {
+      await this.stripePaymentGateway.detachPaymentMethod(user.stripePaymentMethodId);
+      user.stripePaymentMethodId = null;
+      user.cardBrand = null;
+      user.cardLast4 = null;
+      user.cardExpMonth = null;
+      user.cardExpYear = null;
+      await this.usersRepository.save(user);
+    }
+    return { success: true };
   }
 }

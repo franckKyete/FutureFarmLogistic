@@ -18,6 +18,13 @@ import { FarmerProfileEntity } from '../../users/entities/farmer-profile.entity'
 import { ParcelEntity } from '../../users/entities/parcel.entity';
 import { UserEntity } from '../../users/entities/user.entity';
 
+export const numericTransformer = {
+  to: (value: number | null): string | null =>
+    value === null || value === undefined ? null : value.toString(),
+  from: (value: string | null): number | null =>
+    value === null || value === undefined ? null : parseFloat(value),
+};
+
 @Entity('harvests')
 export class HarvestEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -77,8 +84,37 @@ export class HarvestEntity {
   })
   stockMarge: number;
 
-  @Column({ name: 'price_per_unit', type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    name: 'price_per_unit',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: numericTransformer,
+  })
   pricePerUnit: number;
+
+  @Column({ type: 'varchar', length: 10, default: 'CDF' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 2300.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
+  @Column({
+    name: 'price_per_unit_usd',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  pricePerUnitUSD: number | null;
 
   @Column({
     type: 'enum',

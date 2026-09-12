@@ -67,11 +67,13 @@ export class AuctionsGateway
     nextDecrementAt: Date,
   ) {
     const room = `auction:${auctionId}`;
-    this.server.to(room).emit(AuctionEvent.PRICE_TICK, {
+    const payload = {
       auctionId,
       currentPrice,
       nextDecrementAt: nextDecrementAt.toISOString(),
-    });
+    };
+    this.server.to(room).emit(AuctionEvent.PRICE_TICK, payload);
+    this.server.emit(AuctionEvent.PRICE_TICK, payload);
   }
 
   emitSold(
@@ -81,26 +83,32 @@ export class AuctionsGateway
     soldAt: Date,
   ) {
     const room = `auction:${auctionId}`;
-    this.server.to(room).emit(AuctionEvent.AUCTION_SOLD, {
+    const payload = {
       auctionId,
       winnerId,
       priceAtBid,
       soldAt: soldAt.toISOString(),
-    });
+    };
+    this.server.to(room).emit(AuctionEvent.AUCTION_SOLD, payload);
+    this.server.emit(AuctionEvent.AUCTION_SOLD, payload);
   }
 
   emitExpired(auctionId: string, reason: 'DEADLINE' | 'FLOOR_PRICE') {
     const room = `auction:${auctionId}`;
-    this.server.to(room).emit(AuctionEvent.AUCTION_EXPIRED, {
+    const payload = {
       auctionId,
       reason,
-    });
+    };
+    this.server.to(room).emit(AuctionEvent.AUCTION_EXPIRED, payload);
+    this.server.emit(AuctionEvent.AUCTION_EXPIRED, payload);
   }
 
   emitCancelled(auctionId: string) {
     const room = `auction:${auctionId}`;
-    this.server.to(room).emit(AuctionEvent.AUCTION_CANCELLED, {
+    const payload = {
       auctionId,
-    });
+    };
+    this.server.to(room).emit(AuctionEvent.AUCTION_CANCELLED, payload);
+    this.server.emit(AuctionEvent.AUCTION_CANCELLED, payload);
   }
 }

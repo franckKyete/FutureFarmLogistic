@@ -53,9 +53,102 @@ export const cancelAuctionMutation = () => ({
   },
 });
 
+export interface SavedPaymentMethod {
+  hasPaymentMethod: boolean;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+}
+
+export const getPaymentMethodQuery = () => ({
+  queryKey: ['users', 'me', 'payment-method'],
+  queryFn: async (): Promise<SavedPaymentMethod> => {
+    const { data } = await apiClient.get<{ data: SavedPaymentMethod }>('/users/me/payment-method');
+    return data.data;
+  },
+});
+
+export const createSetupSessionMutation = () => ({
+  mutationFn: async (payload?: {
+    returnUrl?: string;
+    auctionId?: string;
+  }): Promise<{ sessionId: string; sessionUrl: string }> => {
+    const { data } = await apiClient.post<{
+      data: { sessionId: string; sessionUrl: string };
+    }>('/users/me/payment-method/setup-session', payload || {});
+    return data.data;
+  },
+});
+
+export const confirmSetupSessionMutation = () => ({
+  mutationFn: async (payload: {
+    sessionId: string;
+  }): Promise<SavedPaymentMethod> => {
+    const { data } = await apiClient.post<{ data: SavedPaymentMethod }>(
+      '/users/me/payment-method/confirm-setup-session',
+      payload,
+    );
+    return data.data;
+  },
+});
+
+export const createSetupIntentMutation = () => ({
+  mutationFn: async (): Promise<{ clientSecret: string }> => {
+    const { data } = await apiClient.post<{ data: { clientSecret: string } }>(
+      '/users/me/payment-method/setup-intent',
+    );
+    return data.data;
+  },
+});
+
+export const attachPaymentMethodMutation = () => ({
+  mutationFn: async (payload: { paymentMethodId: string }): Promise<SavedPaymentMethod> => {
+    const { data } = await apiClient.post<{ data: SavedPaymentMethod }>(
+      '/users/me/payment-method/attach',
+      payload,
+    );
+    return data.data;
+  },
+});
+
+export const detachPaymentMethodMutation = () => ({
+  mutationFn: async (): Promise<{ success: boolean }> => {
+    const { data } = await apiClient.delete<{ data: { success: boolean } }>(
+      '/users/me/payment-method',
+    );
+    return data.data;
+  },
+});
+
 export const placeBidMutation = () => ({
-  mutationFn: async (id: string): Promise<BidDto> => {
-    const { data } = await apiClient.post<{ data: BidDto }>(`/auctions/${id}/bids`);
+  mutationFn: async (
+    payload:
+      | {
+          id: string;
+          autoBidMaxPrice?: number | undefined;
+          deliveryAddress?: any;
+        }
+      | string,
+  ): Promise<BidDto> => {
+    const auctionId = typeof payload === 'string' ? payload : payload.id;
+    let body: any = undefined;
+    if (typeof payload === 'object') {
+      body = {};
+      if (payload.autoBidMaxPrice !== undefined) {
+        body.autoBidMaxPrice = payload.autoBidMaxPrice;
+      }
+      if (payload.deliveryAddress !== undefined) {
+        body.deliveryAddress = payload.deliveryAddress;
+      }
+      if (Object.keys(body).length === 0) {
+        body = undefined;
+      }
+    }
+    const { data } = await apiClient.post<{ data: BidDto }>(
+      `/auctions/${auctionId}/bids`,
+      body,
+    );
     return data.data;
   },
 });

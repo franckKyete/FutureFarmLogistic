@@ -1,8 +1,24 @@
 import { apiClient } from '@/lib/api-client';
 import type {
   FarmerProfileDto,
+  BuyerProfileDto,
   ParcelDto,
 } from '@futurefarm/types';
+
+export const getBuyerProfileQuery = () => ({
+  queryKey: ['profile', 'buyer'],
+  queryFn: async (): Promise<BuyerProfileDto> => {
+    const { data } = await apiClient.get<{ data: BuyerProfileDto }>('/users/profile/buyer');
+    return data.data;
+  },
+});
+
+export const updateBuyerProfileMutation = () => ({
+  mutationFn: async (payload: Partial<BuyerProfileDto>): Promise<BuyerProfileDto> => {
+    const { data } = await apiClient.put<{ data: BuyerProfileDto }>('/users/profile/buyer', payload);
+    return data.data;
+  },
+});
 
 export interface CreateParcelPayload {
   cadastralNumber: string;
@@ -15,6 +31,15 @@ export const getFarmerProfileQuery = () => ({
   queryKey: ['profile', 'farmer'],
   queryFn: async (): Promise<FarmerProfileDto> => {
     const { data } = await apiClient.get<{ data: FarmerProfileDto }>('/users/profile/farmer');
+    return data.data;
+  },
+});
+
+export const getFarmerProfileByIdQuery = (id?: string) => ({
+  queryKey: ['profile', 'farmer', id || 'me'],
+  queryFn: async (): Promise<FarmerProfileDto & { user?: any }> => {
+    const endpoint = id ? `/users/profile/farmer/${id}` : '/users/profile/farmer';
+    const { data } = await apiClient.get<{ data: FarmerProfileDto & { user?: any } }>(endpoint);
     return data.data;
   },
 });

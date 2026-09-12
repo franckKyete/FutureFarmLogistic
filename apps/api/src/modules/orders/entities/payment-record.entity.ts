@@ -42,6 +42,29 @@ export class PaymentRecordEntity {
   })
   amount: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'USD' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 1.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
+  @Column({
+    name: 'amount_usd',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  amountUSD: number | null;
+
   @Column({
     type: 'enum',
     enum: PaymentStatus,

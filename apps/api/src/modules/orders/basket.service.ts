@@ -27,7 +27,13 @@ export class BasketService {
   async getOrCreateBasket(buyerId: string): Promise<BasketEntity> {
     let basket = await this.basketRepository.findOne({
       where: { buyerId, status: BasketStatus.ACTIVE },
-      relations: ['lines', 'lines.harvest', 'lines.harvest.product'],
+      relations: [
+        'lines',
+        'lines.harvest',
+        'lines.harvest.product',
+        'lines.harvest.farmerProfile',
+        'lines.harvest.farmerProfile.user',
+      ],
     });
 
     if (!basket) {

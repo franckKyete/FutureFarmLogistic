@@ -25,6 +25,7 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 import { AuctionsService } from './auctions.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 import { UpdateAuctionDto } from './dto/update-auction.dto';
+import { PlaceBidDto } from './dto/place-bid.dto';
 
 @ApiTags('Auctions & Bidding')
 @Controller('auctions')
@@ -172,11 +173,15 @@ export class AuctionsController {
   @RequirePermissions(Permission.BID_CREATE)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Place a bid to buy the entire lot at current price (Buyer)',
+    summary: 'Place a bid or auto-bid on the auction lot (Buyer)',
   })
-  @ApiCreatedResponse({ description: 'Bid placed and won successfully' })
-  async placeBid(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.auctionsService.placeBid(user.id, id);
+  @ApiCreatedResponse({ description: 'Bid placed or auto-bid scheduled successfully' })
+  async placeBid(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: PlaceBidDto,
+  ) {
+    return this.auctionsService.placeBid(user.id, id, dto);
   }
 
   @Post(':id/cancel-bid')

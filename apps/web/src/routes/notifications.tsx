@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -8,6 +8,7 @@ import {
   markAllNotificationsReadMutation,
 } from '@/features/notifications/api/notifications.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
 import { NotificationStatus } from '@futurefarm/types';
 
 export const Route = createFileRoute('/notifications')({
@@ -73,21 +74,20 @@ function NotificationsCenterPage() {
 
   return (
     <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen pb-24 font-sans">
-      {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 bg-[#f8f9ff] border-b border-[#c0c9be] h-16 flex justify-between items-center px-4 max-w-[480px] mx-auto left-0 right-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link to="/farmer/dashboard" className="material-symbols-outlined text-[#004322] cursor-pointer">
-            arrow_back
-          </Link>
-          <h1 className="text-[18px] font-bold text-[#004322]">Notifications</h1>
-        </div>
-        <button
-          onClick={() => void refetch()}
-          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[#eff4ff] transition-colors cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[#404941]">refresh</span>
-        </button>
-      </header>
+      <BuyerHeader
+        title="Notifications"
+        showBack
+        rightAction={
+          <button
+            onClick={() => void refetch()}
+            className="p-2 text-[#404941] hover:text-[#004322] hover:bg-[#eff4ff] rounded-full transition-colors cursor-pointer"
+            title="Rafraîchir"
+            aria-label="Rafraîchir"
+          >
+            <span className="material-symbols-outlined text-[22px]">refresh</span>
+          </button>
+        }
+      />
 
       <main className="pt-20 px-4 max-w-[480px] mx-auto">
         {/* Notification Header */}
@@ -182,45 +182,6 @@ function NotificationsCenterPage() {
           </section>
         </div>
       </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center py-2 bg-[#f8f9ff] border-t border-[#c0c9be] z-50 rounded-t-xl">
-        <Link
-          to="/farmer/dashboard"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-95 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[24px]">home</span>
-          <span className="text-[12px] font-semibold">Accueil</span>
-        </Link>
-        <Link
-          to="/farmer/stock"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-95 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[24px]">grass</span>
-          <span className="text-[12px] font-semibold">Stock</span>
-        </Link>
-        <Link
-          to="/farmer/auctions"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-95 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[24px]">gavel</span>
-          <span className="text-[12px] font-semibold">Enchères</span>
-        </Link>
-        <Link
-          to="/farmer/orders"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-95 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[24px]">shopping_cart</span>
-          <span className="text-[12px] font-semibold">Commandes</span>
-        </Link>
-        <Link
-          to="/farmer/profile"
-          className="flex flex-col items-center justify-center text-[#404941] hover:bg-[#eff4ff] transition-colors px-4 py-2 rounded-xl active:scale-95 duration-150 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[24px]">person</span>
-          <span className="text-[12px] font-semibold">Profil</span>
-        </Link>
-      </nav>
     </div>
   );
 }

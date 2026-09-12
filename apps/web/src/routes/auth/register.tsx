@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { BuyerBusinessType } from '@futurefarm/types';
 import { registerFarmerMutation, registerBuyerMutation, loginMutation } from '@/features/auth/api/auth.queries';
 import { setAuth } from '@/features/auth/store/auth.store';
+import { useCurrencyStore } from '@/features/currency/store/currency.store';
 import type { RegisterFarmerPayload, RegisterBuyerPayload } from '@/features/auth/api/auth.queries';
 
 export const Route = createFileRoute('/auth/register')({
@@ -27,6 +28,10 @@ function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState(''); // Address (Farmer) or Billing Address (Buyer)
   const [shippingAddress, setShippingAddress] = useState(''); // Only Buyer
+
+  const countries = useCurrencyStore((s) => s.countries);
+  const [buyerCountry, setBuyerCountry] = useState('COD');
+  const [buyerPreferredCurrency, setBuyerPreferredCurrency] = useState('CDF');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -83,9 +88,15 @@ function RegisterPage() {
         setValidationError('L\'adresse email et l\'adresse physique sont requises.');
         return;
       }
-      if (role === 'BUYER' && !shippingAddress) {
-        setValidationError('L\'adresse de livraison est requise.');
-        return;
+      if (role === 'BUYER') {
+        if (!buyerCountry) {
+          setValidationError('Le pays de livraison est obligatoire.');
+          return;
+        }
+        if (!shippingAddress) {
+          setValidationError('L\'adresse de livraison est requise.');
+          return;
+        }
       }
       setStep(3);
     }
@@ -133,6 +144,8 @@ function RegisterPage() {
     } else {
       const payload: RegisterBuyerPayload = {
         ...baseData,
+        country: buyerCountry,
+        preferredCurrency: buyerPreferredCurrency,
         vatNumber,
         businessType,
         billingAddress: address,
@@ -408,19 +421,81 @@ function RegisterPage() {
                 </div>
 
                 {role === 'BUYER' && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="shippingAddress">
-                      Adresse de livraison
-                    </label>
-                    <input
-                      className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                      id="shippingAddress"
-                      value={shippingAddress}
-                      onChange={(e) => setShippingAddress(e.target.value)}
-                      type="text"
-                      required
-                    />
-                  </div>
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-on-surface-variant flex items-center justify-between" htmlFor="buyerCountry">
+                        <span>Pays de résidence / livraison <span className="text-error">*</span></span>
+                        <span className="text-[10px] text-primary font-semibold">Obligatoire</span>
+                      </label>
+                      <select
+                        id="buyerCountry"
+                        value={buyerCountry}
+                        onChange={(e) => {
+                          const newCountry = e.target.value;
+                          setBuyerCountry(newCountry);
+                          const cfg = countries.find((c) => c.countryCode === newCountry);
+                          if (cfg) {
+                            setBuyerPreferredCurrency(cfg.defaultCurrency);
+                          }
+                        }}
+                        required
+                        className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium"
+                      >
+                        {countries.map((c) => (
+                          <option key={c.countryCode} value={c.countryCode}>
+                            {c.flagEmoji} {c.countryName} ({c.defaultCurrency})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Supported currencies for this country */}
+                    {(() => {
+                      const cfg = countries.find((c) => c.countryCode === buyerCountry);
+                      if (cfg && cfg.supportedCurrencies.length > 1) {
+                        return (
+                          <div className="flex flex-col gap-1.5 p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60">
+                            <label className="text-[11px] font-semibold text-emerald-900">
+                              Devise préférée :
+                            </label>
+                            <div className="flex items-center gap-3">
+                              {cfg.supportedCurrencies.map((curr) => (
+                                <label key={curr} className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-emerald-950">
+                                  <input
+                                    type="radio"
+                                    name="buyerCurrency"
+                                    value={curr}
+                                    checked={buyerPreferredCurrency === curr}
+                                    onChange={() => setBuyerPreferredCurrency(curr)}
+                                    className="accent-emerald-600"
+                                  />
+                                  <span>{curr === 'USD' ? '$ USD (Dollar)' : 'FC CDF (Franc Congolais)'}</span>
+                                </label>
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-emerald-700">
+                              En RDC, vous pouvez choisir de régler vos achats en CDF ou en USD.
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-on-surface-variant" htmlFor="shippingAddress">
+                        Adresse de livraison
+                      </label>
+                      <input
+                        className="w-full bg-surface border border-[#c0c9be]/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                        id="shippingAddress"
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        type="text"
+                        required
+                      />
+                    </div>
+                  </>
                 )}
 
                 {validationError && <p className="text-xs text-error font-medium">{validationError}</p>}

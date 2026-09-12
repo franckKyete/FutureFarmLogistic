@@ -272,7 +272,7 @@ function HarvestQualityPage() {
           </h3>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#eff4ff] shrink-0">
-              {harvest.photoUrls?.[0] ? (
+              {Array.isArray(harvest.photoUrls) && harvest.photoUrls[0] ? (
                 <img
                   className="w-full h-full object-cover"
                   src={harvest.photoUrls[0]}
@@ -289,7 +289,7 @@ function HarvestQualityPage() {
                 {harvest.product?.name ?? 'Produit'}
               </p>
               <p className="text-[12px] text-[#707970]">
-                {harvest.pricePerUnit.toFixed(2)} CDF /{' '}
+                {Number(harvest.pricePerUnit || 0).toFixed(2)} CDF /{' '}
                 {harvest.unit === 'KG' ? 'kg' : harvest.unit === 'TON' ? 'tonne' : 'pièce'}
               </p>
             </div>

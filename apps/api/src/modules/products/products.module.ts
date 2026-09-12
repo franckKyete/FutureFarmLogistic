@@ -10,6 +10,7 @@ import { ParcelEntity } from '../users/entities/parcel.entity';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { AuthModule } from '../auth/auth.module';
+import { CurrenciesModule } from '../currencies/currencies.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AuthModule } from '../auth/auth.module';
     ]),
     ConfigModule,
     AuthModule,
+    CurrenciesModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService],

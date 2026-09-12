@@ -1,10 +1,14 @@
 import { apiClient } from '@/lib/api-client';
+import axios from 'axios';
 import { BuyerBusinessType } from '@futurefarm/types';
 import type { AuthTokens, AuthUser } from '@futurefarm/types';
 
-interface LoginPayload {
+const BASE_URL = (import.meta.env['VITE_API_BASE_URL'] as string | undefined) ?? '/v1';
+
+export interface LoginPayload {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export type LoginResponse =
@@ -42,6 +46,8 @@ export interface RegisterBuyerPayload {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
+  country: string;
+  preferredCurrency?: string;
   companyName: string;
   vatNumber: string;
   businessType: BuyerBusinessType;
@@ -49,11 +55,46 @@ export interface RegisterBuyerPayload {
   shippingAddress: string;
 }
 
+export interface RefreshTokenPayload {
+  refreshToken: string;
+}
+
+export async function refreshTokenRequest(
+  refreshToken: string,
+): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  // Use independent axios instance to prevent recursive interceptor loops
+  const { data } = await axios.post<{ data: { user: AuthUser; tokens: AuthTokens } }>(
+    `${BASE_URL}/auth/refresh`,
+    { refreshToken },
+    { withCredentials: true },
+  );
+  return data.data;
+}
+
 export function loginMutation() {
   return {
     mutationKey: ['auth', 'login'] as const,
     mutationFn: async (payload: LoginPayload): Promise<LoginResponse> => {
       const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/login', payload);
+      return data.data;
+    },
+  };
+}
+
+export function refreshTokenMutation() {
+  return {
+    mutationKey: ['auth', 'refreshToken'] as const,
+    mutationFn: async (payload: RefreshTokenPayload): Promise<{ user: AuthUser; tokens: AuthTokens }> => {
+      return refreshTokenRequest(payload.refreshToken);
+    },
+  };
+}
+
+export function logoutMutation() {
+  return {
+    mutationKey: ['auth', 'logout'] as const,
+    mutationFn: async (payload?: { refreshToken?: string }): Promise<{ success: boolean }> => {
+      const { data } = await apiClient.post<{ data: { success: boolean } }>('/auth/logout', payload);
       return data.data;
     },
   };

@@ -38,6 +38,7 @@ import {
 import { CreateParcelDto, VerifyParcelDto } from './dto/parcel.dto';
 import { RegisterFarmerProxyDto } from './dto/register-farmer-proxy.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -153,6 +154,14 @@ export class UsersController {
     return this.usersService.getFarmerProfile(user.id);
   }
 
+  @Get('profile/farmer/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get farmer profile by profile ID or user ID' })
+  getFarmerProfileById(@Param('id') id: string) {
+    return this.usersService.getFarmerProfileById(id);
+  }
+
   @Get('profile/buyer')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -183,6 +192,75 @@ export class UsersController {
     @Body() dto: UpdateBuyerProfileDto,
   ) {
     return this.usersService.updateBuyerProfile(user.id, dto);
+  }
+
+  @Patch('me/preferences')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user country and currency preferences' })
+  updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    return this.usersService.updatePreferences(user.id, dto);
+  }
+
+  @Get('me/payment-method')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user saved payment method details' })
+  getPaymentMethod(@CurrentUser() user: AuthUser) {
+    return this.usersService.getPaymentMethod(user.id);
+  }
+
+  @Post('me/payment-method/setup-session')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a Stripe Hosted Checkout Setup session URL to save card' })
+  createSetupSession(
+    @CurrentUser() user: AuthUser,
+    @Body() body?: { returnUrl?: string; auctionId?: string },
+  ) {
+    return this.usersService.createSetupSession(user.id, body);
+  }
+
+  @Post('me/payment-method/confirm-setup-session')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm Stripe Hosted Setup session and store saved payment method' })
+  confirmSetupSession(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { sessionId: string },
+  ) {
+    return this.usersService.confirmSetupSession(user.id, body.sessionId);
+  }
+
+  @Post('me/payment-method/setup-intent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a Stripe SetupIntent to save a card' })
+  createSetupIntent(@CurrentUser() user: AuthUser) {
+    return this.usersService.createSetupIntent(user.id);
+  }
+
+  @Post('me/payment-method/attach')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attach a Stripe PaymentMethod to current user profile' })
+  attachPaymentMethod(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { paymentMethodId: string },
+  ) {
+    return this.usersService.attachPaymentMethod(user.id, body.paymentMethodId);
+  }
+
+  @Delete('me/payment-method')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Detach current user saved payment method' })
+  detachPaymentMethod(@CurrentUser() user: AuthUser) {
+    return this.usersService.detachPaymentMethod(user.id);
   }
 
   @Post('parcels')

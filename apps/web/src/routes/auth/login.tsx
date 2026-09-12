@@ -24,6 +24,7 @@ export function LoginPage() {
   // 2FA state
   const [twoFactorTempToken, setTwoFactorTempToken] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Primary login mutation
   const {
@@ -62,6 +63,7 @@ export function LoginPage() {
     login({
       email: form.get('email') as string,
       password: form.get('password') as string,
+      rememberMe,
     });
   };
 
@@ -221,17 +223,9 @@ export function LoginPage() {
 
                 {/* Password Field */}
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-xs font-semibold text-on-surface-variant" htmlFor="password">
-                      Mot de passe
-                    </label>
-                    <Link
-                      to="/auth/forgot-password"
-                      className="text-xs font-semibold text-[#004322] hover:underline"
-                    >
-                      Mot de passe oublié ?
-                    </Link>
-                  </div>
+                  <label className="text-xs font-semibold text-on-surface-variant px-1" htmlFor="password">
+                    Mot de passe
+                  </label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
                       lock
@@ -255,6 +249,25 @@ export function LoginPage() {
                       </span>
                     </button>
                   </div>
+                </div>
+
+                {/* Remember Me & Forgot Password Row */}
+                <div className="flex items-center justify-between px-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-[#004322] focus:ring-[#004322] accent-[#004322] cursor-pointer"
+                    />
+                    <span className="text-xs text-on-surface-variant font-medium">Se souvenir de moi</span>
+                  </label>
+                  <Link
+                    to="/auth/forgot-password"
+                    className="text-xs font-semibold text-[#004322] hover:underline"
+                  >
+                    Mot de passe oublié ?
+                  </Link>
                 </div>
 
                 {activeError && (

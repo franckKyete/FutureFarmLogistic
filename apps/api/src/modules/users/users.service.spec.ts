@@ -10,6 +10,8 @@ import { ParcelEntity } from './entities/parcel.entity';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,
   NotFoundException,
@@ -130,6 +132,39 @@ describe('UsersService', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService,
+        },
+        {
+          provide: StripePaymentGateway,
+          useValue: {
+            createCustomer: jest.fn().mockResolvedValue({ id: 'cus_123' }),
+            createSetupIntent: jest.fn().mockResolvedValue({ clientSecret: 'seti_secret_123' }),
+            createSetupCheckoutSession: jest.fn().mockResolvedValue({
+              sessionId: 'sess_setup_123',
+              sessionUrl: 'https://checkout.stripe.com/setup/sess_setup_123',
+            }),
+            confirmSetupCheckoutSession: jest.fn().mockResolvedValue({
+              paymentMethodId: 'pm_123',
+              brand: 'visa',
+              last4: '4242',
+              expMonth: 12,
+              expYear: 2028,
+              customerId: 'cus_123',
+            }),
+            attachPaymentMethod: jest.fn().mockResolvedValue({
+              id: 'pm_123',
+              brand: 'visa',
+              last4: '4242',
+              expMonth: 12,
+              expYear: 2028,
+            }),
+            detachPaymentMethod: jest.fn().mockResolvedValue({ id: 'pm_123' }),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('http://localhost:3001'),
+          },
         },
       ],
     }).compile();
@@ -254,6 +289,8 @@ describe('UsersService', () => {
       businessType: BuyerBusinessType.RESTAURATEUR,
       billingAddress: '123 Bill St',
       shippingAddress: '123 Ship St',
+      country: 'COD',
+      preferredCurrency: 'CDF',
     };
 
     it('should throw ConflictException if email already registered', async () => {
@@ -625,6 +662,49 @@ describe('UsersService', () => {
       await expect(
         service.resendWelcomeNotification('active-user'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Payment Methods', () => {
+    it('should create a setup checkout session for user', async () => {
+      const mockUser = {
+        id: 'user-1',
+        email: 'buyer@farm.com',
+        firstName: 'Jean',
+        lastName: 'Buyer',
+        stripeCustomerId: 'cus_123',
+      };
+      usersRepository.findOneBy.mockResolvedValue(mockUser);
+
+      const res = await service.createSetupSession('user-1', {
+        auctionId: 'auc-123',
+      });
+
+      expect(res).toEqual({
+        sessionId: 'sess_setup_123',
+        sessionUrl: 'https://checkout.stripe.com/setup/sess_setup_123',
+      });
+    });
+
+    it('should confirm setup checkout session and save payment method to user', async () => {
+      const mockUser = {
+        id: 'user-1',
+        email: 'buyer@farm.com',
+        stripeCustomerId: 'cus_123',
+      };
+      usersRepository.findOneBy.mockResolvedValue(mockUser);
+      usersRepository.save.mockImplementation((u: any) => Promise.resolve(u));
+
+      const res = await service.confirmSetupSession('user-1', 'sess_setup_123');
+
+      expect(res).toEqual({
+        hasPaymentMethod: true,
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 12,
+        expYear: 2028,
+      });
+      expect(usersRepository.save).toHaveBeenCalled();
     });
   });
 });

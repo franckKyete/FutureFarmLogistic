@@ -44,6 +44,14 @@ export class RegisterBuyerDto {
 
   @IsNotEmpty()
   @IsString()
+  country: string;
+
+  @IsOptional()
+  @IsString()
+  preferredCurrency?: string;
+
+  @IsNotEmpty()
+  @IsString()
   billingAddress: string;
 
   @IsNotEmpty()

@@ -48,3 +48,11 @@ export const deliverOrderLinesMutation = (id: string) => ({
     return data.data;
   },
 });
+
+export const confirmPaymentMutation = () => ({
+  mutationFn: async (paymentRef: string): Promise<OrderDto> => {
+    const { data } = await apiClient.post<{ data: OrderDto }>(`/orders/payments/confirm?paymentRef=${paymentRef}`);
+    return data.data;
+  },
+});
+

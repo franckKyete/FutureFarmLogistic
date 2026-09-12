@@ -34,4 +34,24 @@ export class CheckoutDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 'mobile_money', enum: ['stripe', 'mobile_money'] })
+  @IsString()
+  @IsOptional()
+  paymentMethod?: 'stripe' | 'mobile_money';
+
+  @ApiPropertyOptional({ example: '+221770000000', description: 'Payer phone number for Mobile Money' })
+  @IsString()
+  @IsOptional()
+  phoneNumber?: string;
+
+  @ApiPropertyOptional({ example: 'orange', description: 'MMO Provider code (e.g. orange, wave, free)' })
+  @IsString()
+  @IsOptional()
+  mmoProvider?: string;
+
+  @ApiPropertyOptional({ example: 'CDF', description: 'Buyer selected payment currency code (e.g. CDF, USD, XOF, EUR)' })
+  @IsString()
+  @IsOptional()
+  currency?: string;
 }

@@ -31,6 +31,12 @@ export class UserEntity {
   @Column({ type: 'varchar', nullable: true, length: 20 })
   phoneNumber: string | null;
 
+  @Column({ type: 'varchar', length: 10, default: 'COD' })
+  country: string;
+
+  @Column({ name: 'preferred_currency', type: 'varchar', length: 10, default: 'CDF' })
+  preferredCurrency: string;
+
   @Column({ select: false })
   password: string;
 
@@ -84,6 +90,24 @@ export class UserEntity {
 
   @Column({ name: 'created_by_actor_id', type: 'uuid', nullable: true })
   createdByActorId: string | null;
+
+  @Column({ name: 'stripe_customer_id', type: 'varchar', length: 255, nullable: true })
+  stripeCustomerId: string | null;
+
+  @Column({ name: 'stripe_payment_method_id', type: 'varchar', length: 255, nullable: true })
+  stripePaymentMethodId: string | null;
+
+  @Column({ name: 'card_last4', type: 'varchar', length: 10, nullable: true })
+  cardLast4: string | null;
+
+  @Column({ name: 'card_brand', type: 'varchar', length: 50, nullable: true })
+  cardBrand: string | null;
+
+  @Column({ name: 'card_exp_month', type: 'int', nullable: true })
+  cardExpMonth: number | null;
+
+  @Column({ name: 'card_exp_year', type: 'int', nullable: true })
+  cardExpYear: number | null;
 
   @CreateDateColumn()
   createdAt: Date;

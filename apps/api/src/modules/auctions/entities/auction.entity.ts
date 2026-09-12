@@ -81,6 +81,19 @@ export class AuctionEntity {
   })
   currentPrice: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'CDF' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 2300.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
   @Column({
     name: 'price_decrement_amount',
     type: 'decimal',

@@ -19,6 +19,8 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
   { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
   { label: 'Transactions', path: '/admin/transactions', icon: 'receipt_long', permission: Permission.ORDER_READ_ALL },
+  { label: 'Devises & Taux', path: '/admin/currencies', icon: 'currency_exchange', permission: Permission.DASHBOARD_READ },
+  { label: 'Frais de plateforme', path: '/admin/fees', icon: 'payments', permission: Permission.DASHBOARD_READ },
   { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
 ];
 

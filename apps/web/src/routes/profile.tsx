@@ -1,12 +1,13 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { changePasswordMutation } from '@/features/auth/api/auth.queries';
 import { useUser, useUpdateUser } from '@/features/admin/api/users.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { Button } from '@/features/admin/components';
+import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
 
 export const Route = createFileRoute('/profile')({
   component: UnifiedProfilePage,
@@ -26,8 +27,7 @@ function getFrenchRole(roleName: string): string {
 
 function UnifiedProfilePage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: userDetails, refetch: refetchUser } = useUser(user?.id || '');
   const updateUser = useUpdateUser();
@@ -59,68 +59,55 @@ function UnifiedProfilePage() {
   const changePassword = useMutation({
     ...changePasswordMutation(),
     onSuccess: (data) => {
-      addToast(data.message || 'Mot de passe modifié avec succès.', 'success');
+      addToast(data.message || 'Mot de passe modifié avec succès !', 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       updateAuthUser({ mustChangePassword: false });
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'users', user.id] });
-      }
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || 'Erreur lors du changement de mot de passe.';
-      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+      addToast(err?.response?.data?.message || 'Erreur lors du changement de mot de passe', 'error');
     },
   });
 
+  // Populate formData on fetch
   useEffect(() => {
-    if (!isAuthenticated) {
-      void navigate({ to: '/auth/login' });
-      return;
-    }
-
-    const current = userDetails || user;
-    if (current) {
-      const prof = (current as any).profile || {};
+    if (userDetails) {
       setFormData({
-        firstName: current.firstName || '',
-        lastName: current.lastName || '',
-        email: current.email || '',
-        phoneNumber: (current as any).phone || (current as any).phoneNumber || '',
-        licenseNumber: prof.licenseNumber || '',
-        licenseCategory: prof.licenseCategory || 'B',
-        agencyName: prof.agencyName || '',
-        companyName: prof.companyName || '',
-        address: prof.address || '',
-        bio: prof.bio || '',
-        vatNumber: prof.vatNumber || '',
-        billingAddress: prof.billingAddress || '',
-        shippingAddress: prof.shippingAddress || '',
+        firstName: userDetails.firstName || '',
+        lastName: userDetails.lastName || '',
+        email: userDetails.email || '',
+        phoneNumber: userDetails.phone || '',
+        licenseNumber: (userDetails as any).driverProfile?.licenseNumber || '',
+        licenseCategory: (userDetails as any).driverProfile?.licenseCategory || 'B',
+        agencyName: (userDetails as any).inspectorProfile?.agencyName || '',
+        companyName: (userDetails as any).farmerProfile?.companyName || '',
+        address: (userDetails as any).farmerProfile?.address || '',
+        bio: (userDetails as any).farmerProfile?.bio || '',
+        vatNumber: (userDetails as any).buyerProfile?.vatNumber || '',
+        billingAddress: (userDetails as any).buyerProfile?.billingAddress || '',
+        shippingAddress: (userDetails as any).buyerProfile?.shippingAddress || '',
       });
+    } else if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+      }));
     }
-  }, [userDetails, user, isAuthenticated, navigate]);
+  }, [userDetails, user]);
 
   const handleSaveInfo = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user) return;
 
     updateUser.mutate(
       {
         id: user.id,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
         phoneNumber: formData.phoneNumber,
-        licenseNumber: formData.licenseNumber || undefined,
-        licenseCategory: formData.licenseCategory || undefined,
-        agencyName: formData.agencyName || undefined,
-        companyName: formData.companyName || undefined,
-        address: formData.address || undefined,
-        bio: formData.bio || undefined,
-        vatNumber: formData.vatNumber || undefined,
-        billingAddress: formData.billingAddress || undefined,
-        shippingAddress: formData.shippingAddress || undefined,
       },
       {
         onSuccess: () => {
@@ -169,7 +156,8 @@ function UnifiedProfilePage() {
   const primaryRole = user?.roles?.[0] || 'Utilisateur';
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8f9ff] pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+      <BuyerHeader title="Mon Profil" showBack backTo="/marketplace" />
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Temporary Password Warning Banner */}
         {user?.mustChangePassword && (
@@ -249,6 +237,13 @@ function UnifiedProfilePage() {
             <span className="material-symbols-outlined text-lg">lock</span>
             Sécurité & Mot de passe
           </button>
+          <Link
+            to="/payment-method"
+            className="pb-3 px-2 text-sm font-bold transition-all border-b-2 border-transparent text-gray-500 hover:text-[#004322] cursor-pointer flex items-center gap-2 ml-auto"
+          >
+            <span className="material-symbols-outlined text-lg">credit_card</span>
+            Moyen de paiement
+          </Link>
         </div>
 
         {/* Tab 1: Personal & Role Information */}

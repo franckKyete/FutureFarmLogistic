@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +19,7 @@ import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
+import { CurrenciesService } from '../currencies/currencies.service';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -37,6 +39,8 @@ export class ProductsService {
     @InjectRepository(ParcelEntity)
     private readonly parcelRepository: Repository<ParcelEntity>,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly currenciesService?: CurrenciesService,
   ) {}
 
   // =============================================================================
@@ -155,8 +159,21 @@ export class ProductsService {
       }
     }
 
+    const targetCurrency = dto.currency || 'CDF';
+    let currency = 'CDF';
+    let exchangeRate = 2300.0;
+    if (this.currenciesService) {
+      const snap = await this.currenciesService.getRateSnapshot(targetCurrency);
+      currency = snap.currency;
+      exchangeRate = snap.exchangeRate;
+    }
+    const pricePerUnitUSD = Number((dto.pricePerUnit / exchangeRate).toFixed(2));
+
     const harvest = this.harvestRepository.create({
       ...dto,
+      currency,
+      exchangeRate,
+      pricePerUnitUSD,
       farmerProfileId: farmerProfile.id,
       status: HarvestStatus.PENDING_APPROVAL,
     });
@@ -183,6 +200,19 @@ export class ProductsService {
       throw new ForbiddenException('You do not own this harvest batch.');
     }
 
+    if (dto.currency || dto.pricePerUnit !== undefined) {
+      const targetCurrency = dto.currency || harvest.currency || 'CDF';
+      let exchangeRate = harvest.exchangeRate || 2300.0;
+      if (this.currenciesService && dto.currency) {
+        const snap = await this.currenciesService.getRateSnapshot(targetCurrency);
+        harvest.currency = snap.currency;
+        harvest.exchangeRate = snap.exchangeRate;
+        exchangeRate = snap.exchangeRate;
+      }
+      const price = dto.pricePerUnit !== undefined ? dto.pricePerUnit : harvest.pricePerUnit;
+      harvest.pricePerUnitUSD = Number((price / exchangeRate).toFixed(2));
+    }
+
     // Reset status to PENDING_APPROVAL on update to ensure inspectors re-verify modifications
     Object.assign(harvest, {
       ...dto,
@@ -198,7 +228,7 @@ export class ProductsService {
   async findHarvestById(id: string): Promise<HarvestEntity> {
     const harvest = await this.harvestRepository.findOne({
       where: { id },
-      relations: ['product', 'farmerProfile'],
+      relations: ['product', 'farmerProfile', 'parcel'],
     });
 
     if (!harvest) {
@@ -326,6 +356,10 @@ export class ProductsService {
   async getDecayedPrice(id: string): Promise<{
     basePrice: number;
     decayedPrice: number;
+    basePriceUSD: number;
+    decayedPriceUSD: number;
+    currency: string;
+    exchangeRate: number;
     multiplier: number;
     daysRemaining: number;
   }> {
@@ -359,11 +393,20 @@ export class ProductsService {
     }
 
     const basePrice = Number(harvest.pricePerUnit);
+    const exchangeRate = Number(harvest.exchangeRate) || 1.0;
+    const basePriceUSD = harvest.pricePerUnitUSD !== null && harvest.pricePerUnitUSD !== undefined
+      ? Number(harvest.pricePerUnitUSD)
+      : Number((basePrice / exchangeRate).toFixed(2));
     const decayedPrice = Number((basePrice * multiplier).toFixed(2));
+    const decayedPriceUSD = Number((basePriceUSD * multiplier).toFixed(2));
 
     return {
       basePrice,
       decayedPrice,
+      basePriceUSD,
+      decayedPriceUSD,
+      currency: harvest.currency || 'USD',
+      exchangeRate,
       multiplier,
       daysRemaining: diffDays,
     };

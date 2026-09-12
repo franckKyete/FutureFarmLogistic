@@ -25,7 +25,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, RefreshTokenDto } from './dto/login.dto';
 import { Verify2faDto, Authenticate2faDto } from './dto/2fa.dto';
 import {
   ForgotPasswordDto,
@@ -48,6 +48,26 @@ export class AuthController {
     @Ip() ipAddress?: string,
   ) {
     return this.authService.login(dto, userAgent, ipAddress);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access and refresh tokens' })
+  @ApiOkResponse({ description: 'Returns new access and refresh tokens' })
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @Headers('user-agent') userAgent?: string,
+    @Ip() ipAddress?: string,
+  ) {
+    return this.authService.refreshToken(dto.refreshToken, userAgent, ipAddress);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout and revoke refresh token session' })
+  async logout(@Body() dto?: Partial<RefreshTokenDto>) {
+    await this.authService.logout(dto?.refreshToken);
+    return { success: true, message: 'Déconnexion réussie.' };
   }
 
   @Post('2fa/authenticate')

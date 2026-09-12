@@ -1,13 +1,14 @@
-import { createRootRouteWithContext, Link, Outlet, useNavigate, useLocation } from '@tanstack/react-router';
+import { createRootRouteWithContext, Link, Outlet, useLocation } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import type { QueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { clearAuth, getAccessToken } from '@/features/auth/store/auth.store';
+import { getAccessToken } from '@/features/auth/store/auth.store';
 import { useToasts, removeToast, addToast } from '@/features/shared/store/toast.store';
 import { initOfflineSyncListeners } from '@/features/harvests/offline';
+import { initializeCurrencyStore } from '@/features/currency/store/currency.store';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -18,11 +19,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function RootLayout() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { queryClient } = Route.useRouteContext();
   const { user, isAuthenticated } = useAuth();
   const toasts = useToasts();
+
+  useEffect(() => {
+    initializeCurrencyStore();
+  }, [user]);
 
   useEffect(() => {
     const cleanup = initOfflineSyncListeners(queryClient);
@@ -53,23 +57,46 @@ function RootLayout() {
       addToast(notification.body || notification.title || 'Nouvelle notification', 'info');
     });
 
+    socket.on('order:status_changed', (data: { orderId: string; status: string; paymentStatus: string; message?: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (data.paymentStatus === 'PAID') {
+        addToast(data.message || 'Paiement confirmé avec succès !', 'success');
+      } else if (data.paymentStatus === 'FAILED') {
+        addToast(data.message || 'Le paiement a échoué.', 'error');
+      } else if (data.message) {
+        addToast(data.message, 'info');
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, queryClient]);
 
-  const handleLogout = () => {
-    clearAuth();
-    void navigate({ to: '/auth/login' });
-  };
+  // Global socket listener for auction real-time lifecycle updates
+  useEffect(() => {
+    const baseUrl = (import.meta.env['VITE_API_BASE_URL'] as string) || 'http://localhost:3000/v1';
+    const socketUrl = baseUrl.endsWith('/v1') ? baseUrl.slice(0, -3) : baseUrl;
 
-  const isDashboardOrPortal =
-    location.pathname.startsWith('/admin') ||
-    location.pathname.startsWith('/auth') ||
-    location.pathname.startsWith('/farmer') ||
-    location.pathname.startsWith('/inspector');
+    const auctionSocket = io(`${socketUrl}/auctions`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+    });
 
-  // Helper to render notification toasts
+    const handleAuctionChange = () => {
+      void queryClient.invalidateQueries({ queryKey: ['auctions'] });
+    };
+
+    auctionSocket.on('auction:sold', handleAuctionChange);
+    auctionSocket.on('auction:expired', handleAuctionChange);
+    auctionSocket.on('auction:cancelled', handleAuctionChange);
+    auctionSocket.on('auction:price_tick', handleAuctionChange);
+
+    return () => {
+      auctionSocket.disconnect();
+    };
+  }, [queryClient]);
+
   const renderToasts = () => (
     <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => (
@@ -126,64 +153,10 @@ function RootLayout() {
     );
   };
 
-  if (isDashboardOrPortal) {
-    return (
-      <div className="min-h-screen">
-        {renderMustChangePasswordBanner()}
-        <Outlet />
-        {renderToasts()}
-        {import.meta.env.DEV && <TanStackRouterDevtools />}
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {renderMustChangePasswordBanner()}
-      {/* Top navigation bar */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-brand-600 font-bold text-xl tracking-tight">
-              🌾 FutureFarm
-            </span>
-          </Link>
-          <div className="flex items-center gap-4 text-sm font-medium text-gray-600">
-            {isAuthenticated && (
-              <>
-                <Link to="/" className="hover:text-brand-600 transition-colors [&.active]:text-brand-600">
-                  Dashboard
-                </Link>
-
-                <span className="text-gray-400">|</span>
-                <span className="text-gray-500 font-normal">
-                  Hello, {user?.firstName}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="ml-2 px-4 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer"
-                >
-                  Logout
-                </button>
-              </>
-            )}
-            {!isAuthenticated && (
-              <Link
-                to="/auth/login"
-                className="ml-2 px-4 py-1.5 rounded-md bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-              >
-                Login
-              </Link>
-            )}
-          </div>
-        </nav>
-      </header>
-
-      {/* Page content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
-      </main>
-
+      <Outlet />
       {renderToasts()}
       {import.meta.env.DEV && <TanStackRouterDevtools />}
     </div>

@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import express from 'express';
 import { join } from 'path';
 
 import { AppModule } from './app.module';
@@ -11,7 +11,9 @@ import { ResponseTransformInterceptor } from './common/interceptors/response-tra
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   // --- Security ---
   app.use(helmet());
@@ -20,7 +22,9 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // --- Static Files (Uploads) ---
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
 
   // --- CORS ---
   const corsOrigins = process.env['CORS_ORIGINS']?.split(',') ?? [

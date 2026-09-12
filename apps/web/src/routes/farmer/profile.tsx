@@ -3,21 +3,64 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
-  getFarmerProfileQuery,
+  getFarmerProfileByIdQuery,
   uploadMediaFile,
 } from '@/features/profile/api/profile.queries';
-import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
+import {
+  getFarmerHarvestsQuery,
+  getMarketplaceHarvestsQuery,
+} from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { useUpdateUser } from '@/features/admin/api/users.queries';
-import { FarmerBottomNav } from '@/features/farmer/components/FarmerBottomNav';
+import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
+
+export interface FarmerProfileSearchParams {
+  id?: string | undefined;
+}
 
 export const Route = createFileRoute('/farmer/profile')({
+  validateSearch: (search: Record<string, unknown>): FarmerProfileSearchParams => ({
+    id: typeof search.id === 'string' && search.id.trim() ? search.id.trim() : undefined,
+  }),
   component: FarmerProfilePage,
 });
 
-function FarmerProfilePage() {
+const CATEGORY_LABEL: Record<string, string> = {
+  VEGETABLES: 'MARAÎCHAGE',
+  FRUITS: 'FRUITS',
+  CEREALS: 'CÉRÉALES',
+  DATES: 'DATTES',
+  DAIRY: 'PRODUITS LAITIERS',
+  MEAT: 'ÉLEVAGE',
+  LEGUMES: 'LÉGUMINEUSES',
+  OTHER: 'AUTRE',
+};
+
+function formatHarvestDate(dateStr?: string | null): string {
+  if (!dateStr) return 'Récemment';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatMonth(dateStr?: string | null): string {
+  if (!dateStr) return 'Récent';
+  try {
+    const d = new Date(dateStr);
+    const m = d.toLocaleDateString('fr-FR', { month: 'short' });
+    return m.charAt(0).toUpperCase() + m.slice(1).replace('.', '');
+  } catch {
+    return 'Lot';
+  }
+}
+
+export function FarmerProfilePage() {
+  const { id: targetFarmerId } = Route.useSearch();
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,14 +78,54 @@ function FarmerProfilePage() {
   const [tempAvatarUrl, setTempAvatarUrl] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Queries
-  const { data: profile, refetch: refetchProfile } = useQuery(getFarmerProfileQuery());
-  const { data: harvests } = useQuery(getFarmerHarvestsQuery());
-  const { data: orders } = useQuery(getSellerOrdersQuery());
+  // Query farmer profile (either targeted by id or current user's profile)
+  const {
+    data: profile,
+    isLoading: isLoadingProfile,
+    refetch: refetchProfile,
+  } = useQuery(getFarmerProfileByIdQuery(targetFarmerId));
+
+  // Check if current user is a farmer
+  const isFarmer = Boolean(user?.roles?.includes('Farmer'));
+
+  // Only a farmer can own a farmer profile. If targetFarmerId is present, verify ownership.
+  const isOwner =
+    isFarmer &&
+    (!targetFarmerId ||
+      Boolean(
+        user &&
+          profile &&
+          (profile.userId === user.id ||
+            profile.id === (user as any).farmerProfileId ||
+            profile.id === (user as any).farmerProfile?.id),
+      ));
+
+  // Configure farmer layout: hide top bar (page has custom header) and hide bottom nav for buyer view
+  useFarmerLayout({
+    hideTopBar: true,
+    hideBottomNav: !isOwner,
+  });
+
+  // Harvests queries (owner gets full harvests, public visitor gets marketplace approved harvests)
+  const { data: ownerHarvests } = useQuery({
+    ...getFarmerHarvestsQuery(),
+    enabled: isOwner,
+  });
+
+  const { data: publicHarvests } = useQuery({
+    ...getMarketplaceHarvestsQuery(undefined, profile?.id || targetFarmerId),
+    enabled: !isOwner && Boolean(profile?.id || targetFarmerId),
+  });
+
+  const { data: orders } = useQuery({
+    ...getSellerOrdersQuery(),
+    enabled: isOwner,
+  });
+
   const updateUserMutation = useUpdateUser();
 
   useEffect(() => {
-    if (user) {
+    if (isOwner && user) {
       setTempFirstName(user.firstName || '');
       setTempLastName(user.lastName || '');
       setTempEmail(user.email || '');
@@ -52,10 +135,10 @@ function FarmerProfilePage() {
       setTempName(profile.companyName || '');
       setTempAddress(profile.address || '');
       setTempBio(profile.bio || '');
-      setTempIsCertified(!!profile.isCertified);
+      setTempIsCertified(Boolean(profile.isCertified));
       setTempAvatarUrl(profile.avatarUrl || null);
     }
-  }, [profile, user]);
+  }, [profile, user, isOwner]);
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -129,10 +212,19 @@ function FarmerProfilePage() {
   };
 
   // Calculations
-  const approvedHarvests = harvests ? harvests.filter((h) => h.status === 'APPROVED') : [];
-  const averageQuality = approvedHarvests.length
-    ? Math.round((approvedHarvests.reduce((sum, h) => sum + (h.qualityScore || 0), 0) / approvedHarvests.length) * 10)
-    : 92;
+  const harvests = isOwner ? ownerHarvests : publicHarvests;
+  const approvedHarvests = harvests
+    ? harvests.filter((h) => h.status === 'APPROVED' || !h.status)
+    : [];
+
+  const averageQuality =
+    approvedHarvests.length && approvedHarvests.some((h) => h.qualityScore)
+      ? Math.round(
+          (approvedHarvests.reduce((sum, h) => sum + (h.qualityScore || 0), 0) /
+            approvedHarvests.filter((h) => h.qualityScore).length) *
+            10,
+        )
+      : 95;
 
   const totalRevenue = orders
     ? orders
@@ -143,22 +235,115 @@ function FarmerProfilePage() {
   const productsCount = approvedHarvests.length;
   const ordersCount = orders ? orders.length : 0;
 
+  const producerDisplayName =
+    profile?.companyName ||
+    (profile?.user ? `${profile.user.firstName} ${profile.user.lastName}`.trim() : '') ||
+    (isOwner && user ? `${user.firstName} ${user.lastName}` : 'Exploitation Agricole');
+
   const currentAvatarSrc =
     profile?.avatarUrl ||
-    (user
-      ? `https://ui-avatars.com/api/?name=${encodeURIComponent(`${user.firstName} ${user.lastName}`)}&background=004322&color=fff&bold=true`
-      : 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100');
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(producerDisplayName)}&background=004322&color=fff&bold=true`;
 
+  if (isLoadingProfile) {
+    return (
+      <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff]">
+        <header className="sticky top-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="p-1 -ml-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center cursor-pointer"
+            aria-label="Retour"
+          >
+            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+          </button>
+          <span className="text-sm font-bold text-[#0b1c30]">Chargement du profil...</span>
+          <div className="w-8" />
+        </header>
+        <main className="pt-20 px-4 flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-3 border-[#004322] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-[#707970]">Récupération des informations...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff]">
+        <header className="sticky top-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="p-1 -ml-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center cursor-pointer"
+            aria-label="Retour"
+          >
+            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+          </button>
+          <span className="text-sm font-bold text-[#0b1c30]">Profil Producteur</span>
+          <div className="w-8" />
+        </header>
+        <main className="pt-20 px-4 text-center">
+          <div className="py-12 bg-white rounded-2xl border border-[#c0c9be] p-6 shadow-xs">
+            <span className="material-symbols-outlined text-4xl text-gray-400 mb-2 block">person_off</span>
+            <p className="text-sm font-bold text-[#0b1c30]">Profil introuvable</p>
+            <p className="text-xs text-[#707970] mt-1">Le producteur demandé n&apos;existe pas ou a été archivé.</p>
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="mt-4 inline-block px-4 py-2 bg-[#004322] text-white text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Retour
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   return (
-    <div className="bg-[#f8f9ff] text-[#0b1c30] font-sans min-h-screen pb-20">
+    <div
+      data-testid="farmer-profile-container"
+      className={`bg-[#f8f9ff] text-[#0b1c30] font-sans min-h-screen ${
+        isOwner ? 'pb-24' : 'pb-10'
+      }`}
+    >
+      {/* Top Header matching mockup */}
+      <header className="sticky top-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-2">
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="p-1 -ml-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center cursor-pointer transition-colors"
+              aria-label="Retour"
+            >
+              <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+            </button>
+          )}
+          <div className="flex items-center gap-2 text-[#004322] font-black text-base">
+            <span className="material-symbols-outlined text-[24px]">agriculture</span>
+            <span>Future Farm</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {user && (
+            <div className="w-8 h-8 rounded-full bg-[#004322] text-white text-xs font-bold flex items-center justify-center border border-emerald-200">
+              {user.firstName?.[0] || 'U'}
+            </div>
+          )}
+        </div>
+      </header>
+
       {/* Hidden File Input for Avatar Upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        onChange={handleAvatarFileChange}
-        className="hidden"
-      />
+      {isOwner && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={handleAvatarFileChange}
+          className="hidden"
+        />
+      )}
 
       <main className="max-w-[480px] mx-auto pb-8">
         {/* Hero Section: Banner & Profile Photo */}
@@ -176,42 +361,52 @@ function FarmerProfilePage() {
                 <div className="w-24 h-24 rounded-full border-4 border-[#f8f9ff] bg-[#ffffff] overflow-hidden shadow-sm relative">
                   <img
                     className="w-full h-full object-cover"
-                    alt={user?.firstName || 'Farmer'}
+                    alt={producerDisplayName}
                     src={currentAvatarSrc}
                   />
-                  {/* Upload Avatar Overlay Button */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingAvatar}
-                    className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full"
-                    title="Changer la photo de profil"
-                  >
-                    <span className="material-symbols-outlined text-xl">
-                      {isUploadingAvatar ? 'hourglass_top' : 'photo_camera'}
-                    </span>
-                    <span className="text-[9px] font-bold mt-0.5">
-                      {isUploadingAvatar ? 'Envoi...' : 'Modifier'}
-                    </span>
-                  </button>
+                  {/* Upload Avatar Overlay Button (Only for owner) */}
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                      className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full"
+                      title="Changer la photo de profil"
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {isUploadingAvatar ? 'hourglass_top' : 'photo_camera'}
+                      </span>
+                      <span className="text-[9px] font-bold mt-0.5">
+                        {isUploadingAvatar ? 'Envoi...' : 'Modifier'}
+                      </span>
+                    </button>
+                  )}
                 </div>
-                {profile?.isCertified && (
-                  <div className="absolute bottom-0 right-0 bg-[#004322] text-white rounded-full p-1 border-2 border-[#f8f9ff]">
-                    <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                {profile.isCertified && (
+                  <div className="absolute bottom-0 right-0 bg-[#004322] text-white rounded-full p-1 border-2 border-[#f8f9ff] shadow-2xs">
+                    <span
+                      className="material-symbols-outlined text-[16px] block"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
                       verified
                     </span>
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-[#004322] text-white px-4 py-2 rounded-lg font-semibold text-[12px] flex items-center gap-2 active:scale-95 transition-transform cursor-pointer shadow"
-                >
-                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                  Modifier le profil
-                </button>
-              </div>
+
+              {/* Action on right: Edit button for owner */}
+              {isOwner && (
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="bg-[#004322] hover:bg-[#00331a] text-white px-4 py-2 rounded-lg font-semibold text-[12px] flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                    Modifier le profil
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -219,49 +414,92 @@ function FarmerProfilePage() {
         {/* Identity & Stats Section */}
         <section className="px-4 mt-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-[18px] font-bold text-[#0b1c30]">
-              {profile?.companyName || (user ? `${user.firstName} ${user.lastName}` : 'Mon Exploitation')}
-            </h2>
-            {profile?.isCertified && (
-              <span className="material-symbols-outlined text-[#1a5c35]">verified</span>
+            <h1 className="text-[20px] font-extrabold text-[#0b1c30]">
+              {producerDisplayName}
+            </h1>
+            {profile.isCertified && (
+              <span
+                className="material-symbols-outlined text-[#004322] text-[20px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                title="Producteur certifié"
+              >
+                verified
+              </span>
             )}
           </div>
-          <p className="text-[14px] text-[#404941] mt-1">{profile?.bio || "Aucune description de l'exploitation."}</p>
-          <div className="grid grid-cols-4 gap-4 mt-6 bg-[#eff4ff] p-4 rounded-xl border border-[#c0c9be] shadow-sm">
-            <div className="text-center">
-              <p className="text-[18px] font-semibold text-[#004322]">{productsCount}</p>
-              <p className="text-[11px] text-[#404941]">Produits</p>
+          <p className="text-[14px] text-[#404941] mt-1 leading-relaxed">
+            {profile.bio ||
+              "Producteur engagé pour une agriculture durable et des produits de qualité supérieure."}
+          </p>
+
+          {/* Stats Grid: 2 columns for public visitor, 4 columns for owner */}
+          {!isOwner ? (
+            <div className="grid grid-cols-2 gap-4 mt-6 bg-[#eff4ff] p-4 rounded-xl border border-[#c0c9be] shadow-xs">
+              <div className="text-center">
+                <p className="text-[22px] font-black text-[#004322]">{productsCount}</p>
+                <p className="text-xs font-semibold text-[#404941]">Produits</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[22px] font-black text-[#004322]">{averageQuality}%</p>
+                <p className="text-xs font-semibold text-[#404941]">Qualité</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-[18px] font-semibold text-[#004322]">{ordersCount}</p>
-              <p className="text-[11px] text-[#404941]">Commandes</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-4 mt-6 bg-[#eff4ff] p-4 rounded-xl border border-[#c0c9be] shadow-xs">
+              <div className="text-center">
+                <p className="text-[18px] font-semibold text-[#004322]">{productsCount}</p>
+                <p className="text-[11px] text-[#404941]">Produits</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[18px] font-semibold text-[#004322]">{ordersCount}</p>
+                <p className="text-[11px] text-[#404941]">Commandes</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[18px] font-semibold text-[#885200]">{averageQuality}%</p>
+                <p className="text-[11px] text-[#404941]">Qualité</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[16px] font-semibold text-[#004322] truncate">
+                  {totalRevenue.toLocaleString('fr-FR')}
+                </p>
+                <p className="text-[11px] text-[#404941]">FCFA</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-[18px] font-semibold text-[#885200]">{averageQuality}%</p>
-              <p className="text-[11px] text-[#404941]">Qualité</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[16px] font-semibold text-[#004322] truncate">{totalRevenue.toLocaleString()}</p>
-              <p className="text-[11px] text-[#404941]">CDF</p>
-            </div>
-          </div>
-          <button
-            onClick={() => void navigate({ to: '/farmer/harvests/analyze' })}
-            className="w-full mt-3 border border-[#707970] text-[#004322] font-semibold text-[12px] py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-[#d3e4fe]/20 transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[20px]">analytics</span>
-            Voir les analyses de lots
-          </button>
+          )}
+
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/farmer/harvests/analyze' })}
+              className="w-full mt-3 border border-[#707970] text-[#004322] font-semibold text-[12px] py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-[#d3e4fe]/20 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[20px]">analytics</span>
+              Voir les analyses de lots
+            </button>
+          )}
         </section>
 
-        {/* Active Products Section */}
+        {/* Active Products / Listings Section */}
         <section className="px-4 mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold">Catalogue de lots actifs</h3>
-            <Link to="/farmer/stock" className="text-[#004322] font-semibold text-[12px] hover:underline">
-              Gérer stock
-            </Link>
+            <h3 className="text-base font-extrabold text-[#0b1c30]">Lots actifs</h3>
+            {isOwner ? (
+              <Link
+                to="/farmer/stock"
+                className="text-[#004322] font-semibold text-[12px] hover:underline cursor-pointer"
+              >
+                Gérer stock
+              </Link>
+            ) : (
+              <Link
+                to="/marketplace"
+                className="text-[#004322] font-semibold text-[12px] hover:underline cursor-pointer"
+              >
+                Tout voir
+              </Link>
+            )}
           </div>
+
           <div className="grid grid-cols-1 gap-3">
             {approvedHarvests.length === 0 ? (
               <div className="bg-white border border-[#c0c9be] rounded-xl p-6 text-center text-[#404941] text-xs">
@@ -269,62 +507,90 @@ function FarmerProfilePage() {
               </div>
             ) : (
               approvedHarvests.map((h) => (
-                <div key={h.id} className="bg-white border border-[#c0c9be] rounded-xl p-3 flex flex-col gap-3 shadow-sm">
-                  <div className="flex gap-4 items-center">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-200">
+                <Link
+                  key={h.id}
+                  to="/harvests/$id"
+                  params={{ id: h.id }}
+                  className="bg-white border border-[#c0c9be] hover:border-[#004322] rounded-2xl p-3.5 flex flex-col gap-2.5 shadow-xs transition-all block cursor-pointer"
+                >
+                  <div className="flex gap-3.5 items-center">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-gray-100">
                       <img
                         className="w-full h-full object-cover"
-                        alt="Harvest crop"
-                        src={h.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100'}
+                        alt={h.product?.name ?? 'Récolte'}
+                        src={
+                          h.photoUrls?.[0] ||
+                          'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=200'
+                        }
                       />
                     </div>
-                    <div className="flex-grow min-w-0">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-[13px] font-bold text-[#0b1c30] truncate">
-                            {h.product?.name}
-                          </h4>
-                          <p className="text-[9px] text-[#004322] font-bold uppercase">
-                            {h.product?.category}
-                          </p>
-                        </div>
-                        <span className="bg-[#aef2be] text-[#00210d] px-2 py-0.5 rounded-full text-[9px] font-bold uppercase shrink-0">
-                          {h.qualityScore ? Math.round(h.qualityScore * 10) : 0}% Qualité
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-1">
+                        <h4 className="text-sm font-bold text-[#0b1c30] truncate">
+                          {h.product?.name}
+                        </h4>
+                        <span className="bg-[#dcfce7] text-[#166534] px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase shrink-0">
+                          {h.qualityScore ? Math.round(h.qualityScore * 10) : 92}% QUALITÉ
                         </span>
                       </div>
-                      <p className="text-[#404941] text-[10px] mt-1 font-semibold">
-                        Stock : {h.quantityInStock} {h.unit}
+                      <p className="text-[10px] text-[#004322] font-extrabold uppercase tracking-wider mt-0.5">
+                        {CATEGORY_LABEL[h.product?.category ?? ''] || h.product?.category || 'MARAÎCHAGE'}
+                      </p>
+                      <p className="text-xs font-bold text-[#0b1c30] mt-1 truncate">
+                        Stock total : {h.quantityInStock?.toLocaleString('fr-FR')}{' '}
+                        {h.unit?.toLowerCase()}
+                      </p>
+                      <p className="text-[11px] text-[#707970] mt-0.5 truncate">
+                        Dernière récolte : {formatHarvestDate(h.harvestDate || h.createdAt)}
                       </p>
                     </div>
                   </div>
-                </div>
+
+                  {/* Divider & Recent history badges */}
+                  <div className="h-px bg-[#f1f5f9] my-0.5" />
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <span className="text-[10px] font-bold text-[#707970]">
+                      Historique récent :
+                    </span>
+                    <span className="bg-[#eff6ff] text-[#1e40af] text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                      {formatMonth(h.harvestDate || h.createdAt)}:{' '}
+                      {h.qualityScore ? Math.round(h.qualityScore * 10) : 92}
+                    </span>
+                    <span className="bg-[#eff6ff] text-[#1e40af] text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                      Conforme: 100%
+                    </span>
+                  </div>
+                </Link>
               ))
             )}
           </div>
         </section>
 
-        {/* Account & Logout Section */}
-        <section className="px-4 mt-8">
-          <div className="bg-white border border-[#c0c9be] rounded-xl p-4 shadow-sm flex flex-col gap-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#404941]">
-              Compte & Sécurité
-            </h3>
-            <button
-              onClick={() => {
-                clearAuth();
-                void navigate({ to: '/auth/login' });
-              }}
-              className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
-              Déconnexion
-            </button>
-          </div>
-        </section>
+        {/* Account & Logout Section (Only for owner) */}
+        {isOwner && (
+          <section className="px-4 mt-8">
+            <div className="bg-white border border-[#c0c9be] rounded-xl p-4 shadow-sm flex flex-col gap-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#404941]">
+                Compte & Sécurité
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  clearAuth();
+                  void navigate({ to: '/auth/login' });
+                }}
+                className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+                Déconnexion
+              </button>
+            </div>
+          </section>
+        )}
       </main>
 
-      {/* Edit Profile Modal */}
-      {isEditing && (
+      {/* Edit Profile Modal (Only for owner) */}
+      {isOwner && isEditing && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">

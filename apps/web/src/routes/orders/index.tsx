@@ -1,11 +1,46 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMyOrdersQuery } from '@/features/orders/api/buyer-orders.queries';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
+import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
 import { OrderStatus } from '@futurefarm/types';
+import { formatPriceDirect } from '@/features/currency/store/currency.store';
 
 export const Route = createFileRoute('/orders/')({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    session_id?: string;
+    order_id?: string;
+    checkoutId?: string;
+    checkoutCode?: string;
+    provider?: string;
+  } => {
+    const res: {
+      session_id?: string;
+      order_id?: string;
+      checkoutId?: string;
+      checkoutCode?: string;
+      provider?: string;
+    } = {};
+    if (typeof search['session_id'] === 'string' && search['session_id']) {
+      res.session_id = search['session_id'];
+    }
+    if (typeof search['order_id'] === 'string' && search['order_id']) {
+      res.order_id = search['order_id'];
+    }
+    if (typeof search['checkoutId'] === 'string' && search['checkoutId']) {
+      res.checkoutId = search['checkoutId'];
+    }
+    if (typeof search['checkoutCode'] === 'string' && search['checkoutCode']) {
+      res.checkoutCode = search['checkoutCode'];
+    }
+    if (typeof search['provider'] === 'string' && search['provider']) {
+      res.provider = search['provider'];
+    }
+    return res;
+  },
   beforeLoad: () => {
     requireAuth();
   },
@@ -33,49 +68,58 @@ const FILTER_STATUS_MAP: Record<OrderFilter, OrderStatus[]> = {
   Annulées: [OrderStatus.CANCELLED],
 };
 
+function getStatusBadgeStyle(status: OrderStatus): string {
+  switch (status) {
+    case OrderStatus.PENDING_PAYMENT:
+      return 'text-amber-700 bg-amber-50 border border-amber-200';
+    case OrderStatus.AWAITING_CONFIRMATION:
+      return 'text-emerald-800 bg-emerald-50 border border-emerald-200';
+    case OrderStatus.CONFIRMED:
+    case OrderStatus.SHIPPED:
+      return 'text-blue-700 bg-blue-50 border border-blue-200';
+    case OrderStatus.DELIVERED:
+      return 'text-emerald-700 bg-emerald-50 border border-emerald-200';
+    case OrderStatus.CANCELLED:
+      return 'text-rose-700 bg-rose-50 border border-rose-200';
+    default:
+      return 'text-gray-700 bg-gray-50';
+  }
+}
+
 function getStatusLabel(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
     [OrderStatus.PENDING_PAYMENT]: 'Paiement en attente',
-    [OrderStatus.AWAITING_CONFIRMATION]: 'En attente de confirmation',
+    [OrderStatus.AWAITING_CONFIRMATION]: 'Payée • En préparation',
     [OrderStatus.CONFIRMED]: 'Confirmée',
     [OrderStatus.SHIPPED]: 'Expédiée',
     [OrderStatus.DELIVERED]: 'Livrée',
     [OrderStatus.CANCELLED]: 'Annulée',
   };
-  return labels[status];
-}
-
-function getStatusBadgeStyle(status: OrderStatus): string {
-  switch (status) {
-    case OrderStatus.PENDING_PAYMENT:
-    case OrderStatus.AWAITING_CONFIRMATION:
-      return 'text-amber-700 bg-amber-50';
-    case OrderStatus.CONFIRMED:
-    case OrderStatus.SHIPPED:
-      return 'text-blue-700 bg-blue-50';
-    case OrderStatus.DELIVERED:
-      return 'text-emerald-700 bg-emerald-50';
-    case OrderStatus.CANCELLED:
-      return 'text-rose-700 bg-rose-50';
-  }
-}
-
-function formatPrice(amount: number): string {
-  return `${amount.toLocaleString()} CDF`;
+  return labels[status] ?? status;
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-function OrdersListPage() {
+export function OrdersListPage() {
+  const { session_id, order_id, checkoutId, checkoutCode } = Route.useSearch();
+  const navigate = useNavigate();
+
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('Toutes');
 
   const { data: orders, isLoading } = useQuery(getMyOrdersQuery());
+
+  useEffect(() => {
+    if (session_id || checkoutId || checkoutCode || order_id) {
+      void navigate({ to: '/orders', replace: true, search: {} });
+    }
+  }, [session_id, checkoutId, checkoutCode, order_id, navigate]);
 
   const filteredOrders = (orders || []).filter((order) =>
     FILTER_STATUS_MAP[activeFilter].includes(order.status),
@@ -99,18 +143,7 @@ function OrdersListPage() {
 
   return (
     <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff] relative pb-24">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-white border-b border-[#c0c9be] max-w-[480px] mx-auto">
-        <div className="flex justify-between items-center px-4 h-16">
-          <h1 className="text-sm font-bold text-[#0b1c30]">Mes commandes</h1>
-          <button
-            onClick={() => window.location.reload()}
-            className="material-symbols-outlined text-[#404941] cursor-pointer p-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            refresh
-          </button>
-        </div>
-      </header>
+      <BuyerHeader title="Mes commandes" showBack backTo="/marketplace" />
 
       {/* Main Content */}
       <main className="pt-20 px-4 space-y-6">
@@ -188,47 +221,24 @@ function OrdersListPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-[#0b1c30]">
-                      {formatPrice(order.totalAmount)}
+                      {formatPriceDirect(order.totalAmount, order.currency)}
                     </p>
                   </div>
                 </div>
+
+                {order.status === OrderStatus.AWAITING_CONFIRMATION && (
+                  <div className="pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[11px] text-[#004322]">
+                    <span className="material-symbols-outlined text-[15px] text-emerald-600">
+                      inventory_2
+                    </span>
+                    <span>Le producteur prépare votre commande et vérifie la disponibilité de chaque récolte.</span>
+                  </div>
+                )}
               </Link>
             ))
           )}
         </div>
       </main>
-
-      {/* BottomNavBar */}
-      <nav className="fixed bottom-0 w-full z-50 bg-white border-t border-[#c0c9be] max-w-[480px] mx-auto">
-        <div className="flex justify-around items-center h-16">
-          <Link
-            to="/notifications"
-            className="flex flex-col items-center justify-center text-[#707970] hover:text-[#1a5c35] transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="text-[10px] font-bold">Notifications</span>
-          </Link>
-          <Link
-            to="/orders"
-            className="flex flex-col items-center justify-center text-[#1a5c35] transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              receipt_long
-            </span>
-            <span className="text-[10px] font-bold">Commandes</span>
-          </Link>
-          <Link
-            to="/marketplace"
-            className="flex flex-col items-center justify-center text-[#707970] hover:text-[#1a5c35] transition-colors active:scale-95 duration-200 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">store</span>
-            <span className="text-[10px] font-bold">Marketplace</span>
-          </Link>
-        </div>
-      </nav>
     </div>
   );
 }

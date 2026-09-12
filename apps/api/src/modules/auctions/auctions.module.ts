@@ -4,11 +4,13 @@ import { AuctionEntity } from './entities/auction.entity';
 import { BidEntity } from './entities/bid.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { AuctionsService } from './auctions.service';
 import { AuctionsController } from './auctions.controller';
 import { AuctionsSchedulerService } from './auctions-scheduler.service';
 import { AuctionsGateway } from './auctions.gateway';
 import { OrdersModule } from '../orders/orders.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,8 +19,10 @@ import { OrdersModule } from '../orders/orders.module';
       BidEntity,
       HarvestEntity,
       FarmerProfileEntity,
+      UserEntity,
     ]),
     OrdersModule,
+    NotificationsModule,
   ],
   controllers: [AuctionsController],
   providers: [AuctionsService, AuctionsSchedulerService, AuctionsGateway],

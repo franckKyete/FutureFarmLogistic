@@ -5,13 +5,24 @@ import { AuctionStatus } from '@futurefarm/types';
 import { AuctionsSchedulerService } from './auctions-scheduler.service';
 import { AuctionsGateway } from './auctions.gateway';
 
+import { OrdersService } from '../orders/orders.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+
 describe('AuctionsSchedulerService', () => {
   let service: AuctionsSchedulerService;
   let gateway: AuctionsGateway;
 
   const mockEntityManager = {
     find: jest.fn(),
+    findOne: jest.fn(),
     save: jest.fn((entity: any) => Promise.resolve(entity)),
+    createQueryBuilder: jest.fn(() => ({
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({}),
+    })),
   };
 
   const mockDataSource = {
@@ -24,6 +35,19 @@ describe('AuctionsSchedulerService', () => {
   const mockAuctionsGateway = {
     emitPriceTick: jest.fn(),
     emitExpired: jest.fn(),
+    emitSold: jest.fn(),
+  };
+
+  const mockOrdersService = {
+    createFromBid: jest.fn(() => Promise.resolve({ id: 'order-123' })),
+  };
+
+  const mockNotificationsService = {
+    send: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockStripePaymentGateway = {
+    chargeSavedCard: jest.fn().mockResolvedValue({ paymentIntentId: 'pi_123', status: 'succeeded' }),
   };
 
   beforeEach(async () => {
@@ -37,6 +61,18 @@ describe('AuctionsSchedulerService', () => {
         {
           provide: AuctionsGateway,
           useValue: mockAuctionsGateway,
+        },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
+        {
+          provide: StripePaymentGateway,
+          useValue: mockStripePaymentGateway,
         },
       ],
     }).compile();

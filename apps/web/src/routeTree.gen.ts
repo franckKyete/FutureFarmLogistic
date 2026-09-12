@@ -9,114 +9,78 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as OrdersRouteImport } from './routes/orders'
-import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as MarketplaceRouteImport } from './routes/marketplace'
-import { Route as InspectorRouteImport } from './routes/inspector'
-import { Route as FarmerRouteImport } from './routes/farmer'
-import { Route as DriverRouteImport } from './routes/driver'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as CartRouteImport } from './routes/cart'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as OrdersIndexRouteImport } from './routes/orders/index'
-import { Route as InspectorIndexRouteImport } from './routes/inspector/index'
-import { Route as AuctionsIndexRouteImport } from './routes/auctions/index'
-import { Route as OrdersIdRouteImport } from './routes/orders/$id'
-import { Route as InspectorValidateRouteImport } from './routes/inspector/validate'
-import { Route as InspectorProxyRouteImport } from './routes/inspector/proxy'
-import { Route as InspectorPlanningRouteImport } from './routes/inspector/planning'
-import { Route as InspectorMyCenterRouteImport } from './routes/inspector/my-center'
-import { Route as InspectorDashboardRouteImport } from './routes/inspector/dashboard'
-import { Route as InspectorAccountsRouteImport } from './routes/inspector/accounts'
-import { Route as HarvestsIdRouteImport } from './routes/harvests/$id'
-import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
-import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
-import { Route as FarmerProfileRouteImport } from './routes/farmer/profile'
-import { Route as FarmerOrdersRouteImport } from './routes/farmer/orders'
-import { Route as FarmerOnboardingRouteImport } from './routes/farmer/onboarding'
-import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
-import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
-import { Route as DriverProfileRouteImport } from './routes/driver/profile'
-import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
-import { Route as AuthRegisterRouteImport } from './routes/auth/register'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
-import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
-import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
-import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
-import { Route as AdminRolesRouteImport } from './routes/admin/roles'
-import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
-import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
-import { Route as AdminInspectionCentersRouteImport } from './routes/admin/inspection-centers'
-import { Route as AdminHarvestsRouteImport } from './routes/admin/harvests'
-import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
-import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
-import { Route as AdminAuctionsRouteImport } from './routes/admin/auctions'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as DriverRouteImport } from './routes/driver'
+import { Route as FarmerRouteImport } from './routes/farmer'
+import { Route as InspectorRouteImport } from './routes/inspector'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as PaymentMethodRouteImport } from './routes/payment-method'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
-import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
-import { Route as DriverRunsIndexRouteImport } from './routes/driver/runs/index'
+import { Route as AdminAuctionsRouteImport } from './routes/admin/auctions'
+import { Route as AdminCurrenciesRouteImport } from './routes/admin/currencies'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
+import { Route as AdminFeesRouteImport } from './routes/admin/fees'
+import { Route as AdminHarvestsRouteImport } from './routes/admin/harvests'
+import { Route as AdminInspectionCentersRouteImport } from './routes/admin/inspection-centers'
+import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
+import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
+import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as AuctionsIndexRouteImport } from './routes/auctions/index'
+import { Route as AuctionsIdRouteImport } from './routes/auctions/$id'
+import { Route as AuctionsStoryRouteImport } from './routes/auctions/story'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthRegisterRouteImport } from './routes/auth/register'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
+import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
+import { Route as DriverProfileRouteImport } from './routes/driver/profile'
+import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
+import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
+import { Route as FarmerOnboardingRouteImport } from './routes/farmer/onboarding'
+import { Route as FarmerOrdersRouteImport } from './routes/farmer/orders'
+import { Route as FarmerProfileRouteImport } from './routes/farmer/profile'
+import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
+import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
+import { Route as HarvestsIdRouteImport } from './routes/harvests/$id'
+import { Route as InspectorIndexRouteImport } from './routes/inspector/index'
+import { Route as InspectorAccountsRouteImport } from './routes/inspector/accounts'
+import { Route as InspectorDashboardRouteImport } from './routes/inspector/dashboard'
+import { Route as InspectorMyCenterRouteImport } from './routes/inspector/my-center'
+import { Route as InspectorPlanningRouteImport } from './routes/inspector/planning'
+import { Route as InspectorProxyRouteImport } from './routes/inspector/proxy'
+import { Route as InspectorValidateRouteImport } from './routes/inspector/validate'
+import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as AdminTransactionsIndexRouteImport } from './routes/admin/transactions/index'
+import { Route as AdminTransactionsIdRouteImport } from './routes/admin/transactions/$id'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
-import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
-import { Route as InspectorReportsIdRouteImport } from './routes/inspector/reports/$id'
-import { Route as InspectorHarvestsNewRouteImport } from './routes/inspector/harvests/new'
-import { Route as InspectorHarvestsAnalyzeRouteImport } from './routes/inspector/harvests/analyze'
-import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
-import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
-import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
-import { Route as FarmerHarvestsAnalyzeRouteImport } from './routes/farmer/harvests/analyze'
-import { Route as FarmerAuctionsNewRouteImport } from './routes/farmer/auctions/new'
-import { Route as FarmerAuctionsBidsRouteImport } from './routes/farmer/auctions/bids'
-import { Route as DriverRunsIdRouteImport } from './routes/driver/runs/$id'
-import { Route as AuctionsIdAutoBidRouteImport } from './routes/auctions/$id/auto-bid'
 import { Route as AdminUsersNewRouteImport } from './routes/admin/users/new'
+import { Route as AuctionsIdAutoBidRouteImport } from './routes/auctions/$id/auto-bid'
+import { Route as DriverRunsIndexRouteImport } from './routes/driver/runs/index'
+import { Route as DriverRunsIdRouteImport } from './routes/driver/runs/$id'
+import { Route as FarmerAuctionsIndexRouteImport } from './routes/farmer/auctions/index'
+import { Route as FarmerAuctionsBidsRouteImport } from './routes/farmer/auctions/bids'
+import { Route as FarmerAuctionsNewRouteImport } from './routes/farmer/auctions/new'
+import { Route as FarmerHarvestsAnalyzeRouteImport } from './routes/farmer/harvests/analyze'
+import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
+import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
+import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
+import { Route as InspectorHarvestsAnalyzeRouteImport } from './routes/inspector/harvests/analyze'
+import { Route as InspectorHarvestsNewRouteImport } from './routes/inspector/harvests/new'
+import { Route as InspectorReportsIdRouteImport } from './routes/inspector/reports/$id'
+import { Route as OrdersIdTrackingRouteImport } from './routes/orders/$id/tracking'
 import { Route as FarmerAuctionsIdBiddersRouteImport } from './routes/farmer/auctions/$id.bidders'
 
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersRoute = OrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketplaceRoute = MarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InspectorRoute = InspectorRouteImport.update({
-  id: '/inspector',
-  path: '/inspector',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FarmerRoute = FarmerRouteImport.update({
-  id: '/farmer',
-  path: '/farmer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DriverRoute = DriverRouteImport.update({
-  id: '/driver',
-  path: '/driver',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CartRoute = CartRouteImport.update({
-  id: '/cart',
-  path: '/cart',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -124,179 +88,59 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrdersIndexRoute = OrdersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => OrdersRoute,
-} as any)
-const InspectorIndexRoute = InspectorIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const AuctionsIndexRoute = AuctionsIndexRouteImport.update({
-  id: '/auctions/',
-  path: '/auctions/',
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrdersIdRoute = OrdersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => OrdersRoute,
-} as any)
-const InspectorValidateRoute = InspectorValidateRouteImport.update({
-  id: '/validate',
-  path: '/validate',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const InspectorProxyRoute = InspectorProxyRouteImport.update({
-  id: '/proxy',
-  path: '/proxy',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const InspectorPlanningRoute = InspectorPlanningRouteImport.update({
-  id: '/planning',
-  path: '/planning',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const InspectorMyCenterRoute = InspectorMyCenterRouteImport.update({
-  id: '/my-center',
-  path: '/my-center',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const InspectorDashboardRoute = InspectorDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const InspectorAccountsRoute = InspectorAccountsRouteImport.update({
-  id: '/accounts',
-  path: '/accounts',
-  getParentRoute: () => InspectorRoute,
-} as any)
-const HarvestsIdRoute = HarvestsIdRouteImport.update({
-  id: '/harvests/$id',
-  path: '/harvests/$id',
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerWelcomeRoute = FarmerWelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
-  getParentRoute: () => FarmerRoute,
+const FarmerRoute = FarmerRouteImport.update({
+  id: '/farmer',
+  path: '/farmer',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerStockRoute = FarmerStockRouteImport.update({
-  id: '/stock',
-  path: '/stock',
-  getParentRoute: () => FarmerRoute,
+const InspectorRoute = InspectorRouteImport.update({
+  id: '/inspector',
+  path: '/inspector',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerProfileRoute = FarmerProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => FarmerRoute,
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
-  getParentRoute: () => FarmerRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerOnboardingRoute = FarmerOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => FarmerRoute,
+const PaymentMethodRoute = PaymentMethodRouteImport.update({
+  id: '/payment-method',
+  path: '/payment-method',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const DriverProfileRoute = DriverProfileRouteImport.update({
+const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => DriverRoute,
-} as any)
-const AuthUnauthorizedRoute = AuthUnauthorizedRouteImport.update({
-  id: '/auth/unauthorized',
-  path: '/auth/unauthorized',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/auth/reset-password',
-  path: '/auth/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRegisterRoute = AuthRegisterRouteImport.update({
-  id: '/auth/register',
-  path: '/auth/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/auth/login',
-  path: '/auth/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/auth/forgot-password',
-  path: '/auth/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuctionsStoryRoute = AuctionsStoryRouteImport.update({
-  id: '/auctions/story',
-  path: '/auctions/story',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuctionsIdRoute = AuctionsIdRouteImport.update({
-  id: '/auctions/$id',
-  path: '/auctions/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRolesRoute = AdminRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLogisticsRoute = AdminLogisticsRouteImport.update({
-  id: '/logistics',
-  path: '/logistics',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
-  id: '/inspections',
-  path: '/inspections',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminInspectionCentersRoute = AdminInspectionCentersRouteImport.update({
-  id: '/inspection-centers',
-  path: '/inspection-centers',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminHarvestsRoute = AdminHarvestsRouteImport.update({
-  id: '/harvests',
-  path: '/harvests',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDisputesRoute = AdminDisputesRouteImport.update({
-  id: '/disputes',
-  path: '/disputes',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAuctionsRoute = AdminAuctionsRouteImport.update({
@@ -304,70 +148,219 @@ const AdminAuctionsRoute = AdminAuctionsRouteImport.update({
   path: '/auctions',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const AdminCurrenciesRoute = AdminCurrenciesRouteImport.update({
+  id: '/currencies',
+  path: '/currencies',
   getParentRoute: () => AdminRoute,
 } as any)
-const FarmerAuctionsIndexRoute = FarmerAuctionsIndexRouteImport.update({
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFeesRoute = AdminFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminHarvestsRoute = AdminHarvestsRouteImport.update({
+  id: '/harvests',
+  path: '/harvests',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInspectionCentersRoute = AdminInspectionCentersRouteImport.update({
+  id: '/inspection-centers',
+  path: '/inspection-centers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
+  id: '/inspections',
+  path: '/inspections',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLogisticsRoute = AdminLogisticsRouteImport.update({
+  id: '/logistics',
+  path: '/logistics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AuctionsIndexRoute = AuctionsIndexRouteImport.update({
   id: '/auctions/',
   path: '/auctions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuctionsIdRoute = AuctionsIdRouteImport.update({
+  id: '/auctions/$id',
+  path: '/auctions/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuctionsStoryRoute = AuctionsStoryRouteImport.update({
+  id: '/auctions/story',
+  path: '/auctions/story',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/auth/login',
+  path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRegisterRoute = AuthRegisterRouteImport.update({
+  id: '/auth/register',
+  path: '/auth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthUnauthorizedRoute = AuthUnauthorizedRouteImport.update({
+  id: '/auth/unauthorized',
+  path: '/auth/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverProfileRoute = DriverProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DriverRoute,
+} as any)
+const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => FarmerRoute,
 } as any)
-const DriverRunsIndexRoute = DriverRunsIndexRouteImport.update({
-  id: '/runs/',
-  path: '/runs/',
-  getParentRoute: () => DriverRoute,
+const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOnboardingRoute = FarmerOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProfileRoute = FarmerProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerStockRoute = FarmerStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerWelcomeRoute = FarmerWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const HarvestsIdRoute = HarvestsIdRouteImport.update({
+  id: '/harvests/$id',
+  path: '/harvests/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspectorIndexRoute = InspectorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorAccountsRoute = InspectorAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorDashboardRoute = InspectorDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorMyCenterRoute = InspectorMyCenterRouteImport.update({
+  id: '/my-center',
+  path: '/my-center',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorPlanningRoute = InspectorPlanningRouteImport.update({
+  id: '/planning',
+  path: '/planning',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorProxyRoute = InspectorProxyRouteImport.update({
+  id: '/proxy',
+  path: '/proxy',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorValidateRoute = InspectorValidateRouteImport.update({
+  id: '/validate',
+  path: '/validate',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const OrdersIndexRoute = OrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const OrdersIdRoute = OrdersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const AdminTransactionsIndexRoute = AdminTransactionsIndexRouteImport.update({
+  id: '/transactions/',
+  path: '/transactions/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTransactionsIdRoute = AdminTransactionsIdRouteImport.update({
+  id: '/transactions/$id',
+  path: '/transactions/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
   getParentRoute: () => AdminRoute,
 } as any)
-const OrdersIdTrackingRoute = OrdersIdTrackingRouteImport.update({
-  id: '/tracking',
-  path: '/tracking',
-  getParentRoute: () => OrdersIdRoute,
+const AdminUsersNewRoute = AdminUsersNewRouteImport.update({
+  id: '/users/new',
+  path: '/users/new',
+  getParentRoute: () => AdminRoute,
 } as any)
-const InspectorReportsIdRoute = InspectorReportsIdRouteImport.update({
-  id: '/reports/$id',
-  path: '/reports/$id',
-  getParentRoute: () => InspectorRoute,
+const AuctionsIdAutoBidRoute = AuctionsIdAutoBidRouteImport.update({
+  id: '/auto-bid',
+  path: '/auto-bid',
+  getParentRoute: () => AuctionsIdRoute,
 } as any)
-const InspectorHarvestsNewRoute = InspectorHarvestsNewRouteImport.update({
-  id: '/harvests/new',
-  path: '/harvests/new',
-  getParentRoute: () => InspectorRoute,
+const DriverRunsIndexRoute = DriverRunsIndexRouteImport.update({
+  id: '/runs/',
+  path: '/runs/',
+  getParentRoute: () => DriverRoute,
 } as any)
-const InspectorHarvestsAnalyzeRoute =
-  InspectorHarvestsAnalyzeRouteImport.update({
-    id: '/harvests/analyze',
-    path: '/harvests/analyze',
-    getParentRoute: () => InspectorRoute,
-  } as any)
-const HarvestsIdQualityRoute = HarvestsIdQualityRouteImport.update({
-  id: '/quality',
-  path: '/quality',
-  getParentRoute: () => HarvestsIdRoute,
+const DriverRunsIdRoute = DriverRunsIdRouteImport.update({
+  id: '/runs/$id',
+  path: '/runs/$id',
+  getParentRoute: () => DriverRoute,
 } as any)
-const FarmerProductsIdRoute = FarmerProductsIdRouteImport.update({
-  id: '/products/$id',
-  path: '/products/$id',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerHarvestsNewRoute = FarmerHarvestsNewRouteImport.update({
-  id: '/harvests/new',
-  path: '/harvests/new',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerHarvestsAnalyzeRoute = FarmerHarvestsAnalyzeRouteImport.update({
-  id: '/harvests/analyze',
-  path: '/harvests/analyze',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerAuctionsNewRoute = FarmerAuctionsNewRouteImport.update({
-  id: '/auctions/new',
-  path: '/auctions/new',
+const FarmerAuctionsIndexRoute = FarmerAuctionsIndexRouteImport.update({
+  id: '/auctions/',
+  path: '/auctions/',
   getParentRoute: () => FarmerRoute,
 } as any)
 const FarmerAuctionsBidsRoute = FarmerAuctionsBidsRouteImport.update({
@@ -375,20 +368,51 @@ const FarmerAuctionsBidsRoute = FarmerAuctionsBidsRouteImport.update({
   path: '/auctions/bids',
   getParentRoute: () => FarmerRoute,
 } as any)
-const DriverRunsIdRoute = DriverRunsIdRouteImport.update({
-  id: '/runs/$id',
-  path: '/runs/$id',
-  getParentRoute: () => DriverRoute,
+const FarmerAuctionsNewRoute = FarmerAuctionsNewRouteImport.update({
+  id: '/auctions/new',
+  path: '/auctions/new',
+  getParentRoute: () => FarmerRoute,
 } as any)
-const AuctionsIdAutoBidRoute = AuctionsIdAutoBidRouteImport.update({
-  id: '/auto-bid',
-  path: '/auto-bid',
-  getParentRoute: () => AuctionsIdRoute,
+const FarmerHarvestsAnalyzeRoute = FarmerHarvestsAnalyzeRouteImport.update({
+  id: '/harvests/analyze',
+  path: '/harvests/analyze',
+  getParentRoute: () => FarmerRoute,
 } as any)
-const AdminUsersNewRoute = AdminUsersNewRouteImport.update({
-  id: '/users/new',
-  path: '/users/new',
-  getParentRoute: () => AdminRoute,
+const FarmerHarvestsNewRoute = FarmerHarvestsNewRouteImport.update({
+  id: '/harvests/new',
+  path: '/harvests/new',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsIdRoute = FarmerProductsIdRouteImport.update({
+  id: '/products/$id',
+  path: '/products/$id',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const HarvestsIdQualityRoute = HarvestsIdQualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => HarvestsIdRoute,
+} as any)
+const InspectorHarvestsAnalyzeRoute =
+  InspectorHarvestsAnalyzeRouteImport.update({
+    id: '/harvests/analyze',
+    path: '/harvests/analyze',
+    getParentRoute: () => InspectorRoute,
+  } as any)
+const InspectorHarvestsNewRoute = InspectorHarvestsNewRouteImport.update({
+  id: '/harvests/new',
+  path: '/harvests/new',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const InspectorReportsIdRoute = InspectorReportsIdRouteImport.update({
+  id: '/reports/$id',
+  path: '/reports/$id',
+  getParentRoute: () => InspectorRoute,
+} as any)
+const OrdersIdTrackingRoute = OrdersIdTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => OrdersIdRoute,
 } as any)
 const FarmerAuctionsIdBiddersRoute = FarmerAuctionsIdBiddersRouteImport.update({
   id: '/auctions/$id/bidders',
@@ -407,17 +431,19 @@ export interface FileRoutesByFullPath {
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/payment-method': typeof PaymentMethodRoute
   '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/currencies': typeof AdminCurrenciesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
-  '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -444,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -457,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/transactions/': typeof AdminTransactionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
@@ -471,17 +499,19 @@ export interface FileRoutesByTo {
   '/farmer': typeof FarmerRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
+  '/payment-method': typeof PaymentMethodRoute
   '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/currencies': typeof AdminCurrenciesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
-  '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -508,6 +538,7 @@ export interface FileRoutesByTo {
   '/auctions': typeof AuctionsIndexRoute
   '/inspector': typeof InspectorIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -521,6 +552,7 @@ export interface FileRoutesByTo {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/transactions': typeof AdminTransactionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/driver/runs': typeof DriverRunsIndexRoute
   '/farmer/auctions': typeof FarmerAuctionsIndexRoute
@@ -538,17 +570,19 @@ export interface FileRoutesById {
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/payment-method': typeof PaymentMethodRoute
   '/profile': typeof ProfileRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/auctions': typeof AdminAuctionsRoute
+  '/admin/currencies': typeof AdminCurrenciesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
+  '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
   '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
-  '/admin/transactions': typeof AdminTransactionsRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
   '/auctions/story': typeof AuctionsStoryRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -575,6 +609,7 @@ export interface FileRoutesById {
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
   '/driver/runs/$id': typeof DriverRunsIdRoute
@@ -588,6 +623,7 @@ export interface FileRoutesById {
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/transactions/': typeof AdminTransactionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
@@ -606,17 +642,19 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/payment-method'
     | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
+    | '/admin/currencies'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/fees'
     | '/admin/harvests'
     | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
-    | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
     | '/auth/forgot-password'
@@ -643,6 +681,7 @@ export interface FileRouteTypes {
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -656,6 +695,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/transactions/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
@@ -670,17 +710,19 @@ export interface FileRouteTypes {
     | '/farmer'
     | '/marketplace'
     | '/notifications'
+    | '/payment-method'
     | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
+    | '/admin/currencies'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/fees'
     | '/admin/harvests'
     | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
-    | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
     | '/auth/forgot-password'
@@ -707,6 +749,7 @@ export interface FileRouteTypes {
     | '/auctions'
     | '/inspector'
     | '/orders'
+    | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -720,6 +763,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/transactions'
     | '/admin/users'
     | '/driver/runs'
     | '/farmer/auctions'
@@ -736,17 +780,19 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/notifications'
     | '/orders'
+    | '/payment-method'
     | '/profile'
     | '/admin/analytics'
     | '/admin/auctions'
+    | '/admin/currencies'
     | '/admin/dashboard'
     | '/admin/disputes'
+    | '/admin/fees'
     | '/admin/harvests'
     | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
-    | '/admin/transactions'
     | '/auctions/$id'
     | '/auctions/story'
     | '/auth/forgot-password'
@@ -773,6 +819,7 @@ export interface FileRouteTypes {
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
     | '/driver/runs/$id'
@@ -786,6 +833,7 @@ export interface FileRouteTypes {
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/transactions/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
@@ -803,6 +851,7 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
+  PaymentMethodRoute: typeof PaymentMethodRoute
   ProfileRoute: typeof ProfileRoute
   AuctionsIdRoute: typeof AuctionsIdRouteWithChildren
   AuctionsStoryRoute: typeof AuctionsStoryRoute
@@ -817,67 +866,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orders': {
-      id: '/orders'
-      path: '/orders'
-      fullPath: '/orders'
-      preLoaderRoute: typeof OrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/marketplace': {
-      id: '/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof MarketplaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inspector': {
-      id: '/inspector'
-      path: '/inspector'
-      fullPath: '/inspector'
-      preLoaderRoute: typeof InspectorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/farmer': {
-      id: '/farmer'
-      path: '/farmer'
-      fullPath: '/farmer'
-      preLoaderRoute: typeof FarmerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/driver': {
-      id: '/driver'
-      path: '/driver'
-      fullPath: '/driver'
-      preLoaderRoute: typeof DriverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cart': {
-      id: '/cart'
-      path: '/cart'
-      fullPath: '/cart'
-      preLoaderRoute: typeof CartRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -887,249 +880,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orders/': {
-      id: '/orders/'
-      path: '/'
-      fullPath: '/orders/'
-      preLoaderRoute: typeof OrdersIndexRouteImport
-      parentRoute: typeof OrdersRoute
-    }
-    '/inspector/': {
-      id: '/inspector/'
-      path: '/'
-      fullPath: '/inspector/'
-      preLoaderRoute: typeof InspectorIndexRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/auctions/': {
-      id: '/auctions/'
-      path: '/auctions'
-      fullPath: '/auctions/'
-      preLoaderRoute: typeof AuctionsIndexRouteImport
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orders/$id': {
-      id: '/orders/$id'
-      path: '/$id'
-      fullPath: '/orders/$id'
-      preLoaderRoute: typeof OrdersIdRouteImport
-      parentRoute: typeof OrdersRoute
-    }
-    '/inspector/validate': {
-      id: '/inspector/validate'
-      path: '/validate'
-      fullPath: '/inspector/validate'
-      preLoaderRoute: typeof InspectorValidateRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/inspector/proxy': {
-      id: '/inspector/proxy'
-      path: '/proxy'
-      fullPath: '/inspector/proxy'
-      preLoaderRoute: typeof InspectorProxyRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/inspector/planning': {
-      id: '/inspector/planning'
-      path: '/planning'
-      fullPath: '/inspector/planning'
-      preLoaderRoute: typeof InspectorPlanningRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/inspector/my-center': {
-      id: '/inspector/my-center'
-      path: '/my-center'
-      fullPath: '/inspector/my-center'
-      preLoaderRoute: typeof InspectorMyCenterRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/inspector/dashboard': {
-      id: '/inspector/dashboard'
-      path: '/dashboard'
-      fullPath: '/inspector/dashboard'
-      preLoaderRoute: typeof InspectorDashboardRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/inspector/accounts': {
-      id: '/inspector/accounts'
-      path: '/accounts'
-      fullPath: '/inspector/accounts'
-      preLoaderRoute: typeof InspectorAccountsRouteImport
-      parentRoute: typeof InspectorRoute
-    }
-    '/harvests/$id': {
-      id: '/harvests/$id'
-      path: '/harvests/$id'
-      fullPath: '/harvests/$id'
-      preLoaderRoute: typeof HarvestsIdRouteImport
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/farmer/welcome': {
-      id: '/farmer/welcome'
-      path: '/welcome'
-      fullPath: '/farmer/welcome'
-      preLoaderRoute: typeof FarmerWelcomeRouteImport
-      parentRoute: typeof FarmerRoute
+    '/farmer': {
+      id: '/farmer'
+      path: '/farmer'
+      fullPath: '/farmer'
+      preLoaderRoute: typeof FarmerRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/farmer/stock': {
-      id: '/farmer/stock'
-      path: '/stock'
-      fullPath: '/farmer/stock'
-      preLoaderRoute: typeof FarmerStockRouteImport
-      parentRoute: typeof FarmerRoute
+    '/inspector': {
+      id: '/inspector'
+      path: '/inspector'
+      fullPath: '/inspector'
+      preLoaderRoute: typeof InspectorRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/farmer/profile': {
-      id: '/farmer/profile'
-      path: '/profile'
-      fullPath: '/farmer/profile'
-      preLoaderRoute: typeof FarmerProfileRouteImport
-      parentRoute: typeof FarmerRoute
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/farmer/orders': {
-      id: '/farmer/orders'
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
       path: '/orders'
-      fullPath: '/farmer/orders'
-      preLoaderRoute: typeof FarmerOrdersRouteImport
-      parentRoute: typeof FarmerRoute
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/farmer/onboarding': {
-      id: '/farmer/onboarding'
-      path: '/onboarding'
-      fullPath: '/farmer/onboarding'
-      preLoaderRoute: typeof FarmerOnboardingRouteImport
-      parentRoute: typeof FarmerRoute
+    '/payment-method': {
+      id: '/payment-method'
+      path: '/payment-method'
+      fullPath: '/payment-method'
+      preLoaderRoute: typeof PaymentMethodRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/farmer/dashboard': {
-      id: '/farmer/dashboard'
-      path: '/dashboard'
-      fullPath: '/farmer/dashboard'
-      preLoaderRoute: typeof FarmerDashboardRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/analytics': {
-      id: '/farmer/analytics'
-      path: '/analytics'
-      fullPath: '/farmer/analytics'
-      preLoaderRoute: typeof FarmerAnalyticsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/driver/profile': {
-      id: '/driver/profile'
+    '/profile': {
+      id: '/profile'
       path: '/profile'
-      fullPath: '/driver/profile'
-      preLoaderRoute: typeof DriverProfileRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/auth/unauthorized': {
-      id: '/auth/unauthorized'
-      path: '/auth/unauthorized'
-      fullPath: '/auth/unauthorized'
-      preLoaderRoute: typeof AuthUnauthorizedRouteImport
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/auth/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/register': {
-      id: '/auth/register'
-      path: '/auth/register'
-      fullPath: '/auth/register'
-      preLoaderRoute: typeof AuthRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
-      path: '/auth/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auctions/story': {
-      id: '/auctions/story'
-      path: '/auctions/story'
-      fullPath: '/auctions/story'
-      preLoaderRoute: typeof AuctionsStoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auctions/$id': {
-      id: '/auctions/$id'
-      path: '/auctions/$id'
-      fullPath: '/auctions/$id'
-      preLoaderRoute: typeof AuctionsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/transactions': {
-      id: '/admin/transactions'
-      path: '/transactions'
-      fullPath: '/admin/transactions'
-      preLoaderRoute: typeof AdminTransactionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/roles': {
-      id: '/admin/roles'
-      path: '/roles'
-      fullPath: '/admin/roles'
-      preLoaderRoute: typeof AdminRolesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/logistics': {
-      id: '/admin/logistics'
-      path: '/logistics'
-      fullPath: '/admin/logistics'
-      preLoaderRoute: typeof AdminLogisticsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/inspections': {
-      id: '/admin/inspections'
-      path: '/inspections'
-      fullPath: '/admin/inspections'
-      preLoaderRoute: typeof AdminInspectionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/inspection-centers': {
-      id: '/admin/inspection-centers'
-      path: '/inspection-centers'
-      fullPath: '/admin/inspection-centers'
-      preLoaderRoute: typeof AdminInspectionCentersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/harvests': {
-      id: '/admin/harvests'
-      path: '/harvests'
-      fullPath: '/admin/harvests'
-      preLoaderRoute: typeof AdminHarvestsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/disputes': {
-      id: '/admin/disputes'
-      path: '/disputes'
-      fullPath: '/admin/disputes'
-      preLoaderRoute: typeof AdminDisputesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
-      path: '/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/auctions': {
@@ -1139,26 +964,264 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuctionsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/analytics': {
-      id: '/admin/analytics'
-      path: '/analytics'
-      fullPath: '/admin/analytics'
-      preLoaderRoute: typeof AdminAnalyticsRouteImport
+    '/admin/currencies': {
+      id: '/admin/currencies'
+      path: '/currencies'
+      fullPath: '/admin/currencies'
+      preLoaderRoute: typeof AdminCurrenciesRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/farmer/auctions/': {
-      id: '/farmer/auctions/'
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/fees': {
+      id: '/admin/fees'
+      path: '/fees'
+      fullPath: '/admin/fees'
+      preLoaderRoute: typeof AdminFeesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/harvests': {
+      id: '/admin/harvests'
+      path: '/harvests'
+      fullPath: '/admin/harvests'
+      preLoaderRoute: typeof AdminHarvestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inspection-centers': {
+      id: '/admin/inspection-centers'
+      path: '/inspection-centers'
+      fullPath: '/admin/inspection-centers'
+      preLoaderRoute: typeof AdminInspectionCentersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inspections': {
+      id: '/admin/inspections'
+      path: '/inspections'
+      fullPath: '/admin/inspections'
+      preLoaderRoute: typeof AdminInspectionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/logistics': {
+      id: '/admin/logistics'
+      path: '/logistics'
+      fullPath: '/admin/logistics'
+      preLoaderRoute: typeof AdminLogisticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/auctions/': {
+      id: '/auctions/'
       path: '/auctions'
-      fullPath: '/farmer/auctions/'
-      preLoaderRoute: typeof FarmerAuctionsIndexRouteImport
+      fullPath: '/auctions/'
+      preLoaderRoute: typeof AuctionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auctions/$id': {
+      id: '/auctions/$id'
+      path: '/auctions/$id'
+      fullPath: '/auctions/$id'
+      preLoaderRoute: typeof AuctionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auctions/story': {
+      id: '/auctions/story'
+      path: '/auctions/story'
+      fullPath: '/auctions/story'
+      preLoaderRoute: typeof AuctionsStoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/register': {
+      id: '/auth/register'
+      path: '/auth/register'
+      fullPath: '/auth/register'
+      preLoaderRoute: typeof AuthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/unauthorized': {
+      id: '/auth/unauthorized'
+      path: '/auth/unauthorized'
+      fullPath: '/auth/unauthorized'
+      preLoaderRoute: typeof AuthUnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver/profile': {
+      id: '/driver/profile'
+      path: '/profile'
+      fullPath: '/driver/profile'
+      preLoaderRoute: typeof DriverProfileRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/farmer/analytics': {
+      id: '/farmer/analytics'
+      path: '/analytics'
+      fullPath: '/farmer/analytics'
+      preLoaderRoute: typeof FarmerAnalyticsRouteImport
       parentRoute: typeof FarmerRoute
     }
-    '/driver/runs/': {
-      id: '/driver/runs/'
-      path: '/runs'
-      fullPath: '/driver/runs/'
-      preLoaderRoute: typeof DriverRunsIndexRouteImport
-      parentRoute: typeof DriverRoute
+    '/farmer/dashboard': {
+      id: '/farmer/dashboard'
+      path: '/dashboard'
+      fullPath: '/farmer/dashboard'
+      preLoaderRoute: typeof FarmerDashboardRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/onboarding': {
+      id: '/farmer/onboarding'
+      path: '/onboarding'
+      fullPath: '/farmer/onboarding'
+      preLoaderRoute: typeof FarmerOnboardingRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/orders': {
+      id: '/farmer/orders'
+      path: '/orders'
+      fullPath: '/farmer/orders'
+      preLoaderRoute: typeof FarmerOrdersRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/profile': {
+      id: '/farmer/profile'
+      path: '/profile'
+      fullPath: '/farmer/profile'
+      preLoaderRoute: typeof FarmerProfileRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/stock': {
+      id: '/farmer/stock'
+      path: '/stock'
+      fullPath: '/farmer/stock'
+      preLoaderRoute: typeof FarmerStockRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/welcome': {
+      id: '/farmer/welcome'
+      path: '/welcome'
+      fullPath: '/farmer/welcome'
+      preLoaderRoute: typeof FarmerWelcomeRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/harvests/$id': {
+      id: '/harvests/$id'
+      path: '/harvests/$id'
+      fullPath: '/harvests/$id'
+      preLoaderRoute: typeof HarvestsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspector/': {
+      id: '/inspector/'
+      path: '/'
+      fullPath: '/inspector/'
+      preLoaderRoute: typeof InspectorIndexRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/accounts': {
+      id: '/inspector/accounts'
+      path: '/accounts'
+      fullPath: '/inspector/accounts'
+      preLoaderRoute: typeof InspectorAccountsRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/dashboard': {
+      id: '/inspector/dashboard'
+      path: '/dashboard'
+      fullPath: '/inspector/dashboard'
+      preLoaderRoute: typeof InspectorDashboardRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/my-center': {
+      id: '/inspector/my-center'
+      path: '/my-center'
+      fullPath: '/inspector/my-center'
+      preLoaderRoute: typeof InspectorMyCenterRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/planning': {
+      id: '/inspector/planning'
+      path: '/planning'
+      fullPath: '/inspector/planning'
+      preLoaderRoute: typeof InspectorPlanningRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/proxy': {
+      id: '/inspector/proxy'
+      path: '/proxy'
+      fullPath: '/inspector/proxy'
+      preLoaderRoute: typeof InspectorProxyRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/validate': {
+      id: '/inspector/validate'
+      path: '/validate'
+      fullPath: '/inspector/validate'
+      preLoaderRoute: typeof InspectorValidateRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/orders/': {
+      id: '/orders/'
+      path: '/'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/orders/$id': {
+      id: '/orders/$id'
+      path: '/$id'
+      fullPath: '/orders/$id'
+      preLoaderRoute: typeof OrdersIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/admin/transactions/': {
+      id: '/admin/transactions/'
+      path: '/transactions'
+      fullPath: '/admin/transactions/'
+      preLoaderRoute: typeof AdminTransactionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/transactions/$id': {
+      id: '/admin/transactions/$id'
+      path: '/transactions/$id'
+      fullPath: '/admin/transactions/$id'
+      preLoaderRoute: typeof AdminTransactionsIdRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/users/': {
       id: '/admin/users/'
@@ -1167,67 +1230,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/orders/$id/tracking': {
-      id: '/orders/$id/tracking'
-      path: '/tracking'
-      fullPath: '/orders/$id/tracking'
-      preLoaderRoute: typeof OrdersIdTrackingRouteImport
-      parentRoute: typeof OrdersIdRoute
+    '/admin/users/new': {
+      id: '/admin/users/new'
+      path: '/users/new'
+      fullPath: '/admin/users/new'
+      preLoaderRoute: typeof AdminUsersNewRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/inspector/reports/$id': {
-      id: '/inspector/reports/$id'
-      path: '/reports/$id'
-      fullPath: '/inspector/reports/$id'
-      preLoaderRoute: typeof InspectorReportsIdRouteImport
-      parentRoute: typeof InspectorRoute
+    '/auctions/$id/auto-bid': {
+      id: '/auctions/$id/auto-bid'
+      path: '/auto-bid'
+      fullPath: '/auctions/$id/auto-bid'
+      preLoaderRoute: typeof AuctionsIdAutoBidRouteImport
+      parentRoute: typeof AuctionsIdRoute
     }
-    '/inspector/harvests/new': {
-      id: '/inspector/harvests/new'
-      path: '/harvests/new'
-      fullPath: '/inspector/harvests/new'
-      preLoaderRoute: typeof InspectorHarvestsNewRouteImport
-      parentRoute: typeof InspectorRoute
+    '/driver/runs/': {
+      id: '/driver/runs/'
+      path: '/runs'
+      fullPath: '/driver/runs/'
+      preLoaderRoute: typeof DriverRunsIndexRouteImport
+      parentRoute: typeof DriverRoute
     }
-    '/inspector/harvests/analyze': {
-      id: '/inspector/harvests/analyze'
-      path: '/harvests/analyze'
-      fullPath: '/inspector/harvests/analyze'
-      preLoaderRoute: typeof InspectorHarvestsAnalyzeRouteImport
-      parentRoute: typeof InspectorRoute
+    '/driver/runs/$id': {
+      id: '/driver/runs/$id'
+      path: '/runs/$id'
+      fullPath: '/driver/runs/$id'
+      preLoaderRoute: typeof DriverRunsIdRouteImport
+      parentRoute: typeof DriverRoute
     }
-    '/harvests/$id/quality': {
-      id: '/harvests/$id/quality'
-      path: '/quality'
-      fullPath: '/harvests/$id/quality'
-      preLoaderRoute: typeof HarvestsIdQualityRouteImport
-      parentRoute: typeof HarvestsIdRoute
-    }
-    '/farmer/products/$id': {
-      id: '/farmer/products/$id'
-      path: '/products/$id'
-      fullPath: '/farmer/products/$id'
-      preLoaderRoute: typeof FarmerProductsIdRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/harvests/new': {
-      id: '/farmer/harvests/new'
-      path: '/harvests/new'
-      fullPath: '/farmer/harvests/new'
-      preLoaderRoute: typeof FarmerHarvestsNewRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/harvests/analyze': {
-      id: '/farmer/harvests/analyze'
-      path: '/harvests/analyze'
-      fullPath: '/farmer/harvests/analyze'
-      preLoaderRoute: typeof FarmerHarvestsAnalyzeRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/auctions/new': {
-      id: '/farmer/auctions/new'
-      path: '/auctions/new'
-      fullPath: '/farmer/auctions/new'
-      preLoaderRoute: typeof FarmerAuctionsNewRouteImport
+    '/farmer/auctions/': {
+      id: '/farmer/auctions/'
+      path: '/auctions'
+      fullPath: '/farmer/auctions/'
+      preLoaderRoute: typeof FarmerAuctionsIndexRouteImport
       parentRoute: typeof FarmerRoute
     }
     '/farmer/auctions/bids': {
@@ -1237,26 +1272,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerAuctionsBidsRouteImport
       parentRoute: typeof FarmerRoute
     }
-    '/driver/runs/$id': {
-      id: '/driver/runs/$id'
-      path: '/runs/$id'
-      fullPath: '/driver/runs/$id'
-      preLoaderRoute: typeof DriverRunsIdRouteImport
-      parentRoute: typeof DriverRoute
+    '/farmer/auctions/new': {
+      id: '/farmer/auctions/new'
+      path: '/auctions/new'
+      fullPath: '/farmer/auctions/new'
+      preLoaderRoute: typeof FarmerAuctionsNewRouteImport
+      parentRoute: typeof FarmerRoute
     }
-    '/auctions/$id/auto-bid': {
-      id: '/auctions/$id/auto-bid'
-      path: '/auto-bid'
-      fullPath: '/auctions/$id/auto-bid'
-      preLoaderRoute: typeof AuctionsIdAutoBidRouteImport
-      parentRoute: typeof AuctionsIdRoute
+    '/farmer/harvests/analyze': {
+      id: '/farmer/harvests/analyze'
+      path: '/harvests/analyze'
+      fullPath: '/farmer/harvests/analyze'
+      preLoaderRoute: typeof FarmerHarvestsAnalyzeRouteImport
+      parentRoute: typeof FarmerRoute
     }
-    '/admin/users/new': {
-      id: '/admin/users/new'
-      path: '/users/new'
-      fullPath: '/admin/users/new'
-      preLoaderRoute: typeof AdminUsersNewRouteImport
-      parentRoute: typeof AdminRoute
+    '/farmer/harvests/new': {
+      id: '/farmer/harvests/new'
+      path: '/harvests/new'
+      fullPath: '/farmer/harvests/new'
+      preLoaderRoute: typeof FarmerHarvestsNewRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/$id': {
+      id: '/farmer/products/$id'
+      path: '/products/$id'
+      fullPath: '/farmer/products/$id'
+      preLoaderRoute: typeof FarmerProductsIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/harvests/$id/quality': {
+      id: '/harvests/$id/quality'
+      path: '/quality'
+      fullPath: '/harvests/$id/quality'
+      preLoaderRoute: typeof HarvestsIdQualityRouteImport
+      parentRoute: typeof HarvestsIdRoute
+    }
+    '/inspector/harvests/analyze': {
+      id: '/inspector/harvests/analyze'
+      path: '/harvests/analyze'
+      fullPath: '/inspector/harvests/analyze'
+      preLoaderRoute: typeof InspectorHarvestsAnalyzeRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/harvests/new': {
+      id: '/inspector/harvests/new'
+      path: '/harvests/new'
+      fullPath: '/inspector/harvests/new'
+      preLoaderRoute: typeof InspectorHarvestsNewRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/inspector/reports/$id': {
+      id: '/inspector/reports/$id'
+      path: '/reports/$id'
+      fullPath: '/inspector/reports/$id'
+      preLoaderRoute: typeof InspectorReportsIdRouteImport
+      parentRoute: typeof InspectorRoute
+    }
+    '/orders/$id/tracking': {
+      id: '/orders/$id/tracking'
+      path: '/tracking'
+      fullPath: '/orders/$id/tracking'
+      preLoaderRoute: typeof OrdersIdTrackingRouteImport
+      parentRoute: typeof OrdersIdRoute
     }
     '/farmer/auctions/$id/bidders': {
       id: '/farmer/auctions/$id/bidders'
@@ -1271,30 +1348,36 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminAuctionsRoute: typeof AdminAuctionsRoute
+  AdminCurrenciesRoute: typeof AdminCurrenciesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDisputesRoute: typeof AdminDisputesRoute
+  AdminFeesRoute: typeof AdminFeesRoute
   AdminHarvestsRoute: typeof AdminHarvestsRoute
   AdminInspectionCentersRoute: typeof AdminInspectionCentersRoute
   AdminInspectionsRoute: typeof AdminInspectionsRoute
   AdminLogisticsRoute: typeof AdminLogisticsRoute
   AdminRolesRoute: typeof AdminRolesRoute
-  AdminTransactionsRoute: typeof AdminTransactionsRoute
+  AdminTransactionsIdRoute: typeof AdminTransactionsIdRoute
   AdminUsersNewRoute: typeof AdminUsersNewRoute
+  AdminTransactionsIndexRoute: typeof AdminTransactionsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminAuctionsRoute: AdminAuctionsRoute,
+  AdminCurrenciesRoute: AdminCurrenciesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDisputesRoute: AdminDisputesRoute,
+  AdminFeesRoute: AdminFeesRoute,
   AdminHarvestsRoute: AdminHarvestsRoute,
   AdminInspectionCentersRoute: AdminInspectionCentersRoute,
   AdminInspectionsRoute: AdminInspectionsRoute,
   AdminLogisticsRoute: AdminLogisticsRoute,
   AdminRolesRoute: AdminRolesRoute,
-  AdminTransactionsRoute: AdminTransactionsRoute,
+  AdminTransactionsIdRoute: AdminTransactionsIdRoute,
   AdminUsersNewRoute: AdminUsersNewRoute,
+  AdminTransactionsIndexRoute: AdminTransactionsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
 
@@ -1442,6 +1525,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
+  PaymentMethodRoute: PaymentMethodRoute,
   ProfileRoute: ProfileRoute,
   AuctionsIdRoute: AuctionsIdRouteWithChildren,
   AuctionsStoryRoute: AuctionsStoryRoute,
