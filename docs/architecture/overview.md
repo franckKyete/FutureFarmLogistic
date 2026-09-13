@@ -33,7 +33,7 @@
 | ORM | TypeORM |
 | Database | PostgreSQL 16 |
 | Auth | JWT (access + refresh tokens) |
-| Monorepo | pnpm workspaces + Turborepo |
+| Monorepo | Bun workspaces + Turborepo |
 | Containers | Docker + Docker Compose |
 
 ## Architectural Decisions Log (ADL)

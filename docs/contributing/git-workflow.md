@@ -43,8 +43,8 @@ docs(rbac): add guard flow diagram
 ## Pull Request Checklist
 
 - [ ] Branch is up-to-date with `main`
-- [ ] `pnpm type-check` passes
-- [ ] `pnpm lint` passes
+- [ ] `bun run type-check` passes
+- [ ] `bun run lint` passes
 - [ ] Tests added/updated for new logic
-- [ ] `pnpm test` passes
+- [ ] `bun run test` passes
 - [ ] Docs updated if API shape changed

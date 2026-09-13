@@ -13,7 +13,7 @@ futurefarm-apps/
 ├── docker/           # Dockerfiles + nginx
 ├── docs/             # This documentation
 ├── turbo.json        # Turborepo pipeline
-├── pnpm-workspace.yaml
+├── package.json      # Bun workspaces configuration
 └── tsconfig.base.json
 ```
 
@@ -32,25 +32,25 @@ futurefarm-apps/
 
 ```bash
 # Run all apps in dev mode
-pnpm dev
+bun run dev
 
 # Build everything (respects dependency order)
-pnpm build
+bun run build
 
 # Type-check all packages
-pnpm type-check
+bun run type-check
 
 # Run tests across all packages
-pnpm test
+bun run test
 
 # Run a task in a specific package only
-pnpm --filter @futurefarm/api dev
-pnpm --filter @futurefarm/web build
+bun --filter @futurefarm/api dev
+bun --filter @futurefarm/web build
 ```
 
 ## Adding a New Package
 
 1. Create `packages/my-package/` with a `package.json` named `@futurefarm/my-package`
 2. Add it as a dependency in any app: `"@futurefarm/my-package": "workspace:*"`
-3. Run `pnpm install`
+3. Run `bun install`
 4. Turborepo picks it up automatically — no config changes needed

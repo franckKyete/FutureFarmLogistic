@@ -2,15 +2,14 @@
 
 ## Prerequisites
 
-- Node.js >= 20
-- pnpm >= 9
+- Bun >= 1.1
 - Docker + Docker Compose (for PostgreSQL)
 
 ## Local Setup
 
 ```bash
 # 1. Install dependencies from monorepo root
-pnpm install
+bun install
 
 # 2. Copy env vars and fill in your values
 cp .env.example .env
@@ -19,10 +18,10 @@ cp .env.example .env
 docker-compose up db -d
 
 # 4. Run database migrations
-pnpm --filter @futurefarm/api migration:run
+bun --filter @futurefarm/api migration:run
 
 # 5. Start the API in watch mode
-pnpm --filter @futurefarm/api dev
+bun --filter @futurefarm/api dev
 ```
 
 API is available at: `http://localhost:3000`  
@@ -33,17 +32,17 @@ Health check: `http://localhost:3000/health`
 
 ```bash
 # Generate a new migration
-pnpm --filter @futurefarm/api migration:generate src/database/migrations/MigrationName
+bun --filter @futurefarm/api migration:generate src/database/migrations/MigrationName
 
 # Revert the last migration
-pnpm --filter @futurefarm/api migration:revert
+bun --filter @futurefarm/api migration:revert
 
 # Run unit tests
-pnpm --filter @futurefarm/api test
+bun --filter @futurefarm/api test
 
 # Run e2e tests (requires running DB)
-pnpm --filter @futurefarm/api test:e2e
+bun --filter @futurefarm/api test:e2e
 
 # Build for production
-pnpm --filter @futurefarm/api build
+bun --filter @futurefarm/api build
 ```

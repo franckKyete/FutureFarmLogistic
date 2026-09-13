@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Produits', to: '/farmer/stock', icon: 'inventory_2' },
   { label: 'Enchères', to: '/farmer/auctions', icon: 'gavel' },
   { label: 'Commandes', to: '/farmer/orders', icon: 'local_shipping' },
+  { label: 'Profil', to: '/farmer/profile', icon: 'person' },
 ];
 
 const BUYER_NAV_ITEMS: NavItem[] = [
@@ -61,18 +62,18 @@ export function FarmerBottomNav() {
           <Link
             key={item.to}
             to={item.to}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-150 active:scale-90 cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 px-3.5 rounded-full transition-all duration-150 active:scale-95 cursor-pointer ${
               isActive
-                ? 'text-[#1A5C35] font-bold'
-                : 'text-[#4B5344] hover:text-[#1A5C35] font-medium'
+                ? 'bg-[#004322] text-white font-bold shadow-xs'
+                : 'text-[#4B5344] hover:text-[#004322] font-medium'
             }`}
           >
             <Icon
               name={item.icon}
-              size={22}
-              className={`transition-transform duration-150 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`}
+              size={20}
+              className={`transition-transform duration-150 ${isActive ? 'text-white' : ''}`}
             />
-            <span className="text-[11px] mt-0.5 tracking-tight">{item.label}</span>
+            <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
           </Link>
         );
       })}
