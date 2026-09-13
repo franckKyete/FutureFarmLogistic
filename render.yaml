@@ -36,7 +36,7 @@ services:
     runtime: static 
     # rootDir removed here as well
     buildCommand: bun install && bunx turbo run build --filter=@futurefarm/web
-    publishPath: apps/web/dist # Path must now include the app directory
+    staticPublishPath: apps/web/dist # Path must now include the app directory
     envVars:
       - key: BUN_VERSION
         value: "1.4.0"
