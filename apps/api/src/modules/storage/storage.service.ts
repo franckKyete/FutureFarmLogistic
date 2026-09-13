@@ -1,14 +1,32 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import * as path from 'path';
+
+let S3ClientClass: any = null;
+let PutObjectCommandClass: any = null;
+let GetObjectCommandClass: any = null;
+let DeleteObjectCommandClass: any = null;
+let getSignedUrlFn: any = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const s3Module = require('@aws-sdk/client-s3');
+  S3ClientClass = s3Module.S3Client;
+  PutObjectCommandClass = s3Module.PutObjectCommand;
+  GetObjectCommandClass = s3Module.GetObjectCommand;
+  DeleteObjectCommandClass = s3Module.DeleteObjectCommand;
+} catch {
+  // AWS SDK optional in local / test mode
+}
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const presignerModule = require('@aws-sdk/s3-request-presigner');
+  getSignedUrlFn = presignerModule.getSignedUrl;
+} catch {
+  // Presigner optional in local / test mode
+}
 
 export interface StorageUploadResult {
   key: string;
@@ -26,7 +44,7 @@ export interface StoragePortInterface {
 @Injectable()
 export class StorageService implements OnModuleInit, StoragePortInterface {
   private readonly logger = new Logger(StorageService.name);
-  private s3Client: S3Client | null = null;
+  private s3Client: any = null;
   private readonly bucket: string;
   private readonly region: string;
   private readonly endpoint: string | undefined;
@@ -74,7 +92,7 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
       this.config.get<string>('S3_FORCE_PATH_STYLE') === 'true' ||
       Boolean(this.endpoint);
 
-    if (accessKeyId && secretAccessKey) {
+    if (accessKeyId && secretAccessKey && S3ClientClass) {
       this.isS3Configured = true;
       const clientConfig: Record<string, any> = {
         region: this.region,
@@ -87,7 +105,7 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
       if (this.endpoint) {
         clientConfig.endpoint = this.endpoint;
       }
-      this.s3Client = new S3Client(clientConfig);
+      this.s3Client = new S3ClientClass(clientConfig);
       this.logger.log(
         `[StorageService] S3 Client initialized with bucket: ${this.bucket}, region: ${this.region}, endpoint: ${this.endpoint || 'AWS standard'}, publicEndpoint: ${this.publicEndpoint || 'auto'}`,
       );
@@ -124,9 +142,9 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
       .replace(/^-+|-+$/g, '');
     const key = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${cleanFilename}`;
 
-    if (this.isS3Configured && this.s3Client) {
+    if (this.isS3Configured && this.s3Client && PutObjectCommandClass) {
       try {
-        const command = new PutObjectCommand({
+        const command = new PutObjectCommandClass({
           Bucket: this.bucket,
           Key: key,
           Body: buffer,
@@ -197,14 +215,14 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
     const key = this.extractKeyFromUrl(keyOrUrl);
     if (!key) return keyOrUrl;
 
-    if (this.isS3Configured && this.s3Client) {
+    if (this.isS3Configured && this.s3Client && GetObjectCommandClass && getSignedUrlFn) {
       try {
-        const command = new GetObjectCommand({
+        const command = new GetObjectCommandClass({
           Bucket: this.bucket,
           Key: key,
         });
 
-        let signedUrl = await getSignedUrl(this.s3Client, command, {
+        let signedUrl = await getSignedUrlFn(this.s3Client, command, {
           expiresIn: expiresInSeconds,
         });
 
@@ -243,9 +261,9 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
   ): Promise<{ stream: NodeJS.ReadableStream; contentType: string; contentLength?: number }> {
     const key = this.extractKeyFromUrl(keyOrUrl);
 
-    if (this.isS3Configured && this.s3Client) {
+    if (this.isS3Configured && this.s3Client && GetObjectCommandClass) {
       try {
-        const command = new GetObjectCommand({
+        const command = new GetObjectCommandClass({
           Bucket: this.bucket,
           Key: key,
         });
@@ -291,9 +309,9 @@ export class StorageService implements OnModuleInit, StoragePortInterface {
   async delete(urlOrKey: string): Promise<void> {
     const key = this.extractKeyFromUrl(urlOrKey);
 
-    if (this.isS3Configured && this.s3Client) {
+    if (this.isS3Configured && this.s3Client && DeleteObjectCommandClass) {
       try {
-        const command = new DeleteObjectCommand({
+        const command = new DeleteObjectCommandClass({
           Bucket: this.bucket,
           Key: key,
         });

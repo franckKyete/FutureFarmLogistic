@@ -204,6 +204,14 @@ export function HarvestFormView({
       return;
     }
 
+    if (photos.length < 10) {
+      addToast(
+        `Veuillez fournir au moins 10 photos du lot sous différents angles (${photos.length}/10 fournies).`,
+        'error',
+      );
+      return;
+    }
+
     if (isProxy && !effectiveFarmerUserId) {
       addToast('Agriculteur non spécifié pour cette déclaration par procuration.', 'error');
       return;

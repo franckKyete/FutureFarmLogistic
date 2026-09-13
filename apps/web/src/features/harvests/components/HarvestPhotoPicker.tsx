@@ -1,5 +1,6 @@
 import { Icon } from '@/features/shared/components/Icon';
 import { useRef } from 'react';
+import { PhotoGuidanceBanner } from '@/features/harvests/components/PhotoGuidanceBanner';
 
 export interface HarvestPhotoPickerProps {
   photos: string[];
@@ -71,6 +72,8 @@ export function HarvestPhotoPicker({
 
   return (
     <div className="space-y-3 bg-[#f8f9ff] border border-[#c0c9be] p-4 rounded-xl">
+      <PhotoGuidanceBanner photoCount={photos.length} minRequired={10} variant="light" />
+
       <div className="flex justify-between items-center">
         <div>
           <label className="text-[11px] font-bold text-[#404941] block">

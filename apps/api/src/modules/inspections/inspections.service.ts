@@ -343,9 +343,9 @@ export class InspectionsService {
       }
     }
 
-    if (photoUrls.length === 0) {
+    if (photoUrls.length < 10) {
       throw new BadRequestException(
-        'No photos available on this report or harvest to analyze',
+        `Au moins 10 photos sont requises pour effectuer le pré-screening IA (${photoUrls.length}/10 fournies)`,
       );
     }
 
@@ -507,9 +507,9 @@ export class InspectionsService {
   async classifyHarvest(
     dto: AiClassifyHarvestDto,
   ): Promise<AiClassifyHarvestResponseDto> {
-    if (!dto.photoUrls || dto.photoUrls.length === 0) {
+    if (!dto.photoUrls || dto.photoUrls.length < 10) {
       throw new BadRequestException(
-        'Must provide at least one photo URL for classification',
+        `Au moins 10 photos sous différents angles sont requises pour la classification IA (${dto.photoUrls?.length || 0}/10 fournies)`,
       );
     }
 

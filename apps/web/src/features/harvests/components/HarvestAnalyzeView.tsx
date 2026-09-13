@@ -6,6 +6,7 @@ import { aiClassifyHarvestMutation, mediaUploadMutation } from '@/features/harve
 import { addToast } from '@/features/shared/store/toast.store';
 import { useOfflineSyncState, saveTempDraft } from '@/features/harvests/offline';
 import { type AiClassifyHarvestResponseDto } from '@futurefarm/types';
+import { PhotoGuidanceBanner } from '@/features/harvests/components/PhotoGuidanceBanner';
 
 export interface HarvestAnalyzeNavParams {
   isIdentified?: string | undefined;
@@ -99,8 +100,11 @@ export function HarvestAnalyzeView({
   };
 
   const handleAnalyze = () => {
-    if (images.length === 0) {
-      addToast('Veuillez ajouter au moins une photo.', 'warning');
+    if (images.length < 10) {
+      addToast(
+        `Veuillez ajouter au moins 10 photos sous différents angles (${images.length}/10 ajoutées).`,
+        'warning',
+      );
       return;
     }
     const payload: { photoUrls: string[]; additionalNotes?: string } = {
@@ -113,8 +117,11 @@ export function HarvestAnalyzeView({
   };
 
   const handleOfflineContinue = async () => {
-    if (images.length === 0) {
-      addToast('Veuillez ajouter au moins une photo.', 'warning');
+    if (images.length < 10) {
+      addToast(
+        `Veuillez ajouter au moins 10 photos sous différents angles (${images.length}/10 ajoutées).`,
+        'warning',
+      );
       return;
     }
     const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -268,6 +275,13 @@ export function HarvestAnalyzeView({
           </div>
         )}
       </header>
+
+      {/* Photo guidance banner */}
+      {!showPreview && (
+        <div className="absolute top-20 left-4 right-4 z-30 max-w-[480px] mx-auto pointer-events-auto">
+          <PhotoGuidanceBanner photoCount={images.length} minRequired={10} variant="dark" />
+        </div>
+      )}
 
       {/* Analysis Loading / Result Overlay */}
       {(classify.isPending || classifiedData) && (
@@ -456,21 +470,27 @@ export function HarvestAnalyzeView({
                 <button
                   type="button"
                   onClick={handleOfflineContinue}
-                  disabled={images.length === 0}
+                  disabled={images.length < 10}
                   className="w-full bg-[#004322] hover:bg-[#1a5c35] text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Icon name="arrow_forward" />
-                  Continuer hors-ligne (Saisie manuelle)
+                  {images.length < 10
+                    ? `Ajouter 10 photos (${images.length}/10)`
+                    : 'Continuer hors-ligne (Saisie manuelle)'}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleAnalyze}
-                  disabled={images.length === 0 || classify.isPending}
-                  className="w-full bg-emerald-700 text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/25 cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={images.length < 10 || classify.isPending}
+                  className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/25 cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Icon name="analytics" />
-                  {classify.isPending ? 'Analyse en cours...' : 'Analyser la récolte'}
+                  {classify.isPending
+                    ? 'Analyse en cours...'
+                    : images.length < 10
+                      ? `Ajouter 10 photos (${images.length}/10)`
+                      : 'Analyser la récolte'}
                 </button>
               )}
             </div>

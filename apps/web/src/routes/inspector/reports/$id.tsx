@@ -30,6 +30,7 @@ import {
   HarvestUnit,
 } from '@futurefarm/types';
 import { addToast } from '@/features/shared/store/toast.store';
+import { PhotoGuidanceBanner } from '@/features/harvests/components/PhotoGuidanceBanner';
 
 export const Route = createFileRoute('/inspector/reports/$id')({
   component: InspectionReportFormPage,
@@ -441,6 +442,13 @@ function InspectionReportFormPage() {
   const handleRunManualInspectionAnalysis = async () => {
     if (!activeReportId) {
       addToast('Rapport non disponible pour analyse.', 'error');
+      return;
+    }
+    if (allPhotos.length < 10) {
+      addToast(
+        `Au moins 10 photos sous différents angles sont requises pour effectuer l'analyse IA (${allPhotos.length}/10 ajoutées).`,
+        'warning',
+      );
       return;
     }
     setIsProcessingManualInspection(true);
@@ -1483,6 +1491,13 @@ function InspectionReportFormPage() {
             </div>
 
             <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              {/* Photo guidance banner */}
+              <PhotoGuidanceBanner
+                photoCount={allPhotos.length}
+                minRequired={10}
+                variant="light"
+              />
+
               {/* Capture / Upload actions */}
               <div className="grid grid-cols-2 gap-3">
                 {/* Hidden Inputs */}
@@ -1541,7 +1556,7 @@ function InspectionReportFormPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-bold text-gray-700">
-                    Photos d'inspection associées ({allPhotos.length})
+                    Photos d'inspection associées ({allPhotos.length}/10 min)
                   </h4>
                   <span className="text-[10px] text-gray-500">
                     Échantillons analysés
@@ -1585,7 +1600,7 @@ function InspectionReportFormPage() {
                 ) : (
                   <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                     <p className="text-xs text-gray-500">
-                      Aucune photo ajoutée. Prenez au moins une photo pour lancer l'analyse.
+                      Aucune photo ajoutée. Prenez au moins 10 photos pour lancer l'analyse IA.
                     </p>
                   </div>
                 )}
@@ -1606,7 +1621,7 @@ function InspectionReportFormPage() {
                 onClick={handleRunManualInspectionAnalysis}
                 disabled={
                   isProcessingManualInspection ||
-                  allPhotos.length === 0 ||
+                  allPhotos.length < 10 ||
                   uploadMedia.isPending ||
                   addPhoto.isPending
                 }
@@ -1616,6 +1631,11 @@ function InspectionReportFormPage() {
                   <>
                     <Icon name="progress_activity" className="animate-spin text-sm" />
                     <span>Analyse en cours...</span>
+                  </>
+                ) : allPhotos.length < 10 ? (
+                  <>
+                    <Icon name="photo_camera" className="text-sm" />
+                    <span>Ajouter 10 photos ({allPhotos.length}/10)</span>
                   </>
                 ) : (
                   <>
