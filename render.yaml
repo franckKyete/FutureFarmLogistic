@@ -28,7 +28,7 @@ services:
         fromService:
           type: keyvalue
           name: futurefarm-redis
-          envVarKey: REDIS_URL
+          property: connectionString
 
   # React Frontend
   - type: web
