@@ -71,6 +71,7 @@ export class KerasVisionProvider implements QualityVisionProvider {
 
   private readonly productModelPath: string;
   private readonly qualityModelPath: string;
+  private readonly pythonBinaryPath: string;
 
   constructor() {
     const cwd = process.cwd();
@@ -86,13 +87,25 @@ export class KerasVisionProvider implements QualityVisionProvider {
       path.resolve(cwd, '../quality_model.keras'),
     ];
 
+    const candidatesPython = [
+      process.env.PYTHON_PATH,
+      path.resolve(cwd, '.venv/bin/python'),
+      path.resolve(cwd, '../../.venv/bin/python'),
+      path.resolve(cwd, '../.venv/bin/python'),
+      path.resolve(cwd, 'venv/bin/python'),
+      path.resolve(cwd, '../../venv/bin/python'),
+      'python3',
+    ].filter(Boolean) as string[];
+
     this.productModelPath =
       candidatesProduct.find((p) => fs.existsSync(p)) || candidatesProduct[0]!;
     this.qualityModelPath =
       candidatesQuality.find((p) => fs.existsSync(p)) || candidatesQuality[0]!;
+    this.pythonBinaryPath =
+      candidatesPython.find((p) => p === 'python3' || fs.existsSync(p)) || 'python3';
 
     this.logger.log(
-      `Initialized KerasVisionProvider with productModel: ${this.productModelPath} (exists: ${fs.existsSync(this.productModelPath)}), qualityModel: ${this.qualityModelPath} (exists: ${fs.existsSync(this.qualityModelPath)})`,
+      `Initialized KerasVisionProvider with python: ${this.pythonBinaryPath}, productModel: ${this.productModelPath} (exists: ${fs.existsSync(this.productModelPath)}), qualityModel: ${this.qualityModelPath} (exists: ${fs.existsSync(this.qualityModelPath)})`,
     );
   }
 
@@ -309,10 +322,10 @@ elif mode == 'quality':
       });
 
       const pyProcess = spawn(
-        'python3',
+        this.pythonBinaryPath,
         ['-c', pythonScript, mode, modelPath],
         {
-          timeout: 25000,
+          timeout: 45000,
         },
       );
 
@@ -343,8 +356,17 @@ elif mode == 'quality':
         reject(err);
       });
 
-      pyProcess.stdin.write(payload);
-      pyProcess.stdin.end();
+      // Handle stdin error cleanly to avoid EPIPE crashes if python exits before consuming input
+      pyProcess.stdin.on('error', (err) => {
+        this.logger.debug(`Python stdin stream error: ${err.message}`);
+      });
+
+      try {
+        pyProcess.stdin.write(payload);
+        pyProcess.stdin.end();
+      } catch (err) {
+        this.logger.debug(`Failed to write to python stdin: ${String(err)}`);
+      }
     });
   }
 
