@@ -74,7 +74,7 @@ export function DeliveryMap({
     const heading = driverPosition?.heading ?? 0;
     return createIcon(
       `<div class="relative flex items-center justify-center w-9 h-9 bg-[#004322] text-white rounded-full shadow-lg border-2 border-white ring-2 ring-[#004322]/30 animate-pulse">
-        <span class="material-symbols-outlined text-lg" style="transform: rotate(${heading}deg);">local_shipping</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${heading}deg);"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
       </div>`,
       'driver-marker',
       [36, 36]
@@ -85,12 +85,16 @@ export function DeliveryMap({
     const isCollection = stop.type === 'COLLECTION';
     const isCompleted = stop.status === 'COMPLETED';
     const bgColor = isCompleted ? 'bg-emerald-600' : isCollection ? 'bg-amber-500' : 'bg-[#1a5c35]';
-    const iconName = isCompleted ? 'check' : isCollection ? 'storefront' : 'home_pin';
+    const svgIcon = isCompleted
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+      : isCollection
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>`;
 
     return createIcon(
       `<div class="flex flex-col items-center">
         <div class="flex items-center justify-center w-7 h-7 ${bgColor} text-white rounded-full shadow-md border-2 border-white text-xs font-bold">
-          <span class="material-symbols-outlined text-sm">${iconName}</span>
+          ${svgIcon}
         </div>
         <span class="text-[9px] font-bold bg-white/95 text-gray-800 px-1 py-0.5 rounded shadow-sm mt-0.5 border border-gray-100 whitespace-nowrap">
           #${index + 1} ${stop.label}

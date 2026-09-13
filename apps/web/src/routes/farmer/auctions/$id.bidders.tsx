@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
@@ -121,9 +122,9 @@ function AuctionBiddersPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.history.back()}
-            className="material-symbols-outlined text-[#004322] active:scale-95 transition-transform cursor-pointer"
+            className="text-[#004322] active:scale-95 transition-transform cursor-pointer p-1 -ml-1"
           >
-            arrow_back
+            <Icon name="arrow_back" size={24} />
           </button>
           <h1 className="text-[18px] font-semibold text-[#004322] truncate max-w-[200px]">
             {id === '8829' ? 'Premium Organic Corn' : 'Organic Durum Wheat'}
@@ -153,7 +154,7 @@ function AuctionBiddersPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-[18px] font-semibold text-[#004322]">Price Evolution</h2>
             <div className="flex items-center gap-1 text-[#885200] font-semibold text-[12px]">
-              <span className="material-symbols-outlined text-sm">timer</span>
+              <Icon name="timer" className="text-sm" />
               <span>Ends in {formatTimer(secondsLeft)}</span>
             </div>
           </div>
@@ -203,13 +204,9 @@ function AuctionBiddersPage() {
                       bidder.isUser ? 'bg-[#ffddbb]' : 'bg-[#d3e4fe]'
                     }`}
                   >
-                    <span
-                      className={`material-symbols-outlined ${
+                    <Icon name={bidder.isUser ? 'shield_person' : 'person'} className="${
                         bidder.isUser ? 'text-[#885200]' : 'text-[#004322]'
-                      }`}
-                    >
-                      {bidder.isUser ? 'shield_person' : 'person'}
-                    </span>
+                      }" />
                   </div>
                   <div>
                     <p className="text-[14px] font-semibold text-[#0b1c30]">
@@ -257,7 +254,7 @@ function AuctionBiddersPage() {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center z-10 text-white text-[14px] ${act.color}`}
                 >
-                  <span className="material-symbols-outlined text-[16px]">{act.icon}</span>
+                  <Icon name={act.icon} className="text-[16px]" />
                 </div>
                 <div className="flex-grow pt-1">
                   <p className="text-[14px] text-[#0b1c30]">{act.text}</p>
@@ -281,7 +278,7 @@ function AuctionBiddersPage() {
           onClick={() => alert('Achat immédiat effectué !')}
           className="flex-[2] py-4 px-6 bg-[#004322] text-white font-bold rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 cursor-pointer"
         >
-          <span className="material-symbols-outlined">shopping_cart</span>
+          <Icon name="shopping_cart" />
           Buy Now
         </button>
       </div>

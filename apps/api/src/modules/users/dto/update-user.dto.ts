@@ -1,4 +1,13 @@
-import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, Length } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  ArrayMinSize,
+  IsUUID,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateUserDto {
@@ -53,6 +62,13 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Un inspecteur doit avoir au moins un centre d’inspection assigné' })
+  @IsUUID('4', { each: true })
+  inspectionCenterIds?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   companyName?: string;
 
@@ -60,6 +76,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  regionName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -90,4 +111,21 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bannerUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  addressDetails?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  shippingAddressDetails?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  billingAddressDetails?: any;
 }

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect } from 'react';
 import {
   createFileRoute,
@@ -16,7 +17,7 @@ import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { addToast } from '@/features/shared/store/toast.store';
 import { apiClient } from '@/lib/api-client';
 import { formatPriceDirect } from '@/features/currency/store/currency.store';
-import { OrderStatus, PaymentStatus, type FarmerProfileDto, type OrderPartySummaryDto } from '@futurefarm/types';
+import { OrderStatus, OrderLineStatus, PaymentStatus, type FarmerProfileDto, type OrderPartySummaryDto } from '@futurefarm/types';
 
 export const Route = createFileRoute('/orders/$id')({
   validateSearch: (
@@ -209,7 +210,7 @@ export function OrderDetailPage() {
       <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff]">
         <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
           <Link to="/orders" className="p-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center">
-            <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[22px]" />
           </Link>
           <span className="text-sm font-bold text-[#0b1c30]">Chargement...</span>
           <div className="w-8" />
@@ -227,16 +228,14 @@ export function OrderDetailPage() {
       <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff]">
         <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
           <Link to="/orders" className="p-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center">
-            <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[22px]" />
           </Link>
           <span className="text-sm font-bold text-[#0b1c30]">Commande</span>
           <div className="w-8" />
         </header>
         <main className="pt-20 px-4">
           <div className="py-16 text-center bg-white rounded-2xl border border-[#c0c9be] p-6 shadow-sm">
-            <span className="material-symbols-outlined text-4xl text-gray-400 mb-2 block">
-              error_outline
-            </span>
+            <Icon name="error_outline" className="text-4xl text-gray-400 mb-2 block" />
             <p className="text-sm text-[#0b1c30] font-bold">Commande introuvable</p>
             <p className="text-xs text-[#707970] mt-1">
               Cette commande n&apos;existe pas ou a été archivée.
@@ -343,7 +342,7 @@ export function OrderDetailPage() {
             className="p-1 -ml-1 rounded-lg text-[#004322] hover:bg-gray-100 transition-colors flex items-center cursor-pointer"
             aria-label="Retour"
           >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[24px]" />
           </Link>
           <h1 className="text-base font-extrabold text-[#004322] tracking-tight">
             Commande #ORD-{order.id.slice(0, 4).toUpperCase()}
@@ -387,7 +386,7 @@ export function OrderDetailPage() {
             className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-4 flex items-start gap-3 shadow-xs"
           >
             <div className="w-9 h-9 rounded-full bg-[#dcfce7] text-[#004322] flex items-center justify-center shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+              <Icon name="inventory_2" className="text-[20px]" />
             </div>
             <div className="space-y-0.5">
               <h3 className="text-xs font-bold text-[#004322]">
@@ -422,7 +421,7 @@ export function OrderDetailPage() {
             {order.lines.length > 1 && (
               <div className="absolute top-3 right-3">
                 <span className="bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-2xs flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">inventory_2</span>
+                  <Icon name="inventory_2" className="text-[14px]" />
                   <span>{order.lines.length} articles</span>
                 </span>
               </div>
@@ -462,6 +461,11 @@ export function OrderDetailPage() {
               const harvest = line.harvest;
               const product = harvest?.product;
               const isSelected = idx === activeLineIdx && order.lines.length > 1;
+              const isReady =
+                line.status === OrderLineStatus.CONFIRMED ||
+                line.status === OrderLineStatus.SHIPPED ||
+                line.status === OrderLineStatus.DELIVERED;
+              const isRejected = line.status === OrderLineStatus.REJECTED;
 
               return (
                 <div
@@ -476,16 +480,37 @@ export function OrderDetailPage() {
                       ? isSelected
                         ? 'bg-emerald-50/50 p-2.5 border border-emerald-200 shadow-2xs cursor-pointer'
                         : 'p-2.5 hover:bg-gray-50/80 cursor-pointer border border-transparent'
-                      : ''
+                      : 'p-2.5 bg-gray-50/40 rounded-xl border border-gray-100'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5 min-w-0">
-                      {order.lines.length > 1 && (
-                        <span className="inline-block text-[#475569] text-[9px] font-extrabold uppercase tracking-wider">
-                          {CATEGORY_LABEL[product?.category ?? ''] ?? product?.category ?? 'MARAÎCHAGE'}
-                        </span>
-                      )}
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {order.lines.length > 1 && (
+                          <span className="inline-block text-[#475569] text-[9px] font-extrabold uppercase tracking-wider">
+                            {CATEGORY_LABEL[product?.category ?? ''] ?? product?.category ?? 'MARAÎCHAGE'}
+                          </span>
+                        )}
+
+                        {/* Farmer Item Confirmation Status Badge */}
+                        {isReady ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300 shadow-3xs">
+                            <Icon name="check_circle" className="text-[13px] text-emerald-700 font-black" />
+                            <span>Prêt / Confirmé</span>
+                          </span>
+                        ) : isRejected ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-full border border-rose-300 shadow-3xs">
+                            <Icon name="cancel" className="text-[13px] text-rose-700 font-black" />
+                            <span>Indisponible / Rejeté</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300 shadow-3xs">
+                            <Icon name="hourglass_empty" className="text-[13px] text-amber-700 font-black" />
+                            <span>En attente producteur</span>
+                          </span>
+                        )}
+                      </div>
+
                       <h2 className="text-base font-black text-[#0b1c30] leading-snug truncate">
                         {product?.name ?? 'Récolte'}
                       </h2>
@@ -537,7 +562,7 @@ export function OrderDetailPage() {
         >
           <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
             <span className="text-[10px] font-extrabold text-[#707970] uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-[#004322]">receipt_long</span>
+              <Icon name="receipt_long" className="text-[16px] text-[#004322]" />
               <span>Détail du règlement & Services</span>
             </span>
             <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -562,13 +587,11 @@ export function OrderDetailPage() {
               order.fees.map((fee, idx) => (
                 <div key={idx} className="flex items-center justify-between text-[#404941]">
                   <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[15px] text-[#707970]">
-                      {fee.code.includes('DELIVERY')
+                    <Icon name={fee.code.includes('DELIVERY')
                         ? 'local_shipping'
                         : fee.code.includes('TAX') || fee.code.includes('TVA')
                           ? 'percent'
-                          : 'handshake'}
-                    </span>
+                          : 'handshake'} className="text-[15px] text-[#707970]" />
                     <span>{fee.name}</span>
                   </div>
                   <span className="font-semibold text-[#0b1c30]">
@@ -638,13 +661,7 @@ export function OrderDetailPage() {
                 >
                   <span className="truncate group-hover:underline">{producerName}</span>
                   {isProducerCertified && (
-                    <span
-                      className="material-symbols-outlined text-[#004322] text-[16px] shrink-0"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                      title="Producteur certifié"
-                    >
-                      verified
-                    </span>
+                    <Icon name="verified" className="text-[#004322] text-[16px] shrink-0" title="Producteur certifié" />
                   )}
                 </Link>
                 <p className="text-xs text-[#707970] truncate">
@@ -667,7 +684,7 @@ export function OrderDetailPage() {
                 }}
                 className="w-9 h-9 rounded-full bg-[#eff4ff] hover:bg-[#dce9ff] text-[#004322] flex items-center justify-center border border-[#c0c9be]/50 shadow-2xs transition-all active:scale-95 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px] leading-none">mail</span>
+                <Icon name="mail" className="text-[18px] leading-none" />
               </a>
               <a
                 href={`tel:${producerPhone}`}
@@ -682,7 +699,7 @@ export function OrderDetailPage() {
                 }}
                 className="w-9 h-9 rounded-full bg-[#eff4ff] hover:bg-[#dce9ff] text-[#004322] flex items-center justify-center border border-[#c0c9be]/50 shadow-2xs transition-all active:scale-95 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px] leading-none">call</span>
+                <Icon name="call" className="text-[18px] leading-none" />
               </a>
             </div>
           </div>
@@ -698,9 +715,7 @@ export function OrderDetailPage() {
           </span>
 
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#92400e] text-[20px]">
-              local_shipping
-            </span>
+            <Icon name="local_shipping" className="text-[#92400e] text-[20px]" />
             <span className="bg-[#fef3c7] text-[#92400e] text-xs font-bold px-2.5 py-0.5 rounded-md">
               {deliveryMode}
             </span>
@@ -711,7 +726,7 @@ export function OrderDetailPage() {
             <div className="bg-[#f0f4fc] rounded-xl p-3.5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-white text-[#707970] flex items-center justify-center shrink-0 border border-[#e2e8f0]">
-                  <span className="material-symbols-outlined text-[20px]">person</span>
+                  <Icon name="person" className="text-[20px]" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#0b1c30] truncate">
@@ -728,18 +743,16 @@ export function OrderDetailPage() {
                 aria-label="Appeler le transporteur"
                 className="w-9 h-9 rounded-full bg-white hover:bg-emerald-50 text-[#004322] flex items-center justify-center border border-[#e2e8f0] shadow-2xs transition-colors shrink-0 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">call</span>
+                <Icon name="call" className="text-[18px]" />
               </a>
             </div>
           ) : (
             <div className="bg-[#f8f9fc] border border-[#e2e8f0] rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#707970]">
-              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0 mt-0.5">
-                {order.status === OrderStatus.PENDING_PAYMENT
+              <Icon name={order.status === OrderStatus.PENDING_PAYMENT
                   ? 'info'
                   : order.status === OrderStatus.AWAITING_CONFIRMATION
                     ? 'schedule'
-                    : 'local_shipping'}
-              </span>
+                    : 'local_shipping'} className="text-[18px] text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-[#0b1c30]">
                   {order.status === OrderStatus.PENDING_PAYMENT
@@ -762,9 +775,7 @@ export function OrderDetailPage() {
           {/* Delivery Note & Slot (if available) */}
           {order.notes && (
             <div className="text-[11px] text-[#707970] pt-1 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[15px] text-[#004322]">
-                schedule
-              </span>
+              <Icon name="schedule" className="text-[15px] text-[#004322]" />
               <span className="truncate">{order.notes}</span>
             </div>
           )}
@@ -787,7 +798,7 @@ export function OrderDetailPage() {
                 className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Suivre</span>
-                <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-[15px]" />
               </Link>
             )}
           </div>
@@ -798,7 +809,7 @@ export function OrderDetailPage() {
               {/* Vertical line connector */}
               <div className="absolute left-2.5 top-5 bottom-0 w-[2px] bg-[#004322]" />
               <div className="w-5 h-5 rounded-full bg-[#004322] text-white flex items-center justify-center shrink-0 z-10 shadow-xs">
-                <span className="material-symbols-outlined text-[14px]">check</span>
+                <Icon name="check" className="text-[14px]" />
               </div>
               <div>
                 <p className="text-xs font-bold text-[#0b1c30]">Commande passée</p>
@@ -824,9 +835,7 @@ export function OrderDetailPage() {
                       : 'bg-amber-100 text-amber-800'
                 }`}
               >
-                <span className="material-symbols-outlined text-[14px]">
-                  {isPaid ? 'check' : isPaymentFailed ? 'close' : 'schedule'}
-                </span>
+                <Icon name={isPaid ? 'check' : isPaymentFailed ? 'close' : 'schedule'} className="text-[14px]" />
               </div>
               <div>
                 <p className="text-xs font-bold text-[#0b1c30]">
@@ -863,7 +872,7 @@ export function OrderDetailPage() {
                 }`}
               >
                 {isShipped ? (
-                  <span className="material-symbols-outlined text-[14px]">check</span>
+                  <Icon name="check" className="text-[14px]" />
                 ) : isPreparing ? (
                   <div className="w-2 h-2 bg-white rounded-full" />
                 ) : null}
@@ -898,7 +907,7 @@ export function OrderDetailPage() {
                 }`}
               >
                 {isDelivered ? (
-                  <span className="material-symbols-outlined text-[14px]">check</span>
+                  <Icon name="check" className="text-[14px]" />
                 ) : isShipped ? (
                   <div className="w-2 h-2 bg-white rounded-full" />
                 ) : null}
@@ -931,9 +940,9 @@ export function OrderDetailPage() {
                 data-testid="track-order-btn"
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-xs transition-all active:scale-[0.99] shadow-xs cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+                <Icon name="local_shipping" className="text-[18px]" />
                 <span>Suivre la livraison en direct</span>
-                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-[16px]" />
               </Link>
             </div>
           )}
@@ -956,17 +965,13 @@ export function OrderDetailPage() {
             className="w-full border border-[#c0c9be] rounded-xl p-3 flex items-center justify-between hover:bg-[#f8f9fc] active:scale-[0.99] transition-all cursor-pointer text-left disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5 text-[#0b1c30]">
-              <span className="material-symbols-outlined text-[20px] text-[#404941]">
-                description
-              </span>
+              <Icon name="description" className="text-[20px] text-[#404941]" />
               <span className="text-xs font-bold">Bon de commande PDF</span>
             </div>
             {isDownloadingPdf ? (
               <div className="w-4 h-4 border-2 border-[#004322] border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span className="material-symbols-outlined text-[18px] text-[#404941]">
-                download
-              </span>
+              <Icon name="download" className="text-[18px] text-[#404941]" />
             )}
           </button>
         </div>
@@ -980,9 +985,7 @@ export function OrderDetailPage() {
                   data-testid="payment-failed-alert"
                   className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3"
                 >
-                  <span className="material-symbols-outlined text-rose-600 text-[22px] shrink-0 mt-0.5">
-                    error
-                  </span>
+                  <Icon name="error" className="text-rose-600 text-[22px] shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-rose-900">
                       Échec du paiement
@@ -1006,7 +1009,7 @@ export function OrderDetailPage() {
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[18px]">replay</span>
+                      <Icon name="replay" className="text-[18px]" />
                       <span>Réessayer le paiement</span>
                     </>
                   )}
@@ -1017,9 +1020,7 @@ export function OrderDetailPage() {
                 data-testid="payment-processing-notice"
                 className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3"
               >
-                <span className="material-symbols-outlined text-amber-700 text-[20px] shrink-0 mt-0.5">
-                  info
-                </span>
+                <Icon name="info" className="text-amber-700 text-[20px] shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <p className="text-xs font-bold text-amber-900">
                     Paiement en cours de traitement

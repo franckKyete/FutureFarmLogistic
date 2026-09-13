@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -79,9 +80,7 @@ function AuctionsSupervisionPage() {
       header: 'Produit',
       render: (auc: AuctionDto) => (
         <span className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-base text-[var(--admin-on-surface-variant)]/60">
-            inventory_2
-          </span>
+          <Icon name="inventory_2" className="text-base text-[var(--admin-on-surface-variant)]/60" />
           <span className="font-bold text-[var(--admin-on-surface)]">Lot #{auc.harvestId?.slice(0, 8) || 'Sans lot'}</span>
         </span>
       ),
@@ -112,7 +111,7 @@ function AuctionsSupervisionPage() {
       header: 'Temps restant',
       render: (auc: AuctionDto) => (
         <span className="flex items-center gap-1 text-xs text-[var(--admin-on-surface-variant)] font-medium">
-          <span className="material-symbols-outlined text-xs">schedule</span>
+          <Icon name="schedule" className="text-xs" />
           {formatRemainingTime(auc.endAt)}
         </span>
       ),
@@ -165,9 +164,7 @@ function AuctionsSupervisionPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 p-8">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
-          error_outline
-        </span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)] mb-4" />
         <p className="text-sm text-[var(--admin-error)] mb-4">
           Erreur lors du chargement des enchères.
         </p>

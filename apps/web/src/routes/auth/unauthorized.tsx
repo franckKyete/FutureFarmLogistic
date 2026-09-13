@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/auth/unauthorized')({
@@ -20,9 +21,7 @@ function UnauthorizedPage() {
 
       <div className="max-w-md bg-white border border-outline-variant/40 rounded-2xl p-8 shadow-sm flex flex-col items-center gap-6">
         <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center text-error">
-          <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 0" }}>
-            gpp_bad
-          </span>
+          <Icon name="gpp_bad" className="text-4xl" />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -38,14 +37,14 @@ function UnauthorizedPage() {
             to="/"
             className="flex-1 bg-primary text-on-primary font-semibold text-sm py-3 rounded-lg hover:opacity-95 transition-all text-center flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">home</span>
+            <Icon name="home" className="text-[18px]" />
             Retour à l'accueil
           </Link>
           <Link
             to="/auth/login"
             className="flex-1 border border-outline-variant text-on-surface-variant font-semibold text-sm py-3 rounded-lg hover:bg-surface-container-low transition-all text-center flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">login</span>
+            <Icon name="login" className="text-[18px]" />
             Se déconnecter / Login
           </Link>
         </div>

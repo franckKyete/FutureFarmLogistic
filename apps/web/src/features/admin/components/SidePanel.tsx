@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { ReactNode, useEffect } from 'react';
 
 interface SidePanelProps {
@@ -49,7 +50,7 @@ export function SidePanel({
             onClick={onClose}
             className="p-2 hover:bg-[var(--admin-surface-container-low)] rounded-full text-[var(--admin-on-surface-variant)] transition-all"
           >
-            <span className="material-symbols-outlined text-xl">close</span>
+            <Icon name="close" className="text-xl" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">{children}</div>

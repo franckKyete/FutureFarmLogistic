@@ -20,6 +20,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
+    "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@futurefarm/types": "workspace:*",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/common": "^11.0.1",

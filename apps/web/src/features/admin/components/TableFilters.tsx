@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { ReactNode } from 'react';
 
 interface TableFiltersProps {
@@ -18,9 +19,7 @@ export function TableFilters({
   return (
     <div className="flex flex-wrap gap-4 items-center bg-[var(--admin-surface-container-lowest)] p-4 border border-[var(--admin-outline-variant)]/40 rounded-xl">
       <div className="flex-1 min-w-[200px] relative">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-on-surface-variant)] text-[20px]">
-          search
-        </span>
+        <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-on-surface-variant)] text-[20px]" />
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}

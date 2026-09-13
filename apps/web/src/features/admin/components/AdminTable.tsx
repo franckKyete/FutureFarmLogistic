@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { ReactNode } from 'react';
 
 export interface TableColumn<T> {
@@ -99,7 +100,7 @@ export function AdminTable<T extends { id: string | number }>({
               disabled={pagination.currentPage === 1}
               className="p-2 border border-[var(--admin-outline-variant)]/40 rounded-lg hover:bg-[var(--admin-surface-container-high)] disabled:opacity-50 text-[var(--admin-on-surface)]"
             >
-              <span className="material-symbols-outlined text-base">chevron_left</span>
+              <Icon name="chevron_left" className="text-base" />
             </button>
             {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
               const pageNumber = i + 1;
@@ -135,7 +136,7 @@ export function AdminTable<T extends { id: string | number }>({
               disabled={pagination.currentPage === pagination.totalPages}
               className="p-2 border border-[var(--admin-outline-variant)]/40 rounded-lg hover:bg-[var(--admin-surface-container-high)] disabled:opacity-50 text-[var(--admin-on-surface)]"
             >
-              <span className="material-symbols-outlined text-base">chevron_right</span>
+              <Icon name="chevron_right" className="text-base" />
             </button>
           </div>
         </div>

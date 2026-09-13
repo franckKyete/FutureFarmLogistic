@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -224,9 +225,7 @@ export function CheckoutPage() {
                     : 'bg-gray-100 text-[#707970]'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">
-                {currentStep > 1 ? 'check' : 'local_shipping'}
-              </span>
+              <Icon name={currentStep > 1 ? 'check' : 'local_shipping'} className="text-[20px]" />
             </div>
             <span
               className={`text-[11px] font-bold ${
@@ -264,9 +263,7 @@ export function CheckoutPage() {
                     : 'bg-gray-100 text-[#707970]'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">
-                {currentStep > 2 ? 'check' : 'payments'}
-              </span>
+              <Icon name={currentStep > 2 ? 'check' : 'payments'} className="text-[20px]" />
             </div>
             <span
               className={`text-[11px] font-bold ${
@@ -297,7 +294,7 @@ export function CheckoutPage() {
                   : 'bg-gray-100 text-[#707970]'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">verified</span>
+              <Icon name="verified" className="text-[20px]" />
             </div>
             <span
               className={`text-[11px] font-bold ${
@@ -311,7 +308,7 @@ export function CheckoutPage() {
 
         {/* ── STEP 1: FORMULAIRE DE LIVRAISON ── */}
         {currentStep === 1 && (
-          <form id="checkout-step1-form" onSubmit={handleStep1Submit} className="space-y-4">
+          <div className="space-y-4">
             <div className="bg-white border border-[#c0c9be] rounded-2xl p-5 space-y-4 shadow-sm">
               {/* Adresse de livraison avec AddressSelector */}
               <AddressSelector
@@ -378,22 +375,22 @@ export function CheckoutPage() {
               {/* Trust Indicators */}
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
                 <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
-                  <span className="material-symbols-outlined text-[15px]">schedule</span>
+                  <Icon name="schedule" className="text-[15px]" />
                   <span>Livré sous 24h</span>
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1 font-semibold text-[#004322]">
-                  <span className="material-symbols-outlined text-[15px]">lock</span>
+                  <Icon name="lock" className="text-[15px]" />
                   <span>Paiement sécurisé</span>
                 </span>
               </div>
             </div>
-          </form>
+          </div>
         )}
 
         {/* ── STEP 2: PAGE DE PAIEMENT AUTO-HÉBERGÉE (SELF-HOSTED) ── */}
         {currentStep === 2 && (
-          <form id="checkout-step2-form" onSubmit={handleExecutePayment} className="space-y-4">
+          <div className="space-y-4">
             {/* Delivery Recap Card */}
             <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100">
@@ -447,7 +444,7 @@ export function CheckoutPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-[#707970]">
-                    <span className="material-symbols-outlined text-[20px]">credit_card</span>
+                    <Icon name="credit_card" className="text-[20px]" />
                   </div>
                 </div>
 
@@ -471,9 +468,7 @@ export function CheckoutPage() {
                       <p className="text-[11px] text-[#707970]">Wave, Orange Money, Free Money</p>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-[#707970] text-[20px]">
-                    phone_android
-                  </span>
+                  <Icon name="phone_android" className="text-[#707970] text-[20px]" />
                 </div>
               </div>
 
@@ -481,9 +476,7 @@ export function CheckoutPage() {
               {paymentMethod === 'stripe' && (
                 <div className="pt-3 border-t border-gray-100">
                   <div className="p-3.5 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-start gap-2.5 text-xs text-[#004322]">
-                    <span className="material-symbols-outlined text-[20px] text-[#004322] shrink-0 mt-0.5">
-                      open_in_new
-                    </span>
+                    <Icon name="open_in_new" className="text-[20px] text-[#004322] shrink-0 mt-0.5" />
                     <div>
                       <p className="font-bold">Redirection vers Stripe</p>
                       <p className="text-[11px] text-[#404941] mt-0.5 leading-relaxed">
@@ -498,9 +491,7 @@ export function CheckoutPage() {
               {paymentMethod === 'mobile_money' && (
                 <div className="pt-3 border-t border-gray-100 space-y-2.5">
                   <div className="p-3.5 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-start gap-2.5 text-xs text-[#004322]">
-                    <span className="material-symbols-outlined text-[20px] text-[#004322] shrink-0 mt-0.5">
-                      open_in_new
-                    </span>
+                    <Icon name="open_in_new" className="text-[20px] text-[#004322] shrink-0 mt-0.5" />
                     <div>
                       <p className="font-bold">Paiement Mobile Money via PawaPay</p>
                       <p className="text-[11px] text-[#404941] mt-0.5 leading-relaxed">
@@ -512,9 +503,7 @@ export function CheckoutPage() {
                   {/* Whole-number rounding notice if amount has decimals */}
                   {totalPrice % 1 !== 0 && (
                     <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
-                      <span className="material-symbols-outlined text-[18px] text-amber-700 shrink-0 mt-0.5">
-                        info
-                      </span>
+                      <Icon name="info" className="text-[18px] text-amber-700 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
                         <p className="font-bold">Ajustement du montant Mobile Money</p>
                         <p className="text-[11px] text-amber-800 leading-relaxed">
@@ -533,12 +522,12 @@ export function CheckoutPage() {
               {/* Trust Indicators */}
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
                 <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
-                  <span className="material-symbols-outlined text-[15px]">schedule</span>
+                  <Icon name="schedule" className="text-[15px]" />
                   <span>Livré sous 24h</span>
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1 font-semibold text-[#004322]">
-                  <span className="material-symbols-outlined text-[15px]">lock</span>
+                  <Icon name="lock" className="text-[15px]" />
                   <span>
                     {paymentMethod === 'mobile_money'
                       ? 'Paiement sécurisé par PawaPay (Mobile Money)'
@@ -547,14 +536,14 @@ export function CheckoutPage() {
                 </span>
               </div>
             </div>
-          </form>
+          </div>
         )}
 
         {/* ── STEP 3: CONFIRMATION ÉCRAN ── */}
         {currentStep === 3 && (
           <div className="bg-white border border-[#c0c9be] rounded-2xl p-6 text-center shadow-sm space-y-5">
             <div className="w-16 h-16 rounded-full bg-[#e6f4ea] text-[#004322] flex items-center justify-center mx-auto shadow-inner">
-              <span className="material-symbols-outlined text-[36px]">check_circle</span>
+              <Icon name="check_circle" className="text-[36px]" />
             </div>
 
             <div>
@@ -630,22 +619,20 @@ export function CheckoutPage() {
 
             {currentStep === 1 && (
               <button
-                type="submit"
-                form="checkout-step1-form"
+                type="button"
                 data-testid="continue-button"
                 disabled={lines.length === 0}
                 onClick={handleStep1Submit}
                 className="flex-1 py-3.5 px-4 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
               >
                 <span>Continuer vers le paiement</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-[18px]" />
               </button>
             )}
 
             {currentStep === 2 && (
               <button
-                type="submit"
-                form="checkout-step2-form"
+                type="button"
                 data-testid="pay-button"
                 disabled={checkout.isPending || confirmPayment.isPending}
                 onClick={handleExecutePayment}
@@ -658,7 +645,7 @@ export function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-[18px]">lock</span>
+                    <Icon name="lock" className="text-[18px]" />
                     <span>
                       {paymentMethod === 'stripe'
                         ? `Payer avec Stripe (${formattedTotal})`

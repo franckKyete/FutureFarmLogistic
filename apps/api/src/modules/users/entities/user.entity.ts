@@ -37,6 +37,9 @@ export class UserEntity {
   @Column({ name: 'preferred_currency', type: 'varchar', length: 10, default: 'CDF' })
   preferredCurrency: string;
 
+  @Column({ name: 'avatar_url', type: 'varchar', length: 500, nullable: true })
+  avatarUrl: string | null;
+
   @Column({ select: false })
   password: string;
 

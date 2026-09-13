@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderEntity } from '../entities/order.entity';
-import { PaymentGatewayPort, MockPaymentGateway } from '../interfaces/payment-gateway.port';
+import { type PaymentGatewayPort, MockPaymentGateway } from '../interfaces/payment-gateway.port';
 import { StripePaymentGateway } from './stripe.adapter';
 import { PawaPayPaymentGateway } from './pawapay.adapter';
 import {

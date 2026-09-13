@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,22 +14,115 @@ import { ConfigService } from '@nestjs/config';
 import {
   ProductCategory,
   HarvestStatus,
-  AiSuggestHarvestResponseDto,
+  InspectionStatus,
+  type InspectionChecklist,
+  InspectionChecklistItem,
+  type AuthUser,
+  type AiSuggestHarvestResponseDto,
+  VisitStatus,
+  NotificationChannel,
+  NotificationPriority,
 } from '@futurefarm/types';
+import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
 import { CurrenciesService } from '../currencies/currencies.service';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
+import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { InspectionReportEntity } from '../inspections/entities/inspection-report.entity';
+import { InspectionPhotoEntity } from '../inspections/entities/inspection-photo.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
+import { CreateHarvestProxyDto } from './dto/create-harvest-proxy.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
 
+const DEFAULT_CHECKLIST: InspectionChecklist = {
+  [InspectionChecklistItem.VISUAL_QUALITY]: {
+    passed: true,
+    notes: 'Aspect visuel conforme et frais',
+  },
+  [InspectionChecklistItem.MICROBIAL_COUNT]: {
+    passed: true,
+    notes: 'Aucune trace de moisissure ou contamination',
+  },
+  [InspectionChecklistItem.WEIGHT_CALIBRATION]: {
+    passed: true,
+    notes: 'Poids et calibre conformes aux spécifications',
+  },
+  [InspectionChecklistItem.PACKAGING]: {
+    passed: true,
+    notes: 'Conditionnement adapté au transport',
+  },
+  [InspectionChecklistItem.LABELING]: {
+    passed: true,
+    notes: 'Étiquetage et traçabilité vérifiés',
+  },
+};
+
+export function parseCoordinates(
+  coordStr: string | null | undefined,
+): { lat: number; lon: number } | null {
+  if (!coordStr) return null;
+  const trimmed = coordStr.trim();
+  try {
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        const lat = Number(parsed[0]);
+        const lon = Number(parsed[1]);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+      } else if (parsed && typeof parsed === 'object') {
+        const lat = Number(parsed.lat ?? parsed.latitude);
+        const lon = Number(parsed.lon ?? parsed.lng ?? parsed.longitude);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+      }
+    } else if (trimmed.includes(',')) {
+      const parts = trimmed.split(',').map((p) => parseFloat(p.trim()));
+      if (parts.length >= 2 && !isNaN(parts[0]!) && !isNaN(parts[1]!)) {
+        return { lat: parts[0]!, lon: parts[1]! };
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  const parts = trimmed.split(',').map((p) => parseFloat(p.trim()));
+  if (parts.length >= 2 && !isNaN(parts[0]!) && !isNaN(parts[1]!)) {
+    return { lat: parts[0]!, lon: parts[1]! };
+  }
+  return null;
+}
+
+export function calculateHaversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     @InjectRepository(ProductEntity)
     private readonly productRepository: Repository<ProductEntity>,
@@ -38,10 +132,62 @@ export class ProductsService {
     private readonly farmerProfileRepository: Repository<FarmerProfileEntity>,
     @InjectRepository(ParcelEntity)
     private readonly parcelRepository: Repository<ParcelEntity>,
+    @InjectRepository(InspectionCenterEntity)
+    private readonly inspectionCenterRepository: Repository<InspectionCenterEntity>,
+    @InjectRepository(InspectorProfileEntity)
+    private readonly inspectorProfileRepository: Repository<InspectorProfileEntity>,
+    @InjectRepository(InspectionReportEntity)
+    private readonly inspectionReportRepository: Repository<InspectionReportEntity>,
+    @InjectRepository(InspectionPhotoEntity)
+    private readonly inspectionPhotoRepository: Repository<InspectionPhotoEntity>,
+    @InjectRepository(VisitEntity)
+    private readonly visitRepository: Repository<VisitEntity>,
     private readonly configService: ConfigService,
     @Optional()
     private readonly currenciesService?: CurrenciesService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
+
+  /**
+   * Hydrates harvest photos, avatar and banner URLs with valid signed URLs
+   */
+  async hydrateHarvest(harvest: HarvestEntity): Promise<HarvestEntity> {
+    if (!harvest) return harvest;
+    if (this.storageService) {
+      if (harvest.photoUrls && Array.isArray(harvest.photoUrls) && harvest.photoUrls.length > 0) {
+        harvest.photoUrls = await Promise.all(
+          harvest.photoUrls.map((p) => this.storageService!.getSignedUrl(p)),
+        );
+      }
+      if (harvest.farmerProfile?.avatarUrl) {
+        harvest.farmerProfile.avatarUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.avatarUrl,
+        );
+      }
+      if (harvest.farmerProfile?.bannerUrl) {
+        harvest.farmerProfile.bannerUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.bannerUrl,
+        );
+      }
+      if (harvest.farmerProfile?.user?.avatarUrl) {
+        harvest.farmerProfile.user.avatarUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.user.avatarUrl,
+        );
+      }
+    }
+    return harvest;
+  }
+
+  /**
+   * Hydrates an array of harvests concurrently
+   */
+  async hydrateHarvests(harvests: HarvestEntity[]): Promise<HarvestEntity[]> {
+    if (!harvests || !this.storageService) return harvests;
+    return Promise.all(harvests.map((h) => this.hydrateHarvest(h)));
+  }
 
   // =============================================================================
   // Product Crop Templates
@@ -125,6 +271,40 @@ export class ProductsService {
   // Harvest Batches
   // =============================================================================
 
+  private async validateInspectorRegionalAccess(
+    actorUserId: string,
+    targetFarmerProfile: FarmerProfileEntity,
+  ): Promise<void> {
+    const inspectorProfile = await this.inspectorProfileRepository.findOne({
+      where: { userId: actorUserId },
+      relations: ['assignments', 'assignments.center'],
+    });
+    if (inspectorProfile) {
+      const activeAssignments = inspectorProfile.assignments?.filter(
+        (a) => a.isCurrentAssignment && a.center?.isActive,
+      ) || [];
+      const assignedRegions = Array.from(
+        new Set(activeAssignments.map((a) => a.center.regionName).filter(Boolean)),
+      );
+      if (assignedRegions.length === 0) {
+        throw new ForbiddenException(
+          "Vous devez être affecté à au moins un centre d'inspection actif pour agir au nom d'un producteur.",
+        );
+      }
+      const farmerRegion = targetFarmerProfile.regionName?.trim();
+      const isAllowed =
+        farmerRegion &&
+        assignedRegions.some(
+          (r) => r.toLowerCase() === farmerRegion.toLowerCase(),
+        );
+      if (!isAllowed) {
+        throw new ForbiddenException(
+          `Vous ne pouvez enregistrer ou modifier des récoltes que pour les producteurs situés dans vos régions assignées (${assignedRegions.join(', ')}).`,
+        );
+      }
+    }
+  }
+
   async createHarvest(
     userId: string,
     dto: CreateHarvestDto,
@@ -140,7 +320,11 @@ export class ProductsService {
       );
     }
 
-    await this.findProductById(dto.productId);
+    if (options?.onBehalfOfUserId && options.onBehalfOfUserId !== userId) {
+      await this.validateInspectorRegionalAccess(userId, farmerProfile);
+    }
+
+    const product = await this.findProductById(dto.productId);
 
     // If parcel is provided, verify it belongs to this farmer profile
     if (dto.parcelId) {
@@ -178,7 +362,214 @@ export class ProductsService {
       status: HarvestStatus.PENDING_APPROVAL,
     });
 
-    return this.harvestRepository.save(harvest);
+    const savedHarvest = await this.harvestRepository.save(harvest);
+
+    // Dispatch in-app and email notification to inspectors assigned to farmer's region
+    if (!options?.onBehalfOfUserId || options.onBehalfOfUserId === userId) {
+      void this.notifyRegionalInspectors(farmerProfile, product, savedHarvest);
+    }
+
+    return this.hydrateHarvest(savedHarvest);
+  }
+
+  private async notifyRegionalInspectors(
+    farmerProfile: FarmerProfileEntity,
+    product: ProductEntity,
+    harvest: HarvestEntity,
+  ): Promise<void> {
+    if (!this.notificationsService) return;
+    const farmerRegion = farmerProfile.regionName?.trim();
+    if (!farmerRegion) return;
+
+    try {
+      const inspectorProfiles = await this.inspectorProfileRepository.find({
+        where: { isActiveInspector: true },
+        relations: ['assignments', 'assignments.center'],
+      });
+
+      const regionalInspectorUserIds = inspectorProfiles
+        .filter((ip) =>
+          ip.assignments?.some(
+            (a) =>
+              a.isCurrentAssignment &&
+              a.center?.isActive &&
+              a.center.regionName?.trim().toLowerCase() ===
+                farmerRegion.toLowerCase(),
+          ),
+        )
+        .map((ip) => ip.userId)
+        .filter(Boolean);
+
+      if (regionalInspectorUserIds.length > 0) {
+        await this.notificationsService.send({
+          recipientIds: regionalInspectorUserIds,
+          title: 'Nouvelle récolte soumise',
+          body: `Le producteur ${farmerProfile.companyName || 'agricole'} a soumis une nouvelle récolte de ${product.name} (${harvest.quantityInStock} ${harvest.unit}) dans votre région (${farmerRegion}).`,
+          channels: [NotificationChannel.EMAIL, NotificationChannel.DATABASE],
+          priority: NotificationPriority.HIGH,
+          metadata: {
+            actionUrl: `/inspector/reports/${harvest.id}`,
+            actionText: 'Vérifier la récolte',
+            harvestId: harvest.id,
+          },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to notify regional inspectors for harvest ${harvest.id}:`,
+        err,
+      );
+    }
+  }
+
+  async createHarvestProxy(
+    actorUserId: string,
+    dto: CreateHarvestProxyDto,
+  ): Promise<HarvestEntity> {
+    const targetUserId = dto.farmerUserId;
+    const farmerProfile = await this.farmerProfileRepository.findOne({
+      where: { userId: targetUserId },
+    });
+    if (!farmerProfile) {
+      throw new ForbiddenException(
+        'Only registered farmers can have harvest listings created.',
+      );
+    }
+
+    await this.validateInspectorRegionalAccess(actorUserId, farmerProfile);
+
+    // Resolve or dynamically create Product template
+    let product: ProductEntity | null = null;
+    if (dto.productId) {
+      product = await this.productRepository.findOne({
+        where: { id: dto.productId },
+      });
+    }
+    if (!product && dto.productName?.trim()) {
+      const trimmedName = dto.productName.trim();
+      product = await this.productRepository
+        .createQueryBuilder('product')
+        .where('LOWER(product.name) = LOWER(:name)', { name: trimmedName })
+        .getOne();
+      if (!product) {
+        const newProduct = this.productRepository.create({
+          name: trimmedName,
+          category: ProductCategory.OTHER,
+          description: `Variété ${trimmedName} enregistrée sur le terrain`,
+        });
+        product = await this.productRepository.save(newProduct);
+      }
+    }
+    if (!product) {
+      throw new BadRequestException(
+        'Veuillez spécifier un produit existant ou renseigner le nom de la variété récoltée.',
+      );
+    }
+
+    if (dto.parcelId) {
+      const parcel = await this.parcelRepository.findOne({
+        where: { id: dto.parcelId },
+      });
+      if (!parcel) {
+        throw new NotFoundException(
+          `Specified parcel with ID "${dto.parcelId}" not found.`,
+        );
+      }
+      if (parcel.farmerProfileId !== farmerProfile.id) {
+        throw new ForbiddenException(
+          'The specified land parcel does not belong to the farmer profile.',
+        );
+      }
+    }
+
+    const qualityScore = dto.qualityScore ?? 8.5;
+    const isApproved = qualityScore >= 4.0;
+    const status = isApproved
+      ? HarvestStatus.APPROVED
+      : HarvestStatus.REJECTED;
+
+    const harvest = this.harvestRepository.create({
+      productId: product.id,
+      parcelId: dto.parcelId ?? null,
+      harvestDate: new Date(dto.harvestDate),
+      expirationDate: new Date(dto.expirationDate),
+      quantityInStock: dto.quantityInStock,
+      stockMarge: dto.stockMarge ?? 0,
+      pricePerUnit: dto.pricePerUnit,
+      unit: dto.unit,
+      farmingMethods: dto.farmingMethods ?? 'Culture traditionnelle locale',
+      photoUrls: dto.photoUrls ?? [],
+      farmerProfileId: farmerProfile.id,
+      status,
+      qualityScore,
+      approvedById: actorUserId,
+      approvedAt: new Date(),
+      priceDecayConfig: dto.priceDecayConfig ?? null,
+    });
+
+    const savedHarvest = await this.harvestRepository.save(harvest);
+
+    // Automatically create and link the official Inspection Report & Photos
+    const inspectorProfile = await this.inspectorProfileRepository.findOne({
+      where: { userId: actorUserId },
+    });
+    if (inspectorProfile) {
+      const report = this.inspectionReportRepository.create({
+        harvestId: savedHarvest.id,
+        inspectorProfileId: inspectorProfile.id,
+        status: isApproved
+          ? InspectionStatus.SUBMITTED
+          : InspectionStatus.REJECTED,
+        checklist: dto.checklist ?? DEFAULT_CHECKLIST,
+        overallNotes:
+          dto.auditNotes?.trim() ||
+          "Inspection physique réalisée sur le terrain lors de l'enregistrement de la récolte",
+        siteVisitDate: new Date(dto.harvestDate || Date.now()),
+        finalQualityScore: qualityScore,
+        submittedAt: new Date(),
+      });
+      const savedReport = await this.inspectionReportRepository.save(report);
+
+      if (dto.photoUrls && dto.photoUrls.length > 0) {
+        const photoEntities = dto.photoUrls.map((url) =>
+          this.inspectionPhotoRepository.create({
+            inspectionReportId: savedReport.id,
+            url,
+            takenAt: new Date(),
+          }),
+        );
+        await this.inspectionPhotoRepository.save(photoEntities);
+      }
+    }
+
+    if (this.notificationsService && farmerProfile.userId) {
+      try {
+        const qualityText = ` avec une note de qualité de ${qualityScore}/10`;
+        await this.notificationsService.send({
+          recipientIds: [farmerProfile.userId],
+          title: isApproved ? 'Récolte certifiée et enregistrée !' : 'Récolte enregistrée (non validée)',
+          body: isApproved
+            ? `Votre lot de ${product.name} (${savedHarvest.quantityInStock} ${savedHarvest.unit}) a été enregistré et certifié sur le terrain${qualityText}.`
+            : `Votre lot de ${product.name} a été enregistré sur le terrain mais n'a pas atteint le score de qualité requis.`,
+          channels: [
+            NotificationChannel.DATABASE,
+            NotificationChannel.EMAIL,
+            NotificationChannel.SMS,
+          ],
+          priority: NotificationPriority.HIGH,
+          metadata: {
+            actionUrl: `/farmer/products/${savedHarvest.productId || savedHarvest.id}`,
+            actionText: 'Voir le produit',
+            harvestId: savedHarvest.id,
+            productId: savedHarvest.productId,
+          },
+        });
+      } catch (err) {
+        this.logger.warn('Failed to send proxy harvest notification:', err);
+      }
+    }
+
+    return this.hydrateHarvest(savedHarvest);
   }
 
   async updateHarvest(
@@ -200,6 +591,11 @@ export class ProductsService {
       throw new ForbiddenException('You do not own this harvest batch.');
     }
 
+    const isProxy = !!(options?.onBehalfOfUserId && options.onBehalfOfUserId !== userId);
+    if (isProxy) {
+      await this.validateInspectorRegionalAccess(userId, farmerProfile);
+    }
+
     if (dto.currency || dto.pricePerUnit !== undefined) {
       const targetCurrency = dto.currency || harvest.currency || 'CDF';
       let exchangeRate = harvest.exchangeRate || 2300.0;
@@ -213,28 +609,31 @@ export class ProductsService {
       harvest.pricePerUnitUSD = Number((price / exchangeRate).toFixed(2));
     }
 
-    // Reset status to PENDING_APPROVAL on update to ensure inspectors re-verify modifications
+    // Only reset status to PENDING_APPROVAL when a farmer directly modifies their batch.
+    // When an inspector adjusts details via proxy during inspection/audit, preserve the current status (e.g. FLAGGED_PHYSICAL).
+    const newStatus = isProxy ? harvest.status : HarvestStatus.PENDING_APPROVAL;
     Object.assign(harvest, {
       ...dto,
-      status: HarvestStatus.PENDING_APPROVAL,
-      approvedById: null,
-      approvedAt: null,
-      rejectionReason: null,
+      status: newStatus,
+      approvedById: isProxy ? harvest.approvedById : null,
+      approvedAt: isProxy ? harvest.approvedAt : null,
+      rejectionReason: isProxy ? harvest.rejectionReason : null,
     });
 
-    return this.harvestRepository.save(harvest);
+    const savedHarvest = await this.harvestRepository.save(harvest);
+    return this.hydrateHarvest(savedHarvest);
   }
 
   async findHarvestById(id: string): Promise<HarvestEntity> {
     const harvest = await this.harvestRepository.findOne({
       where: { id },
-      relations: ['product', 'farmerProfile', 'parcel'],
+      relations: ['product', 'farmerProfile', 'farmerProfile.user', 'parcel'],
     });
 
     if (!harvest) {
       throw new NotFoundException(`Harvest batch with ID "${id}" not found.`);
     }
-    return harvest;
+    return this.hydrateHarvest(harvest);
   }
 
   async deleteHarvest(
@@ -255,21 +654,33 @@ export class ProductsService {
       throw new ForbiddenException('You do not own this harvest batch.');
     }
 
+    if (options?.onBehalfOfUserId && options.onBehalfOfUserId !== userId) {
+      await this.validateInspectorRegionalAccess(userId, farmerProfile);
+    }
+
     // Archive instead of hard delete
     harvest.status = HarvestStatus.ARCHIVED;
     await this.harvestRepository.save(harvest);
   }
 
-  async findAllHarvests(options: {
-    status?: HarvestStatus | undefined;
-    category?: ProductCategory | undefined;
-    productId?: string | undefined;
-    farmerProfileId?: string | undefined;
-    isPublicView?: boolean | undefined;
-  }): Promise<HarvestEntity[]> {
+  async findAllHarvests(
+    options: {
+      status?: HarvestStatus | undefined;
+      category?: ProductCategory | undefined;
+      productId?: string | undefined;
+      farmerProfileId?: string | undefined;
+      isPublicView?: boolean | undefined;
+      centerId?: string | undefined;
+      radiusKm?: number | undefined;
+    },
+    user?: AuthUser,
+  ): Promise<HarvestEntity[]> {
     const qb = this.harvestRepository.createQueryBuilder('harvest');
     qb.leftJoinAndSelect('harvest.product', 'product');
     qb.leftJoinAndSelect('harvest.farmerProfile', 'farmerProfile');
+    qb.leftJoinAndSelect('farmerProfile.user', 'farmerUser');
+    qb.leftJoinAndSelect('harvest.parcel', 'parcel');
+    qb.leftJoinAndSelect('farmerProfile.parcels', 'farmerParcels');
 
     if (options.isPublicView) {
       // Public search only sees approved items
@@ -303,20 +714,98 @@ export class ProductsService {
       });
     }
 
-    const harvests = await qb.orderBy('harvest.createdAt', 'DESC').getMany();
+    // Sort order: FIFO (Oldest First ASC) for pending approvals, DESC for general views
+    const sortOrder =
+      options.status === HarvestStatus.PENDING_APPROVAL ? 'ASC' : 'DESC';
+    let harvests = await qb.orderBy('harvest.createdAt', sortOrder).getMany();
+
+    // Regional or Geospatial filtering by inspection center
+    if (options.centerId) {
+      const center = await this.inspectionCenterRepository.findOne({
+        where: { id: options.centerId },
+      });
+      if (center) {
+        const centerLat = center.latitude != null ? Number(center.latitude) : null;
+        const centerLon = center.longitude != null ? Number(center.longitude) : null;
+        const maxRadius = options.radiusKm ?? 50;
+
+        harvests = harvests.filter((harvest) => {
+          // 1. Direct regional match with farmer profile
+          if (
+            harvest.farmerProfile?.regionName &&
+            center.regionName &&
+            harvest.farmerProfile.regionName.trim().toLowerCase() === center.regionName.trim().toLowerCase()
+          ) {
+            return true;
+          }
+
+          // 2. Fallback to geospatial Haversine distance
+          if (centerLat != null && centerLon != null) {
+            let coords = parseCoordinates(harvest.parcel?.locationCoordinates);
+            if (!coords && harvest.farmerProfile?.parcels?.length) {
+              for (const p of harvest.farmerProfile.parcels) {
+                const parsed = parseCoordinates(p.locationCoordinates);
+                if (parsed) {
+                  coords = parsed;
+                  break;
+                }
+              }
+            }
+
+            if (coords) {
+              const distance = calculateHaversineDistanceKm(
+                centerLat,
+                centerLon,
+                coords.lat,
+                coords.lon,
+              );
+              return distance <= maxRadius;
+            }
+          }
+
+          return false;
+        });
+      }
+    } else if (!options.farmerProfileId && user?.id) {
+      // If no centerId specified, but the user is an inspector, automatically filter by all assigned center regions
+      const inspectorProfile = await this.inspectorProfileRepository.findOne({
+        where: { userId: user.id },
+        relations: ['assignments', 'assignments.center'],
+      });
+      if (inspectorProfile && inspectorProfile.assignments?.length) {
+        const activeAssignments = inspectorProfile.assignments.filter(
+          (a) => a.isCurrentAssignment && a.center?.isActive,
+        );
+        const assignedRegions = Array.from(
+          new Set(
+            activeAssignments
+              .map((a) => a.center?.regionName)
+              .filter(Boolean)
+              .map((r) => r!.trim().toLowerCase()),
+          ),
+        );
+        if (assignedRegions.length > 0) {
+          harvests = harvests.filter((harvest) => {
+            const farmerRegion = harvest.farmerProfile?.regionName?.trim().toLowerCase();
+            return farmerRegion && assignedRegions.includes(farmerRegion);
+          });
+        }
+      }
+    }
 
     // Map public views to apply the stock safety margin buffer
     if (options.isPublicView) {
-      return harvests.map((h) => {
+      const mapped = harvests.map((h) => {
         h.quantityInStock = Math.max(
           0,
           Number(h.quantityInStock) - Number(h.stockMarge),
         );
         return h;
       });
+      return this.hydrateHarvests(mapped);
     }
 
-    return harvests;
+    return this.hydrateHarvests(harvests);
   }
 
   async verifyHarvest(
@@ -324,7 +813,10 @@ export class ProductsService {
     inspectorId: string,
     dto: VerifyHarvestDto,
   ): Promise<HarvestEntity> {
-    const harvest = await this.harvestRepository.findOne({ where: { id } });
+    const harvest = await this.harvestRepository.findOne({
+      where: { id },
+      relations: ['product', 'farmerProfile'],
+    });
     if (!harvest) {
       throw new NotFoundException(`Harvest batch with ID "${id}" not found.`);
     }
@@ -340,13 +832,88 @@ export class ProductsService {
     if (dto.status === HarvestStatus.APPROVED) {
       harvest.qualityScore = dto.qualityScore ?? null;
       harvest.rejectionReason = null;
-    } else {
+      if (this.visitRepository) {
+        try {
+          await this.visitRepository.update(
+            { harvestId: id, status: VisitStatus.PLANNED },
+            { status: VisitStatus.COMPLETED },
+          );
+        } catch {}
+      }
+    } else if (dto.status === HarvestStatus.REJECTED) {
       harvest.qualityScore = null;
       harvest.rejectionReason =
         dto.rejectionReason ?? 'Rejected by inspector without comments.';
+      if (this.visitRepository) {
+        try {
+          await this.visitRepository.update(
+            { harvestId: id, status: VisitStatus.PLANNED },
+            { status: VisitStatus.COMPLETED },
+          );
+        } catch {}
+      }
+    } else if (dto.status === HarvestStatus.FLAGGED_PHYSICAL) {
+      harvest.qualityScore = dto.qualityScore ?? null;
+      harvest.rejectionReason =
+        dto.rejectionReason ?? 'Flagged for physical on-site inspection.';
     }
 
-    return this.harvestRepository.save(harvest);
+    const savedHarvest = await this.harvestRepository.save(harvest);
+
+    // Send multi-channel notification to farmer
+    if (this.notificationsService && harvest.farmerProfile?.userId) {
+      try {
+        const prodName = harvest.product?.name ?? 'produit';
+        if (dto.status === HarvestStatus.APPROVED) {
+          const qualityText =
+            harvest.qualityScore != null
+              ? ` avec une note de qualité de ${harvest.qualityScore}/10`
+              : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte approuvée !',
+            body: `Votre lot de ${prodName} (${harvest.quantityInStock} ${harvest.unit}) a été approuvé et certifié${qualityText}. Il est désormais disponible à la vente.`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: `/farmer/products/${harvest.productId || harvest.id}`,
+              actionText: 'Voir le produit',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        } else if (dto.status === HarvestStatus.REJECTED) {
+          const reasonText = harvest.rejectionReason
+            ? ` Motif : ${harvest.rejectionReason}`
+            : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte non validée',
+            body: `Votre lot de ${prodName} n'a pas été validé par l'inspecteur.${reasonText}`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: '/farmer/stock',
+              actionText: 'Voir mes récoltes',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        }
+      } catch (err) {
+        this.logger.warn('Failed to send harvest verification notification:', err);
+      }
+    }
+
+    return this.hydrateHarvest(savedHarvest);
   }
 
   // =============================================================================

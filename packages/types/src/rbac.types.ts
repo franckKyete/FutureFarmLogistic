@@ -165,6 +165,8 @@ export interface AuthUser {
   lastName: string;
   country?: string;
   preferredCurrency?: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
   permissions: Permission[];
   roles: string[];
   mustChangePassword?: boolean;

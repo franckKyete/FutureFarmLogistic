@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       lastName: user.lastName,
       country: user.country || 'COD',
       preferredCurrency: user.preferredCurrency || 'CDF',
+      phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
     };

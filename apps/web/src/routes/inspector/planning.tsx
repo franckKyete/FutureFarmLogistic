@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useVisits } from '../../features/inspector/api/visits.queries';
 import { PlanVisitModal } from '../../features/inspector/components/PlanVisitModal';
@@ -103,7 +104,7 @@ function Header({
           }`}
           title="Vue calendrier"
         >
-          <span className="material-symbols-outlined text-2xl">calendar_month</span>
+          <Icon name="calendar_month" className="text-2xl" />
         </button>
         <button
           onClick={() => onToggle('list')}
@@ -114,7 +115,7 @@ function Header({
           }`}
           title="Vue liste"
         >
-          <span className="material-symbols-outlined text-2xl">list</span>
+          <Icon name="list" className="text-2xl" />
         </button>
       </div>
     </div>
@@ -177,7 +178,7 @@ function CalendarView({
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Mois précédent"
         >
-          <span className="material-symbols-outlined text-gray-600">chevron_left</span>
+          <Icon name="chevron_left" className="text-gray-600" />
         </button>
         <h2 className="text-base font-bold text-gray-800">{monthTitle}</h2>
         <button
@@ -185,7 +186,7 @@ function CalendarView({
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Mois suivant"
         >
-          <span className="material-symbols-outlined text-gray-600">chevron_right</span>
+          <Icon name="chevron_right" className="text-gray-600" />
         </button>
       </div>
 
@@ -226,32 +227,50 @@ function CalendarView({
 }
 
 function VisitCard({ visit }: { visit: VisitDto }) {
+  const navigate = useNavigate();
   const timeLabel = visit.plannedTime ?? 'Toute la journée';
   const reasonLabel = REASON_LABELS[visit.reason] ?? visit.reason;
   const reasonStyle = REASON_STYLES[visit.reason] ?? 'bg-gray-100 text-gray-700';
   const statusLabel = STATUS_LABELS[visit.status] ?? visit.status;
   const statusStyle = STATUS_STYLES[visit.status] ?? 'bg-gray-100 text-gray-500 border-gray-200';
 
+  const handleClick = () => {
+    if (visit.harvestId) {
+      void navigate({ to: '/inspector/reports/$id', params: { id: visit.harvestId } });
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-start gap-4">
-      <div className="shrink-0 w-16 text-center">
-        <span className="inline-block text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 leading-tight">
-          {timeLabel}
-        </span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-900 mb-2 truncate">
-          {visit.producerName ?? 'Producteur'}
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${reasonStyle}`}>
-            {reasonLabel}
-          </span>
-          <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
-            {statusLabel}
+    <div
+      onClick={handleClick}
+      className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-4 transition-all ${
+        visit.harvestId ? 'cursor-pointer hover:border-emerald-300 hover:shadow-md group' : ''
+      }`}
+    >
+      <div className="flex items-start gap-4 min-w-0 flex-1">
+        <div className="shrink-0 w-16 text-center">
+          <span className="inline-block text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 leading-tight">
+            {timeLabel}
           </span>
         </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900 mb-2 truncate group-hover:text-[#1a5c35]">
+            {visit.producerName ?? 'Producteur'}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${reasonStyle}`}>
+              {reasonLabel}
+            </span>
+            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+              {statusLabel}
+            </span>
+          </div>
+        </div>
       </div>
+
+      {visit.harvestId && (
+        <Icon name="chevron_right" className="text-gray-400 group-hover:text-[#1a5c35] group-hover:translate-x-0.5 transition-all text-xl shrink-0" />
+      )}
     </div>
   );
 }
@@ -309,7 +328,7 @@ function SkeletonCard() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center mt-16 text-center">
-      <span className="material-symbols-outlined text-[64px] text-gray-300 mb-4">calendar_month</span>
+      <Icon name="calendar_month" className="text-[64px] text-gray-300 mb-4" />
       <p className="text-gray-500 font-semibold">Aucune visite planifiée</p>
     </div>
   );
@@ -318,7 +337,7 @@ function EmptyState() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center mt-16 text-center">
-      <span className="material-symbols-outlined text-[48px] text-red-400 mb-4">error_outline</span>
+      <Icon name="error_outline" className="text-[48px] text-red-400 mb-4" />
       <p className="text-gray-700 font-semibold mb-1">Erreur de chargement</p>
       <p className="text-gray-500 text-sm mb-4">Impossible de charger les visites.</p>
       <button
@@ -338,7 +357,7 @@ function FAB({ onClick }: { onClick: () => void }) {
       className="fixed bottom-24 right-6 z-40 w-14 h-14 bg-[#1a5c35] text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:bg-[#004322] transition-colors active:scale-95"
       aria-label="Planifier une visite"
     >
-      <span className="material-symbols-outlined text-3xl">add</span>
+      <Icon name="add" className="text-3xl" />
     </button>
   );
 }
@@ -360,7 +379,10 @@ function PlanningPage() {
       return {
         day,
         dateStr,
-        hasVisit: visits?.some((v) => v.plannedDate === dateStr) ?? false,
+        hasVisit:
+          visits?.some((v) =>
+            v.plannedDate ? v.plannedDate.split('T')[0] === dateStr : false,
+          ) ?? false,
       };
     });
   }, [year, month, visits]);
@@ -374,9 +396,11 @@ function PlanningPage() {
     const map = new Map<string, VisitDto[]>();
 
     for (const v of visits) {
-      const existing = map.get(v.plannedDate);
+      const dateKey = v.plannedDate ? v.plannedDate.split('T')[0] : '';
+      if (!dateKey) continue;
+      const existing = map.get(dateKey);
       if (existing) existing.push(v);
-      else map.set(v.plannedDate, [v]);
+      else map.set(dateKey, [v]);
     }
 
     return Array.from(map.entries())

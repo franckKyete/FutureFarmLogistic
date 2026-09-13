@@ -121,27 +121,39 @@ export class OrdersController {
     res.send(pdfBuffer);
   }
 
+  @Get(':id/pdf-url')
+  @RequirePermissions(Permission.ORDER_READ)
+  @ApiOperation({ summary: 'Get secured S3 signed URL for purchase order PDF' })
+  async getOrderPdfUrl(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.ordersService.getOrderPdfSignedUrl(id, user.id, user.permissions);
+  }
+
   @Post(':id/confirm-line/:lineId')
   @RequirePermissions(Permission.ORDER_CONFIRM)
   @ApiOperation({ summary: 'Farmer: Confirm a specific order line' })
-  confirmLine(
+  async confirmLine(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Param('lineId') lineId: string,
   ) {
-    return this.ordersService.confirmOrderLine(user.id, id, lineId);
+    await this.ordersService.confirmOrderLine(user.id, id, lineId);
+    return this.ordersService.getOrderForUser(id, user.id, user.permissions);
   }
 
   @Post(':id/reject-line/:lineId')
   @RequirePermissions(Permission.ORDER_REJECT)
   @ApiOperation({ summary: 'Farmer: Reject a specific order line' })
-  rejectLine(
+  async rejectLine(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Param('lineId') lineId: string,
     @Body() dto: RejectOrderLineDto,
   ) {
-    return this.ordersService.rejectOrderLine(user.id, id, lineId, dto);
+    await this.ordersService.rejectOrderLine(user.id, id, lineId, dto);
+    return this.ordersService.getOrderForUser(id, user.id, user.permissions);
   }
 
   @Post(':id/ship')

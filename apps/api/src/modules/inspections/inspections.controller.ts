@@ -52,6 +52,20 @@ export class InspectionsController {
     return this.inspectionsService.getInspectorProfile(user.id);
   }
 
+  @Get('inspectors')
+  @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiOperation({ summary: 'Admin: List all inspectors' })
+  listInspectors() {
+    return this.inspectionsService.listAllInspectors();
+  }
+
+  @Get('profile')
+  @RequirePermissions(Permission.INSPECTION_CENTER_READ)
+  @ApiOperation({ summary: 'Alias: List all inspectors' })
+  listProfiles() {
+    return this.inspectionsService.listAllInspectors();
+  }
+
   // --- Inspection Reports ---
 
   @Post('reports')

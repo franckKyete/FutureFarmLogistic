@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   Inject,
+  Logger,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,7 +22,10 @@ import {
   InspectionStatus,
   HarvestStatus,
   ProductCategory,
+  NotificationChannel,
+  NotificationPriority,
 } from '@futurefarm/types';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { InspectorProfileEntity } from './entities/inspector-profile.entity';
 import { InspectionReportEntity } from './entities/inspection-report.entity';
@@ -28,10 +33,15 @@ import { InspectionPhotoEntity } from './entities/inspection-photo.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { ProductEntity } from '../products/entities/product.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
+import { VisitStatus } from '@futurefarm/types';
 import { QualityVisionProvider } from './interfaces/quality-vision-provider.interface';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class InspectionsService {
+  private readonly logger = new Logger(InspectionsService.name);
+
   constructor(
     @InjectRepository(InspectorProfileEntity)
     private readonly inspectorProfileRepo: Repository<InspectorProfileEntity>,
@@ -45,10 +55,51 @@ export class InspectionsService {
     private readonly harvestRepo: Repository<HarvestEntity>,
     @InjectRepository(ProductEntity)
     private readonly productRepo: Repository<ProductEntity>,
+    @InjectRepository(VisitEntity)
+    private readonly visitRepo: Repository<VisitEntity>,
     @Inject('QUALITY_VISION_PROVIDER')
     private readonly visionProvider: QualityVisionProvider,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
+
+  /**
+   * Hydrates report photos and harvest photos with fresh signed URLs
+   */
+  private async hydrateReport(report: InspectionReportEntity): Promise<InspectionReportEntity> {
+    if (!report || !this.storageService) return report;
+    if (report.photos && Array.isArray(report.photos)) {
+      for (const photo of report.photos) {
+        if (photo.url) {
+          photo.url = await this.storageService.getSignedUrl(photo.url);
+        }
+      }
+    }
+    if (report.harvest?.photoUrls && Array.isArray(report.harvest.photoUrls)) {
+      report.harvest.photoUrls = await Promise.all(
+        report.harvest.photoUrls.map((u) => this.storageService!.getSignedUrl(u)),
+      );
+    }
+    if (report.harvest?.farmerProfile?.avatarUrl) {
+      report.harvest.farmerProfile.avatarUrl = await this.storageService.getSignedUrl(
+        report.harvest.farmerProfile.avatarUrl,
+      );
+    }
+    if (report.harvest?.farmerProfile?.user?.avatarUrl) {
+      report.harvest.farmerProfile.user.avatarUrl = await this.storageService.getSignedUrl(
+        report.harvest.farmerProfile.user.avatarUrl,
+      );
+    }
+    return report;
+  }
+
+  private async hydrateReports(reports: InspectionReportEntity[]): Promise<InspectionReportEntity[]> {
+    if (!reports || !this.storageService) return reports;
+    return Promise.all(reports.map((r) => this.hydrateReport(r)));
+  }
 
   // --- Inspector Profile Management ---
 
@@ -89,6 +140,14 @@ export class InspectionsService {
     return profile;
   }
 
+  async listAllInspectors(): Promise<InspectorProfileEntity[]> {
+    return this.inspectorProfileRepo.find({
+      where: { isActiveInspector: true },
+      relations: ['user', 'assignments', 'assignments.center'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   // --- Inspection Report Lifecycle ---
 
   async createReport(
@@ -114,6 +173,7 @@ export class InspectionsService {
       status: InspectionStatus.IN_PROGRESS,
       checklist: dto.checklist,
       siteVisitDate: new Date(dto.siteVisitDate),
+      aiPreScreenScore: harvest.qualityScore != null ? harvest.qualityScore : null,
       photos: [],
     });
 
@@ -135,21 +195,22 @@ export class InspectionsService {
     if (!report) {
       throw new NotFoundException(`Inspection report with ID ${id} not found`);
     }
-    return report;
+    return this.hydrateReport(report);
   }
 
   async listReportsForInspector(
     userId: string,
   ): Promise<InspectionReportEntity[]> {
     const profile = await this.getInspectorProfile(userId);
-    return this.reportRepo.find({
+    const reports = await this.reportRepo.find({
       where: { inspectorProfileId: profile.id },
       relations: ['photos', 'harvest', 'harvest.product'],
     });
+    return this.hydrateReports(reports);
   }
 
   async listAllReports(): Promise<InspectionReportEntity[]> {
-    return this.reportRepo.find({
+    const reports = await this.reportRepo.find({
       relations: [
         'photos',
         'inspectorProfile',
@@ -159,6 +220,7 @@ export class InspectionsService {
         'harvest.farmerProfile.user',
       ],
     });
+    return this.hydrateReports(reports);
   }
 
   async updateReport(
@@ -316,7 +378,10 @@ export class InspectionsService {
     }
 
     if (dto.checklist) {
-      report.checklist = dto.checklist;
+      report.checklist = {
+        ...report.checklist,
+        ...dto.checklist,
+      };
     }
 
     if (dto.overallNotes) {
@@ -326,8 +391,23 @@ export class InspectionsService {
     report.finalQualityScore = dto.finalQualityScore;
     report.submittedAt = new Date();
 
+    // Verify quality conformity checklist: ALL items present in checklist must exist and be passed (green)
+    const checklistEntries = Object.values(report.checklist || {});
+    const allChecklistPassed =
+      checklistEntries.length > 0 &&
+      checklistEntries.every((item: any) => item?.passed === true);
+
     const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 4.0);
-    const isApproved = dto.finalQualityScore >= minScore;
+    const scoreApproved = dto.finalQualityScore >= minScore;
+
+    // Strict rule: cannot approve a report if not all checklist items are checked & green
+    if (scoreApproved && !allChecklistPassed) {
+      throw new BadRequestException(
+        'Impossible d\'approuver le rapport : tous les critères de conformité qualité doivent être cochés et conformes (verts). Vous ne pouvez que rejeter le rapport.',
+      );
+    }
+
+    const isApproved = scoreApproved && allChecklistPassed;
     report.status = isApproved
       ? InspectionStatus.SUBMITTED
       : InspectionStatus.REJECTED;
@@ -335,6 +415,7 @@ export class InspectionsService {
     // Mutate parent harvest batch
     const harvest = await this.harvestRepo.findOne({
       where: { id: report.harvestId },
+      relations: ['product', 'farmerProfile'],
     });
     if (!harvest) {
       throw new NotFoundException(`Harvest associated with report not found`);
@@ -348,10 +429,76 @@ export class InspectionsService {
     harvest.approvedAt = new Date();
     if (!isApproved) {
       harvest.rejectionReason =
-        dto.overallNotes || 'Failed quality inspection score thresholds';
+        dto.overallNotes ||
+        (!allChecklistPassed
+          ? 'Non-conformité détectée sur la grille de contrôle qualité'
+          : 'Failed quality inspection score thresholds');
+    }
+
+    if (this.visitRepo) {
+      try {
+        await this.visitRepo.update(
+          { harvestId: report.harvestId, status: VisitStatus.PLANNED },
+          { status: VisitStatus.COMPLETED },
+        );
+      } catch {}
     }
 
     await this.harvestRepo.save(harvest);
+
+    // Send multi-channel notification to farmer
+    if (this.notificationsService && harvest.farmerProfile?.userId) {
+      try {
+        const prodName = harvest.product?.name ?? 'produit';
+        if (isApproved) {
+          const qualityText =
+            harvest.qualityScore != null
+              ? ` avec une note de qualité de ${harvest.qualityScore}/10`
+              : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte approuvée !',
+            body: `Votre lot de ${prodName} (${harvest.quantityInStock} ${harvest.unit}) a été approuvé et certifié${qualityText}. Il est désormais disponible à la vente.`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: `/farmer/products/${harvest.productId || harvest.id}`,
+              actionText: 'Voir le produit',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        } else {
+          const reasonText = harvest.rejectionReason
+            ? ` Motif : ${harvest.rejectionReason}`
+            : '';
+          await this.notificationsService.send({
+            recipientIds: [harvest.farmerProfile.userId],
+            title: 'Récolte non validée',
+            body: `Votre lot de ${prodName} n'a pas été validé par l'inspecteur.${reasonText}`,
+            channels: [
+              NotificationChannel.DATABASE,
+              NotificationChannel.EMAIL,
+              NotificationChannel.SMS,
+            ],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              actionUrl: '/farmer/stock',
+              actionText: 'Voir mes récoltes',
+              harvestId: harvest.id,
+              productId: harvest.productId,
+            },
+          });
+        }
+      } catch (err) {
+        this.logger.warn('Failed to send inspection completion notification:', err);
+      }
+    }
+
     return this.reportRepo.save(report);
   }
 

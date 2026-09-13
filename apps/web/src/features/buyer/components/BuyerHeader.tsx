@@ -9,6 +9,7 @@ import { NotificationStatus } from '@futurefarm/types';
 import { useStore } from '@tanstack/react-store';
 import { buyerLayoutStore, type BuyerLayoutState } from '../store/buyer-layout.store';
 import { CountryCurrencySelector } from '@/features/currency/components/CountryCurrencySelector';
+import { Icon } from '@/features/shared/components/Icon';
 
 export interface BuyerHeaderProps extends Partial<BuyerLayoutState> {
   className?: string;
@@ -116,7 +117,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                   className="p-2 -ml-2 text-[#004322] hover:bg-[#eff4ff] rounded-full transition-colors cursor-pointer shrink-0"
                   aria-label="Retour"
                 >
-                  <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+                  <Icon name="arrow_back" size={24} />
                 </Link>
               ) : (
                 <button
@@ -124,7 +125,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                   className="p-2 -ml-2 text-[#004322] hover:bg-[#eff4ff] rounded-full transition-colors cursor-pointer shrink-0"
                   aria-label="Retour"
                 >
-                  <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+                  <Icon name="arrow_back" size={24} />
                 </button>
               )
             ) : null}
@@ -148,7 +149,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                 title="Panier"
                 aria-label="Mon Panier"
               >
-                <span className="material-symbols-outlined text-[22px]">shopping_cart</span>
+                <Icon name="store" size={22} />
                 {basketCount > 0 && (
                   <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {basketCount > 99 ? '99+' : basketCount}
@@ -163,7 +164,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
               title="Notifications"
               aria-label="Notifications"
             >
-              <span className="material-symbols-outlined text-[22px]">notifications</span>
+              <Icon name="notifications" size={22} />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 bg-[#1a5c35] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -178,7 +179,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
               aria-label="Menu principal"
               data-testid="buyer-hamburger-btn"
             >
-              <span className="material-symbols-outlined text-[24px]">menu</span>
+              <Icon name="menu" size={24} />
             </button>
           </div>
         </div>
@@ -218,7 +219,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                   className="p-1 text-[#707970] hover:text-[#0b1c30] hover:bg-gray-200/50 rounded-full transition-colors cursor-pointer"
                   aria-label="Fermer"
                 >
-                  <span className="material-symbols-outlined text-[22px]">close</span>
+                  <Icon name="close" size={22} />
                 </button>
               </div>
 
@@ -240,12 +241,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span
-                          className="material-symbols-outlined text-[20px]"
-                          style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                        >
-                          {link.icon}
-                        </span>
+                        <Icon name={link.icon} size={20} />
                         <span>{link.label}</span>
                       </div>
                       {link.badge !== null && link.badge > 0 && (
@@ -270,7 +266,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                   onClick={handleLogout}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-sm"
                 >
-                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                  <Icon name="logout" size={18} />
                   Se déconnecter
                 </button>
               ) : (
@@ -279,7 +275,7 @@ export function BuyerHeader(props: BuyerHeaderProps) {
                   onClick={() => setIsMenuOpen(false)}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#1a5c35] text-white hover:bg-[#004322] font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-sm"
                 >
-                  <span className="material-symbols-outlined text-[18px]">login</span>
+                  <Icon name="login" size={18} />
                   Se connecter
                 </Link>
               )}

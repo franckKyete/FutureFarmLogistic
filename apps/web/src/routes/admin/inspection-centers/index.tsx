@@ -1,10 +1,10 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { Permission } from '@futurefarm/types';
 import {
   useInspectionCenters,
-  useCreateCenter,
   useDeleteCenter,
   useAssignInspectorToCenter,
   useInspectors,
@@ -18,9 +18,8 @@ import {
   Modal,
 } from '@/features/admin/components';
 import { addToast } from '@/features/shared/store/toast.store';
-import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
-export const Route = createFileRoute('/admin/inspection-centers')({
+export const Route = createFileRoute('/admin/inspection-centers/')({
   beforeLoad: () => {
     requireAuth(Permission.INSPECTION_CENTER_READ);
   },
@@ -31,29 +30,12 @@ function InspectionCentersPage() {
   const { data: centers = [], isLoading, isError, refetch } = useInspectionCenters();
   const { data: inspectors = [] } = useInspectors();
 
-  const createCenterMutation = useCreateCenter();
   const deleteCenterMutation = useDeleteCenter();
   const assignInspectorMutation = useAssignInspectorToCenter();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [assigningCenterId, setAssigningCenterId] = useState<string | null>(null);
   const [selectedInspectorId, setSelectedInspectorId] = useState('');
-
-  // Create center form state
-  const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [regionName, setRegionName] = useState('');
-  const [address, setAddress] = useState<AddressValue>({
-    streetAddress: '',
-    streetAddress2: '',
-    city: '',
-    stateOrProvince: '',
-    country: 'COD',
-  });
-  const [latitude, setLatitude] = useState<number | ''>('');
-  const [longitude, setLongitude] = useState<number | ''>('');
-
   const filteredCenters = centers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -63,56 +45,6 @@ function InspectionCentersPage() {
 
   const activeCentersCount = centers.filter((c) => c.isActive).length;
   const uniqueRegions = new Set(centers.map((c) => c.regionName)).size;
-
-  const handleCreateCenter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const formattedAddress = [
-        address.streetAddress,
-        address.streetAddress2,
-        address.city,
-        address.stateOrProvince,
-        address.country,
-      ]
-        .filter(Boolean)
-        .join(', ');
-
-      const payload: {
-        name: string;
-        code: string;
-        regionName: string;
-        address: string;
-        latitude?: number;
-        longitude?: number;
-      } = {
-        name,
-        code,
-        regionName,
-        address: formattedAddress,
-      };
-      if (latitude !== '') payload.latitude = Number(latitude);
-      if (longitude !== '') payload.longitude = Number(longitude);
-
-      await createCenterMutation.mutateAsync(payload);
-      addToast('Centre d’inspection créé avec succès', 'success');
-      setIsCreateModalOpen(false);
-      setName('');
-      setCode('');
-      setRegionName('');
-      setAddress({
-        streetAddress: '',
-        streetAddress2: '',
-        city: '',
-        stateOrProvince: '',
-        country: 'COD',
-      });
-      setLatitude('');
-      setLongitude('');
-      void refetch();
-    } catch {
-      addToast('Erreur lors de la création du centre', 'error');
-    }
-  };
 
   const handleAssignInspector = async () => {
     if (!assigningCenterId || !selectedInspectorId) return;
@@ -157,7 +89,7 @@ function InspectionCentersPage() {
   if (isError) {
     return (
       <div className="text-center py-20 bg-white rounded-xl border p-8 space-y-3">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)]">error_outline</span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)]" />
         <p className="text-lg font-bold text-[var(--admin-on-surface)]">Erreur de chargement</p>
         <Button onClick={() => void refetch()} variant="primary">
           Réessayer
@@ -179,10 +111,12 @@ function InspectionCentersPage() {
           </p>
         </div>
 
-        <Button onClick={() => setIsCreateModalOpen(true)} variant="primary" className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">add</span>
-          Nouveau Centre
-        </Button>
+        <Link to="/admin/inspection-centers/new">
+          <Button variant="primary" className="flex items-center gap-2">
+            <Icon name="add" className="text-sm" />
+            Nouveau Centre
+          </Button>
+        </Link>
       </div>
 
       {/* Stats */}
@@ -235,7 +169,7 @@ function InspectionCentersPage() {
 
                 <div className="space-y-1 text-xs text-[var(--admin-on-surface-variant)] pt-1">
                   <p className="flex items-center gap-1.5 font-semibold text-gray-800">
-                    <span className="material-symbols-outlined text-sm text-emerald-700">location_on</span>
+                    <Icon name="location_on" className="text-sm text-emerald-700" />
                     {center.regionName}
                   </p>
                   <p className="text-gray-500 line-clamp-2">{center.address}</p>
@@ -272,96 +206,6 @@ function InspectionCentersPage() {
         )}
       </div>
 
-      {/* Create Center Modal */}
-      <Modal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Créer un Centre d'Inspection"
-      >
-        <form onSubmit={handleCreateCenter} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Nom du centre</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Centre de Contrôle San-Pédro"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Code unique</label>
-              <input
-                type="text"
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="CTR-SP-01"
-                className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Région</label>
-              <input
-                type="text"
-                required
-                value={regionName}
-                onChange={(e) => setRegionName(e.target.value)}
-                placeholder="Ex: Bas-Sassandra"
-                className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-gray-100">
-            <AddressInputGroup
-              value={address}
-              onChange={setAddress}
-              title="Adresse du centre"
-              subtitle="Adresse physique et pays de la station"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Latitude (optionnel)</label>
-              <input
-                type="number"
-                step="any"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value ? Number(e.target.value) : '')}
-                placeholder="4.7500"
-                className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Longitude (optionnel)</label>
-              <input
-                type="number"
-                step="any"
-                value={longitude}
-                onChange={(e) => setLongitude(e.target.value ? Number(e.target.value) : '')}
-                placeholder="-6.6333"
-                className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <Button variant="secondary" type="button" onClick={() => setIsCreateModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button variant="primary" type="submit" disabled={createCenterMutation.isPending}>
-              {createCenterMutation.isPending ? 'Création...' : 'Créer le centre'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
       {/* Assign Inspector Modal */}
       <Modal
         open={assigningCenterId !== null}
@@ -377,11 +221,16 @@ function InspectionCentersPage() {
               className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35]"
             >
               <option value="">-- Sélectionner un inspecteur --</option>
-              {inspectors.map((insp) => (
-                <option key={insp.id} value={insp.id}>
-                  {insp.licenseNumber} — {insp.agencyName}
-                </option>
-              ))}
+              {inspectors.map((insp) => {
+                const displayName = insp.user
+                  ? `${insp.user.firstName} ${insp.user.lastName} (${insp.licenseNumber})`
+                  : insp.licenseNumber;
+                return (
+                  <option key={insp.id} value={insp.id}>
+                    {displayName} — {insp.agencyName}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

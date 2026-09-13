@@ -11,7 +11,7 @@ import {
 import {
   HarvestStatus,
   HarvestUnit,
-  PriceDecayConfig,
+  type PriceDecayConfig,
 } from '@futurefarm/types';
 import { ProductEntity } from './product.entity';
 import { FarmerProfileEntity } from '../../users/entities/farmer-profile.entity';

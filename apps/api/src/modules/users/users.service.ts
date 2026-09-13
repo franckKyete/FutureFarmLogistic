@@ -6,11 +6,14 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
+import { StorageService } from '../storage/storage.service';
 
-import type { PaginatedResult, PaginationQuery } from '@futurefarm/types';
+import type { PaginatedResult, PaginationQuery, AuthUser } from '@futurefarm/types';
 import { UserStatus, ParcelStatus, NotificationChannel, NotificationPriority } from '@futurefarm/types';
 
 import { UserEntity } from './entities/user.entity';
@@ -31,14 +34,17 @@ import {
 import { CreateParcelDto } from './dto/parcel.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
+import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
+import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AddressesService } from '../addresses/addresses.service';
+import { AddressableType, AddressType } from '@futurefarm/types';
+import { ConfigService } from '@nestjs/config';
 import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
 
-import { ConfigService } from '@nestjs/config';
-
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
@@ -54,16 +60,107 @@ export class UsersService {
     private readonly parcelRepository: Repository<ParcelEntity>,
     @InjectRepository(InspectorProfileEntity)
     private readonly inspectorProfileRepository: Repository<InspectorProfileEntity>,
+    @InjectRepository(InspectionCenterEntity)
+    private readonly centerRepository: Repository<InspectionCenterEntity>,
+    @InjectRepository(InspectorCenterAssignmentEntity)
+    private readonly assignmentRepository: Repository<InspectorCenterAssignmentEntity>,
     @InjectRepository(DriverProfileEntity)
     private readonly driverProfileRepository: Repository<DriverProfileEntity>,
     private readonly notificationsService: NotificationsService,
     private readonly stripePaymentGateway: StripePaymentGateway,
+    private readonly addressesService: AddressesService,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
 
+  async onModuleInit() {
+    await this.migrateLegacyAddresses();
+  }
+
+  private async migrateLegacyAddresses() {
+    try {
+      const farmerProfiles = await this.farmerProfileRepository.find();
+      for (const fp of farmerProfiles) {
+        if (fp.userId && fp.address) {
+          const existingAddresses = await this.addressesService.listForUser(fp.userId);
+          if (existingAddresses.length === 0) {
+            await this.addressesService.upsertPrimaryAddress(
+              AddressableType.USER,
+              fp.userId,
+              fp.address,
+              AddressType.SHIPPING,
+              { label: fp.companyName || 'Exploitation' },
+            );
+          }
+        }
+      }
+
+      const buyerProfiles = await this.buyerProfileRepository.find();
+      for (const bp of buyerProfiles) {
+        if (bp.userId) {
+          const existingAddresses = await this.addressesService.listForUser(bp.userId);
+          if (existingAddresses.length === 0) {
+            if (bp.shippingAddress) {
+              await this.addressesService.upsertPrimaryAddress(
+                AddressableType.USER,
+                bp.userId,
+                bp.shippingAddress,
+                AddressType.SHIPPING,
+                { label: 'Adresse de livraison' },
+              );
+            }
+            if (bp.billingAddress && bp.billingAddress !== bp.shippingAddress) {
+              await this.addressesService.upsertPrimaryAddress(
+                AddressableType.USER,
+                bp.userId,
+                bp.billingAddress,
+                AddressType.BILLING,
+                { label: 'Adresse de facturation' },
+              );
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`[migrateLegacyAddresses] Non-fatal migration notice: ${err.message}`);
+    }
+  }
+
+  async updateAvatar(
+    userId: string,
+    buffer: Buffer,
+    filename: string,
+    mimeType: string,
+  ): Promise<{ avatarUrl: string }> {
+    let avatarUrl = '';
+    if (this.storageService) {
+      const uploadResult = await this.storageService.uploadFile(buffer, filename, mimeType, 'avatars');
+      avatarUrl = uploadResult.signedUrl || uploadResult.url;
+    } else {
+      avatarUrl = `https://ui-avatars.com/api/?name=User&background=004322&color=fff`;
+    }
+
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.avatarUrl = avatarUrl;
+    await this.usersRepository.save(user);
+
+    const farmerProfile = await this.farmerProfileRepository.findOneBy({ userId });
+    if (farmerProfile) {
+      farmerProfile.avatarUrl = avatarUrl;
+      await this.farmerProfileRepository.save(farmerProfile);
+    }
+
+    return { avatarUrl };
+  }
+
   async findAll(
-    query: PaginationQuery & { role?: string; status?: string; search?: string },
-  ): Promise<PaginatedResult<Omit<UserEntity, 'password'>>> {
+    query: PaginationQuery & { role?: string; status?: string; search?: string; regionName?: string },
+    caller?: AuthUser,
+  ): Promise<PaginatedResult<any>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -76,7 +173,7 @@ export class UsersService {
       .orderBy('user.createdAt', 'DESC');
 
     if (query.role) {
-      qb.andWhere('role.name = :role', { role: query.role });
+      qb.andWhere('LOWER(role.name) = LOWER(:role)', { role: query.role });
     }
     if (query.status) {
       qb.andWhere('user.status = :status', { status: query.status });
@@ -88,7 +185,95 @@ export class UsersService {
       );
     }
 
-    const [data, total] = await qb.getManyAndCount();
+    // Determine regional scoping:
+    // If caller is an Inspector (and not an Admin):
+    const isInspector = caller?.roles?.includes('Inspector') && !caller?.roles?.includes('Admin');
+    if (isInspector && caller?.id) {
+      const inspectorProfile = await this.inspectorProfileRepository.findOne({
+        where: { userId: caller.id },
+        relations: ['assignments', 'assignments.center'],
+      });
+      const activeAssignments = inspectorProfile?.assignments?.filter(
+        (a) => a.isCurrentAssignment && a.center?.isActive,
+      ) || [];
+      const assignedRegions = Array.from(
+        new Set(activeAssignments.map((a) => a.center.regionName).filter(Boolean)),
+      );
+
+      // If inspector has no assigned regions/centers, they cannot see any regional farmers
+      if (assignedRegions.length === 0) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          },
+        };
+      }
+
+      qb.leftJoin(FarmerProfileEntity, 'farmerProfile', 'farmerProfile.userId = user.id');
+      const assignedRegionsLower = assignedRegions.map((r) => r.toLowerCase());
+
+      if (query.regionName) {
+        if (!assignedRegionsLower.includes(query.regionName.toLowerCase())) {
+          // Requested region is outside inspector's assignments
+          return {
+            data: [],
+            meta: {
+              total: 0,
+              page,
+              limit,
+              totalPages: 0,
+              hasNextPage: false,
+              hasPreviousPage: false,
+            },
+          };
+        }
+        qb.andWhere('LOWER(farmerProfile.regionName) = LOWER(:reg)', { reg: query.regionName });
+      } else {
+        qb.andWhere('LOWER(farmerProfile.regionName) IN (:...assignedRegionsLower)', {
+          assignedRegionsLower,
+        });
+      }
+    } else if (query.regionName) {
+      // Admin filtering by region
+      qb.leftJoin(FarmerProfileEntity, 'farmerProfile', 'farmerProfile.userId = user.id');
+      qb.andWhere('LOWER(farmerProfile.regionName) = LOWER(:reg)', { reg: query.regionName });
+    }
+
+    const [users, total] = await qb.getManyAndCount();
+
+    // Hydrate farmer profile information for farmer role queries or users with farmer profiles
+    const userIds = users.map((u) => u.id);
+    let farmerProfilesMap = new Map<string, FarmerProfileEntity>();
+    if (userIds.length > 0) {
+      const farmerProfiles = await this.farmerProfileRepository.find({
+        where: { userId: In(userIds) },
+      });
+      farmerProfilesMap = new Map(farmerProfiles.map((fp) => [fp.userId, fp]));
+    }
+
+    const data = users.map((u) => {
+      const fp = farmerProfilesMap.get(u.id);
+      return {
+        ...u,
+        phone: u.phoneNumber,
+        farmName: fp?.companyName,
+        regionName: fp?.regionName,
+        profile: fp
+          ? {
+              companyName: fp.companyName,
+              address: fp.address,
+              regionName: fp.regionName,
+              isCertified: fp.isCertified,
+            }
+          : undefined,
+      };
+    });
 
     return {
       data,
@@ -115,20 +300,106 @@ export class UsersService {
     const roleNames = user.roles?.map((r) => r.name) ?? [];
     let profile: any = null;
     if (roleNames.includes('Inspector')) {
-      profile = await this.inspectorProfileRepository.findOneBy({ userId: id });
+      const insp = await this.inspectorProfileRepository.findOne({
+        where: { userId: id },
+        relations: ['assignments', 'assignments.center'],
+      });
+      if (insp) {
+        const assignedCenters = insp.assignments
+          ?.filter((a) => a.isCurrentAssignment && a.center?.isActive)
+          ?.map((a) => ({
+            id: a.center.id,
+            name: a.center.name,
+            code: a.center.code,
+            regionName: a.center.regionName,
+            address: a.center.address,
+          })) || [];
+        profile = {
+          ...insp,
+          assignedCenters,
+        };
+      }
     } else if (roleNames.includes('Driver')) {
       profile = await this.driverProfileRepository.findOneBy({ userId: id });
     } else if (roleNames.includes('Farmer')) {
-      profile = await this.farmerProfileRepository.findOne({
+      const fp = await this.farmerProfileRepository.findOne({
         where: { userId: id },
         relations: ['parcels'],
       });
+      if (fp) {
+        const userAddresses = await this.addressesService.listForUser(id);
+        const primaryAddress = userAddresses.find((a) => a.isDefault) || userAddresses[0];
+        const formattedAddress = primaryAddress
+          ? [
+              primaryAddress.streetAddress,
+              primaryAddress.streetAddress2,
+              primaryAddress.city,
+              primaryAddress.stateOrProvince,
+              primaryAddress.country,
+            ]
+              .filter(Boolean)
+              .join(', ')
+          : fp.address;
+
+        profile = {
+          ...fp,
+          address: formattedAddress,
+          primaryAddress: primaryAddress || null,
+          addressDetails: primaryAddress || null,
+          addresses: userAddresses,
+        };
+      }
     } else if (roleNames.includes('Buyer')) {
-      profile = await this.buyerProfileRepository.findOneBy({ userId: id });
+      const bp = await this.buyerProfileRepository.findOneBy({ userId: id });
+      if (bp) {
+        const userAddresses = await this.addressesService.listForUser(id);
+        const shippingAddress = userAddresses.find((a) => a.type === AddressType.SHIPPING && a.isDefault) ||
+          userAddresses.find((a) => a.type === AddressType.SHIPPING) || userAddresses[0];
+        const billingAddress = userAddresses.find((a) => a.type === AddressType.BILLING && a.isDefault) ||
+          userAddresses.find((a) => a.type === AddressType.BILLING) || shippingAddress;
+
+        const formatAddr = (addr?: typeof shippingAddress) =>
+          addr
+            ? [addr.streetAddress, addr.streetAddress2, addr.city, addr.stateOrProvince, addr.country]
+                .filter(Boolean)
+                .join(', ')
+            : '';
+
+        profile = {
+          ...bp,
+          shippingAddress: formatAddr(shippingAddress) || bp.shippingAddress,
+          billingAddress: formatAddr(billingAddress) || bp.billingAddress,
+          primaryShippingAddress: shippingAddress || null,
+          primaryBillingAddress: billingAddress || null,
+          shippingAddressDetails: shippingAddress || null,
+          billingAddressDetails: billingAddress || null,
+          addresses: userAddresses,
+        };
+      }
+    }
+
+    const allUserAddresses = await this.addressesService.listForUser(id);
+    const defaultAddr = allUserAddresses.find((a) => a.isDefault) || allUserAddresses[0] || null;
+
+    let finalAvatarUrl = user.avatarUrl;
+    if (this.storageService) {
+      if (finalAvatarUrl) {
+        finalAvatarUrl = await this.storageService.getSignedUrl(finalAvatarUrl);
+      }
+      if (profile?.avatarUrl) {
+        profile.avatarUrl = await this.storageService.getSignedUrl(profile.avatarUrl);
+      }
+      if (profile?.bannerUrl) {
+        profile.bannerUrl = await this.storageService.getSignedUrl(profile.bannerUrl);
+      }
     }
 
     return {
       ...user,
+      avatarUrl: finalAvatarUrl,
+      phone: user.phoneNumber,
+      addressDetails: defaultAddr,
+      addresses: allUserAddresses,
       profile,
     } as any;
   }
@@ -163,10 +434,26 @@ export class UsersService {
       userId: savedUser.id,
       companyName: dto.companyName,
       address: dto.address,
+      regionName: dto.regionName.trim(),
       bio: dto.bio ?? null,
     });
 
     await this.farmerProfileRepository.save(profile);
+
+    // Persist structured address in AddressEntity table
+    if (dto.address) {
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        savedUser.id,
+        dto.address,
+        AddressType.SHIPPING,
+        {
+          recipientName: `${savedUser.firstName} ${savedUser.lastName}`,
+          phoneNumber: savedUser.phoneNumber || undefined,
+          label: dto.companyName || 'Exploitation',
+        },
+      );
+    }
 
     // Send welcome email notification
     try {
@@ -221,14 +508,44 @@ export class UsersService {
 
     const profile = this.buyerProfileRepository.create({
       userId: savedUser.id,
-      companyName: dto.companyName,
-      vatNumber: dto.vatNumber,
-      businessType: dto.businessType,
+      companyName: dto.companyName ?? null,
+      vatNumber: dto.vatNumber ?? null,
+      businessType: dto.businessType ?? null,
       billingAddress: dto.billingAddress,
       shippingAddress: dto.shippingAddress,
     });
 
     await this.buyerProfileRepository.save(profile);
+
+    // Persist structured shipping and billing addresses in AddressEntity table
+    if (dto.shippingAddress) {
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        savedUser.id,
+        dto.shippingAddress,
+        AddressType.SHIPPING,
+        {
+          recipientName: `${savedUser.firstName} ${savedUser.lastName}`,
+          phoneNumber: savedUser.phoneNumber || undefined,
+          country: dto.country || 'COD',
+          label: 'Adresse de livraison',
+        },
+      );
+    }
+    if (dto.billingAddress && dto.billingAddress !== dto.shippingAddress) {
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        savedUser.id,
+        dto.billingAddress,
+        AddressType.BILLING,
+        {
+          recipientName: `${savedUser.firstName} ${savedUser.lastName}`,
+          phoneNumber: savedUser.phoneNumber || undefined,
+          country: dto.country || 'COD',
+          label: 'Adresse de facturation',
+        },
+      );
+    }
 
     // Send welcome email notification
     try {
@@ -253,14 +570,46 @@ export class UsersService {
     return savedUser;
   }
 
-  async getFarmerProfile(userId: string): Promise<FarmerProfileEntity> {
+  async getFarmerProfile(userIdOrId: string): Promise<FarmerProfileEntity> {
     const profile = await this.farmerProfileRepository.findOne({
-      where: { userId },
-      relations: ['parcels'],
+      where: [{ userId: userIdOrId }, { id: userIdOrId }],
+      relations: ['user', 'parcels'],
     });
     if (!profile) {
       throw new NotFoundException('Farmer profile not found');
     }
+
+    // Hydrate address from AddressEntity table if present
+    const addresses = await this.addressesService.listForUser(profile.userId);
+    const primary = addresses.find((a) => a.isDefault) || addresses[0];
+    if (primary) {
+      profile.address = [
+        primary.streetAddress,
+        primary.streetAddress2,
+        primary.city,
+        primary.stateOrProvince,
+        primary.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+    }
+
+    if (this.storageService) {
+      if (profile.avatarUrl) {
+        profile.avatarUrl = await this.storageService.getSignedUrl(profile.avatarUrl);
+      }
+      if (profile.bannerUrl) {
+        profile.bannerUrl = await this.storageService.getSignedUrl(profile.bannerUrl);
+      }
+      if (profile.user?.avatarUrl) {
+        profile.user.avatarUrl = await this.storageService.getSignedUrl(profile.user.avatarUrl);
+      }
+    }
+
+    (profile as any).addressDetails = primary || null;
+    (profile as any).addresses = addresses;
+    (profile as any).phoneNumber = profile.user?.phoneNumber || primary?.phoneNumber || null;
+
     return profile;
   }
 
@@ -272,6 +621,37 @@ export class UsersService {
     if (!profile) {
       throw new NotFoundException('Farmer profile not found');
     }
+
+    // Hydrate address from AddressEntity table if present
+    const addresses = await this.addressesService.listForUser(profile.userId);
+    const primary = addresses.find((a) => a.isDefault) || addresses[0];
+    if (primary) {
+      profile.address = [
+        primary.streetAddress,
+        primary.streetAddress2,
+        primary.city,
+        primary.stateOrProvince,
+        primary.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+    }
+
+    if (this.storageService) {
+      if (profile.avatarUrl) {
+        profile.avatarUrl = await this.storageService.getSignedUrl(profile.avatarUrl);
+      }
+      if (profile.bannerUrl) {
+        profile.bannerUrl = await this.storageService.getSignedUrl(profile.bannerUrl);
+      }
+      if (profile.user?.avatarUrl) {
+        profile.user.avatarUrl = await this.storageService.getSignedUrl(profile.user.avatarUrl);
+      }
+    }
+
+    (profile as any).addressDetails = primary || null;
+    (profile as any).addresses = addresses;
+
     return profile;
   }
 
@@ -280,34 +660,132 @@ export class UsersService {
     if (!profile) {
       throw new NotFoundException('Buyer profile not found');
     }
+
+    // Hydrate addresses from AddressEntity table if present
+    const addresses = await this.addressesService.listForUser(userId);
+    const shipping = addresses.find((a) => a.type === AddressType.SHIPPING && a.isDefault) ||
+      addresses.find((a) => a.type === AddressType.SHIPPING) || addresses[0];
+    const billing = addresses.find((a) => a.type === AddressType.BILLING && a.isDefault) ||
+      addresses.find((a) => a.type === AddressType.BILLING) || shipping;
+
+    const formatAddr = (addr?: typeof shipping) =>
+      addr
+        ? [addr.streetAddress, addr.streetAddress2, addr.city, addr.stateOrProvince, addr.country]
+            .filter(Boolean)
+            .join(', ')
+        : '';
+
+    if (shipping) profile.shippingAddress = formatAddr(shipping) || profile.shippingAddress;
+    if (billing) profile.billingAddress = formatAddr(billing) || profile.billingAddress;
+
+    (profile as any).shippingAddressDetails = shipping || null;
+    (profile as any).billingAddressDetails = billing || null;
+    (profile as any).addresses = addresses;
+
     return profile;
   }
 
   async updateFarmerProfile(
-    userId: string,
+    userIdOrId: string,
     dto: UpdateFarmerProfileDto,
   ): Promise<FarmerProfileEntity> {
-    const profile = await this.getFarmerProfile(userId);
-    profile.companyName = dto.companyName;
-    profile.address = dto.address;
+    const profile = await this.getFarmerProfile(userIdOrId);
+    const user = await this.usersRepository.findOneBy({ id: profile.userId });
+    if (user) {
+      if (dto.firstName !== undefined) user.firstName = dto.firstName;
+      if (dto.lastName !== undefined) user.lastName = dto.lastName;
+      if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber || null;
+      if (dto.avatarUrl !== undefined) user.avatarUrl = dto.avatarUrl || null;
+      await this.usersRepository.save(user);
+    }
+
+    if (dto.companyName !== undefined) profile.companyName = dto.companyName;
+    if (dto.address !== undefined) {
+      profile.address = typeof dto.address === 'string' ? dto.address : profile.address;
+    }
+    if (dto.regionName !== undefined) {
+      profile.regionName = dto.regionName ? dto.regionName.trim() : null;
+    }
     profile.bio = dto.bio ?? null;
     if (dto.avatarUrl !== undefined) {
       profile.avatarUrl = dto.avatarUrl || null;
     }
-    return this.farmerProfileRepository.save(profile);
+    if (dto.bannerUrl !== undefined) {
+      profile.bannerUrl = dto.bannerUrl || null;
+    }
+    if (dto.isCertified !== undefined) {
+      profile.isCertified = dto.isCertified;
+    }
+    await this.farmerProfileRepository.save(profile);
+
+    // Sync to AddressEntity table
+    const addressInput = (dto as any).addressDetails || dto.address;
+    if (addressInput) {
+      const extra: Record<string, any> = {};
+      if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+      if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+      if (dto.companyName || profile.companyName) extra.label = dto.companyName || profile.companyName;
+
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        profile.userId,
+        addressInput,
+        AddressType.SHIPPING,
+        extra,
+      );
+    }
+
+    return this.getFarmerProfile(profile.userId);
   }
 
   async updateBuyerProfile(
     userId: string,
     dto: UpdateBuyerProfileDto,
   ): Promise<BuyerProfileEntity> {
+    const user = await this.usersRepository.findOneBy({ id: userId });
     const profile = await this.getBuyerProfile(userId);
-    profile.companyName = dto.companyName;
-    profile.vatNumber = dto.vatNumber;
-    profile.businessType = dto.businessType;
-    profile.billingAddress = dto.billingAddress;
-    profile.shippingAddress = dto.shippingAddress;
-    return this.buyerProfileRepository.save(profile);
+    if (dto.companyName !== undefined) profile.companyName = dto.companyName || null;
+    if (dto.vatNumber !== undefined) profile.vatNumber = dto.vatNumber || null;
+    if (dto.businessType !== undefined) profile.businessType = dto.businessType || null;
+    if (dto.billingAddress !== undefined) {
+      profile.billingAddress = typeof dto.billingAddress === 'string' ? dto.billingAddress : profile.billingAddress;
+    }
+    if (dto.shippingAddress !== undefined) {
+      profile.shippingAddress = typeof dto.shippingAddress === 'string' ? dto.shippingAddress : profile.shippingAddress;
+    }
+    await this.buyerProfileRepository.save(profile);
+
+    // Sync to AddressEntity table
+    const shippingInput = (dto as any).shippingAddressDetails || dto.shippingAddress;
+    if (shippingInput) {
+      const extra: Record<string, any> = { label: 'Adresse de livraison' };
+      if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+      if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        userId,
+        shippingInput,
+        AddressType.SHIPPING,
+        extra,
+      );
+    }
+    const billingInput = (dto as any).billingAddressDetails || dto.billingAddress;
+    if (billingInput) {
+      const extra: Record<string, any> = { label: 'Adresse de facturation' };
+      if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+      if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        userId,
+        billingInput,
+        AddressType.BILLING,
+        extra,
+      );
+    }
+
+    return this.getBuyerProfile(userId);
   }
 
   async createParcel(
@@ -394,14 +872,66 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
 
+    const companyName = dto.companyName || dto.farmName || 'Exploitation Agricole';
+    const address = dto.address || '';
+    let regionName = dto.regionName ? dto.regionName.trim() : null;
+
+    // If actor is an inspector, validate or auto-assign regionName
+    const inspectorProfile = await this.inspectorProfileRepository.findOne({
+      where: { userId: actorId },
+      relations: ['assignments', 'assignments.center'],
+    });
+    if (inspectorProfile) {
+      const activeAssignments = inspectorProfile.assignments?.filter(
+        (a) => a.isCurrentAssignment && a.center?.isActive,
+      ) || [];
+      const assignedRegions = Array.from(
+        new Set(activeAssignments.map((a) => a.center.regionName).filter(Boolean)),
+      );
+      if (assignedRegions.length === 0) {
+        throw new ForbiddenException(
+          "Vous devez être affecté à au moins un centre d'inspection actif pour enrôler un producteur.",
+        );
+      }
+      if (regionName) {
+        const matchingRegion = assignedRegions.find(
+          (r) => r.toLowerCase() === regionName!.toLowerCase(),
+        );
+        if (!matchingRegion) {
+          throw new ForbiddenException(
+            `Vous ne pouvez enrôler des producteurs que dans vos régions assignées (${assignedRegions.join(', ')}).`,
+          );
+        }
+        regionName = matchingRegion;
+      } else {
+        regionName = assignedRegions[0]!;
+      }
+    }
+
     const profile = this.farmerProfileRepository.create({
       userId: savedUser.id,
-      companyName: dto.companyName,
-      address: dto.address,
+      companyName,
+      address,
+      regionName,
       bio: dto.bio ?? null,
     });
 
     await this.farmerProfileRepository.save(profile);
+
+    // Persist structured address in AddressEntity table
+    if (dto.address) {
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        savedUser.id,
+        dto.address,
+        AddressType.SHIPPING,
+        {
+          recipientName: `${savedUser.firstName} ${savedUser.lastName}`,
+          phoneNumber: savedUser.phoneNumber || undefined,
+          label: companyName,
+        },
+      );
+    }
 
     // Attach temporary plain password dynamically to entity output (non-persisted) for inspector feedback
     (savedUser as any).temporaryPassword = generatedPassword;
@@ -449,6 +979,7 @@ export class UsersService {
     if (dto.firstName !== undefined) user.firstName = dto.firstName;
     if (dto.lastName !== undefined) user.lastName = dto.lastName;
     if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber || null;
+    if (dto.avatarUrl !== undefined) user.avatarUrl = dto.avatarUrl || null;
     await this.usersRepository.save(user);
 
     // Update associated profile if present
@@ -460,6 +991,54 @@ export class UsersService {
         if (dto.agencyName !== undefined) inspProfile.agencyName = dto.agencyName;
         if (dto.specializations !== undefined) inspProfile.specializations = dto.specializations;
         await this.inspectorProfileRepository.save(inspProfile);
+
+        if (dto.inspectionCenterIds !== undefined) {
+          if (dto.inspectionCenterIds.length === 0) {
+            throw new BadRequestException(
+              'Un inspecteur doit obligatoirement conserver au moins un centre d’inspection assigné',
+            );
+          }
+
+          const targetIds = Array.from(new Set(dto.inspectionCenterIds));
+          for (const cid of targetIds) {
+            const center = await this.centerRepository.findOneBy({ id: cid });
+            if (!center || !center.isActive) {
+              throw new BadRequestException(`Centre d'inspection introuvable ou inactif : ${cid}`);
+            }
+          }
+
+          const currentAssignments = await this.assignmentRepository.find({
+            where: { inspectorProfileId: inspProfile.id, isCurrentAssignment: true },
+          });
+
+          // Deactivate assignments no longer in targetIds
+          for (const assignment of currentAssignments) {
+            if (!targetIds.includes(assignment.inspectionCenterId)) {
+              assignment.isCurrentAssignment = false;
+              await this.assignmentRepository.save(assignment);
+            }
+          }
+
+          // Activate or create assignments for targetIds
+          for (const cid of targetIds) {
+            const existing = await this.assignmentRepository.findOne({
+              where: { inspectorProfileId: inspProfile.id, inspectionCenterId: cid },
+            });
+            if (existing) {
+              if (!existing.isCurrentAssignment) {
+                existing.isCurrentAssignment = true;
+                await this.assignmentRepository.save(existing);
+              }
+            } else {
+              const newAssignment = this.assignmentRepository.create({
+                inspectorProfileId: inspProfile.id,
+                inspectionCenterId: cid,
+                isCurrentAssignment: true,
+              });
+              await this.assignmentRepository.save(newAssignment);
+            }
+          }
+        }
       }
     } else if (roleNames.includes('Driver')) {
       const driverProfile = await this.driverProfileRepository.findOneBy({ userId: id });
@@ -473,21 +1052,88 @@ export class UsersService {
       const farmerProfile = await this.farmerProfileRepository.findOneBy({ userId: id });
       if (farmerProfile) {
         if (dto.companyName !== undefined) farmerProfile.companyName = dto.companyName;
-        if (dto.address !== undefined) farmerProfile.address = dto.address;
+        if (dto.address !== undefined) {
+          farmerProfile.address = typeof dto.address === 'string' ? dto.address : farmerProfile.address;
+        }
+        if (dto.regionName !== undefined) farmerProfile.regionName = dto.regionName ? dto.regionName.trim() : null;
         if (dto.bio !== undefined) farmerProfile.bio = dto.bio;
         if (dto.isCertified !== undefined) farmerProfile.isCertified = dto.isCertified;
-        if (dto.avatarUrl !== undefined) farmerProfile.avatarUrl = dto.avatarUrl;
+        if (dto.avatarUrl !== undefined) farmerProfile.avatarUrl = dto.avatarUrl || null;
+        if (dto.bannerUrl !== undefined) farmerProfile.bannerUrl = dto.bannerUrl || null;
         await this.farmerProfileRepository.save(farmerProfile);
+
+        const addressInput = (dto as any).addressDetails || dto.address;
+        if (addressInput) {
+          const extra: Record<string, any> = {};
+          if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+          if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+          if (farmerProfile.companyName) extra.label = farmerProfile.companyName;
+
+          await this.addressesService.upsertPrimaryAddress(
+            AddressableType.USER,
+            id,
+            addressInput,
+            AddressType.SHIPPING,
+            extra,
+          );
+        }
       }
     } else if (roleNames.includes('Buyer')) {
       const buyerProfile = await this.buyerProfileRepository.findOneBy({ userId: id });
       if (buyerProfile) {
         if (dto.companyName !== undefined) buyerProfile.companyName = dto.companyName;
         if (dto.vatNumber !== undefined) buyerProfile.vatNumber = dto.vatNumber;
-        if (dto.billingAddress !== undefined) buyerProfile.billingAddress = dto.billingAddress;
-        if (dto.shippingAddress !== undefined) buyerProfile.shippingAddress = dto.shippingAddress;
+        if (dto.billingAddress !== undefined) {
+          buyerProfile.billingAddress = typeof dto.billingAddress === 'string' ? dto.billingAddress : buyerProfile.billingAddress;
+        }
+        if (dto.shippingAddress !== undefined) {
+          buyerProfile.shippingAddress = typeof dto.shippingAddress === 'string' ? dto.shippingAddress : buyerProfile.shippingAddress;
+        }
         await this.buyerProfileRepository.save(buyerProfile);
+
+        const shippingInput = (dto as any).shippingAddressDetails || dto.shippingAddress;
+        if (shippingInput) {
+          const extra: Record<string, any> = { label: 'Adresse de livraison' };
+          if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+          if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+
+          await this.addressesService.upsertPrimaryAddress(
+            AddressableType.USER,
+            id,
+            shippingInput,
+            AddressType.SHIPPING,
+            extra,
+          );
+        }
+        const billingInput = (dto as any).billingAddressDetails || dto.billingAddress;
+        if (billingInput) {
+          const extra: Record<string, any> = { label: 'Adresse de facturation' };
+          if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+          if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+
+          await this.addressesService.upsertPrimaryAddress(
+            AddressableType.USER,
+            id,
+            billingInput,
+            AddressType.BILLING,
+            extra,
+          );
+        }
       }
+    }
+
+    if ((dto as any).addressDetails && !roleNames.includes('Farmer')) {
+      const extra: Record<string, any> = {};
+      if (user) extra.recipientName = `${user.firstName} ${user.lastName}`;
+      if (user?.phoneNumber) extra.phoneNumber = user.phoneNumber;
+
+      await this.addressesService.upsertPrimaryAddress(
+        AddressableType.USER,
+        id,
+        (dto as any).addressDetails,
+        AddressType.SHIPPING,
+        extra,
+      );
     }
 
     return this.findOne(id);
@@ -503,6 +1149,20 @@ export class UsersService {
     const existing = await this.usersRepository.findOneBy({ email: dto.email });
     if (existing) {
       throw new ConflictException('Email already registered');
+    }
+
+    if (!dto.inspectionCenterIds || dto.inspectionCenterIds.length === 0) {
+      throw new BadRequestException(
+        'Au moins un centre d’inspection doit être assigné à l’inspecteur',
+      );
+    }
+
+    const uniqueCenterIds = Array.from(new Set(dto.inspectionCenterIds));
+    for (const centerId of uniqueCenterIds) {
+      const center = await this.centerRepository.findOneBy({ id: centerId });
+      if (!center || !center.isActive) {
+        throw new BadRequestException(`Centre d'inspection introuvable ou inactif : ${centerId}`);
+      }
     }
 
     const inspectorRole = await this.rolesRepository.findOneBy({ name: 'Inspector' });
@@ -542,7 +1202,17 @@ export class UsersService {
       isActiveInspector: true,
     });
 
-    await this.inspectorProfileRepository.save(profile);
+    const savedProfile = await this.inspectorProfileRepository.save(profile);
+
+    // Create center assignments
+    for (const centerId of uniqueCenterIds) {
+      const assignment = this.assignmentRepository.create({
+        inspectionCenterId: centerId,
+        inspectorProfileId: savedProfile.id,
+        isCurrentAssignment: true,
+      });
+      await this.assignmentRepository.save(assignment);
+    }
 
     // Send email notification with login credentials (non-blocking)
     try {
@@ -814,7 +1484,7 @@ export class UsersService {
       userId: string;
       metadata?: Record<string, string>;
     } = {
-      customerId: user.stripeCustomerId,
+      customerId: user.stripeCustomerId!,
       successUrl,
       cancelUrl,
       userId: user.id,

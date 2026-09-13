@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -92,7 +93,7 @@ function CurrenciesAdminPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-            <span className="material-symbols-outlined text-[28px] text-emerald-600">payments</span>
+            <Icon name="payments" className="text-[28px] text-emerald-600" />
             Gestion des Devises & Taux de Change
           </h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -107,7 +108,7 @@ function CurrenciesAdminPage() {
             disabled={isLoading}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
           >
-            <span className={`material-symbols-outlined text-[18px] ${isLoading ? 'animate-spin' : ''}`}>sync</span>
+            <Icon name="sync" className="text-[18px] ${isLoading ? 'animate-spin' : ''}" />
             Actualiser
           </button>
         </div>
@@ -115,7 +116,7 @@ function CurrenciesAdminPage() {
 
       {/* Info Alert */}
       <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-4 flex items-start gap-3">
-        <span className="material-symbols-outlined text-[20px] text-emerald-700 shrink-0 mt-0.5">info</span>
+        <Icon name="info" className="text-[20px] text-emerald-700 shrink-0 mt-0.5" />
         <div className="text-xs text-emerald-900 leading-relaxed">
           <span className="font-semibold">Principe du système multi-devises :</span> La devise de référence du système est le{' '}
           <strong>USD ($1.00)</strong>. Le taux enregistré correspond au nombre d'unités de devise locale pour 1 USD (ex: 1 USD = 2 300 CDF).
@@ -138,7 +139,7 @@ function CurrenciesAdminPage() {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-100/70 text-blue-700 flex items-center justify-center font-bold text-lg">
-            <span className="material-symbols-outlined text-[24px] text-blue-600">public</span>
+            <Icon name="public" className="text-[24px] text-blue-600" />
           </div>
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Devises Actives</div>
@@ -151,7 +152,7 @@ function CurrenciesAdminPage() {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-100/70 text-purple-700 flex items-center justify-center font-bold text-lg">
-            <span className="material-symbols-outlined text-[24px] text-purple-600">trending_up</span>
+            <Icon name="trending_up" className="text-[24px] text-purple-600" />
           </div>
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Flux Marché Live</div>
@@ -322,7 +323,7 @@ function CurrenciesAdminPage() {
                               : 'bg-gray-100 text-gray-500'
                           }`}
                         >
-                          {curr.isActive && <span className="material-symbols-outlined text-[14px] text-emerald-600">check_circle</span>}
+                          {curr.isActive && <Icon name="check_circle" className="text-[14px] text-emerald-600" />}
                           {curr.isActive ? 'Active' : 'Désactivée'}
                         </span>
                       )}
@@ -338,7 +339,7 @@ function CurrenciesAdminPage() {
                             disabled={isSaving}
                             className="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1 shadow-xs"
                           >
-                            <span className="material-symbols-outlined text-[16px]">check</span>
+                            <Icon name="check" className="text-[16px]" />
                             Enregistrer
                           </button>
                           <button
@@ -346,7 +347,7 @@ function CurrenciesAdminPage() {
                             onClick={cancelEditing}
                             className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
                           >
-                            <span className="material-symbols-outlined text-[16px]">close</span>
+                            <Icon name="close" className="text-[16px]" />
                           </button>
                         </div>
                       ) : (
@@ -360,7 +361,7 @@ function CurrenciesAdminPage() {
                               : 'text-gray-700 border-gray-300 hover:bg-gray-50'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-[16px] text-gray-500">edit</span>
+                          <Icon name="edit" className="text-[16px] text-gray-500" />
                           Modifier
                         </button>
                       )}

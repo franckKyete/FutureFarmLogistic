@@ -71,6 +71,7 @@ export interface CreateInspectorParams {
   licenseNumber?: string;
   agencyName?: string;
   specializations?: string[];
+  inspectionCenterIds: string[];
 }
 
 export interface CreateDriverParams {
@@ -145,13 +146,17 @@ export interface UpdateUserParams {
   agencyName?: string | undefined;
   specializations?: string[] | undefined;
   companyName?: string | undefined;
+  regionName?: string | undefined;
   address?: string | undefined;
+  addressDetails?: any;
   bio?: string | undefined;
   vatNumber?: string | undefined;
   billingAddress?: string | undefined;
   shippingAddress?: string | undefined;
   isCertified?: boolean | undefined;
   avatarUrl?: string | undefined;
+  bannerUrl?: string | undefined;
+  inspectionCenterIds?: string[] | undefined;
 }
 
 export function useUpdateUser() {
@@ -165,6 +170,7 @@ export function useUpdateUser() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inspection-centers'] });
     },
   });
 }

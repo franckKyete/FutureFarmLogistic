@@ -34,4 +34,9 @@ export class PaginationQueryDto implements PaginationQuery {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  regionName?: string;
 }

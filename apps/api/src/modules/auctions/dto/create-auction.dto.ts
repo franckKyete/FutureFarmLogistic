@@ -6,7 +6,7 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { CreateAuctionDto as ICreateAuctionDto } from '@futurefarm/types';
+import type { CreateAuctionDto as ICreateAuctionDto } from '@futurefarm/types';
 
 export class CreateAuctionDto implements ICreateAuctionDto {
   @ApiProperty({ example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })

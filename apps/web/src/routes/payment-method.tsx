@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -143,9 +144,7 @@ function PaymentMethodPage() {
           {/* Header Title & Subtitle */}
           <div className="flex items-center gap-3 pb-4 border-b border-[#c0c9be]/50 mb-5">
             <div className="w-10 h-10 rounded-2xl bg-[#004322]/10 flex items-center justify-center text-[#004322]">
-              <span className="material-symbols-outlined text-[24px]">
-                credit_card
-              </span>
+              <Icon name="credit_card" className="text-[24px]" />
             </div>
             <div>
               <h2 className="text-[17px] font-bold text-[#0b1c30]">
@@ -160,9 +159,7 @@ function PaymentMethodPage() {
           {/* Confirming session loader */}
           {confirmSetupSession.isPending && (
             <div className="py-12 flex flex-col items-center justify-center gap-3 text-[#404941]">
-              <span className="animate-spin material-symbols-outlined text-[32px] text-[#004322]">
-                progress_activity
-              </span>
+              <Icon name="progress_activity" className="animate-spin  text-[32px] text-[#004322]" />
               <p className="text-[14px]">
                 Validation de votre carte auprès de Stripe...
               </p>
@@ -175,9 +172,7 @@ function PaymentMethodPage() {
               <div className="p-4 bg-[#e8f5e9] border border-[#1a5c35]/30 rounded-2xl">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[#1a5c35] text-[24px]">
-                      credit_card
-                    </span>
+                    <Icon name="credit_card" className="text-[#1a5c35] text-[24px]" />
                     <span className="text-[14px] font-bold text-[#0b1c30] capitalize">
                       {paymentMethod.brand || 'Carte bancaire'} ••••{' '}
                       {paymentMethod.last4}
@@ -204,16 +199,12 @@ function PaymentMethodPage() {
                 >
                   {createSetupSession.isPending ? (
                     <>
-                      <span className="animate-spin material-symbols-outlined text-[18px]">
-                        progress_activity
-                      </span>
+                      <Icon name="progress_activity" className="animate-spin  text-[18px]" />
                       Redirection...
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[18px]">
-                        sync_alt
-                      </span>
+                      <Icon name="sync_alt" className="text-[18px]" />
                       Mettre à jour sur Stripe
                     </>
                   )}
@@ -224,9 +215,7 @@ function PaymentMethodPage() {
                   disabled={detachPaymentMethod.isPending}
                   className="px-4 py-3 border border-[#ba1a1a]/30 text-[#ba1a1a] hover:bg-[#ffdad6]/30 rounded-xl text-[13px] font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
-                    delete
-                  </span>
+                  <Icon name="delete" className="text-[18px]" />
                   Supprimer
                 </button>
               </div>
@@ -247,9 +236,7 @@ function PaymentMethodPage() {
           {!confirmSetupSession.isPending && !paymentMethod?.hasPaymentMethod && (
             <div className="space-y-4">
               <div className="text-[13px] text-[#404941] flex items-start gap-2.5 bg-[#eff4ff] p-4 rounded-2xl border border-[#004322]/10 leading-relaxed">
-                <span className="material-symbols-outlined text-[#004322] text-[22px] shrink-0 mt-0.5">
-                  security
-                </span>
+                <Icon name="security" className="text-[#004322] text-[22px] shrink-0 mt-0.5" />
                 <span>
                   Pour participer aux enchères, Stripe conserve vos coordonnées bancaires en toute sécurité. Aucun montant n'est débité immédiatement. Votre carte ne sera débitée que si vous remportez l'enchère.
                 </span>
@@ -272,16 +259,12 @@ function PaymentMethodPage() {
                 >
                   {createSetupSession.isPending ? (
                     <>
-                      <span className="animate-spin material-symbols-outlined text-[18px]">
-                        progress_activity
-                      </span>
+                      <Icon name="progress_activity" className="animate-spin  text-[18px]" />
                       Redirection...
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[18px]">
-                        open_in_new
-                      </span>
+                      <Icon name="open_in_new" className="text-[18px]" />
                       Enregistrer sur Stripe
                     </>
                   )}

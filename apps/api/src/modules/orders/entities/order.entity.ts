@@ -9,7 +9,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { OrderStatus, PaymentStatus, DeliveryAddress } from '@futurefarm/types';
+import { OrderStatus, PaymentStatus, type DeliveryAddress } from '@futurefarm/types';
 import { UserEntity } from '../../users/entities/user.entity';
 import { OrderLineEntity } from './order-line.entity';
 import { BidEntity } from '../../auctions/entities/bid.entity';

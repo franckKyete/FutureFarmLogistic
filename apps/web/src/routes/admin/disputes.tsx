@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -222,7 +223,7 @@ function DisputesPage() {
             }}
             className="p-1.5 hover:bg-[var(--admin-surface-container-high)] rounded-lg text-[var(--admin-on-surface-variant)] transition-all"
           >
-            <span className="material-symbols-outlined text-lg">visibility</span>
+            <Icon name="visibility" className="text-lg" />
           </button>
         </div>
       ),
@@ -246,9 +247,7 @@ function DisputesPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 p-8">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
-          error_outline
-        </span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)] mb-4" />
         <p className="text-lg font-medium text-[var(--admin-on-surface)] mb-1">
           Erreur de chargement
         </p>
@@ -403,15 +402,15 @@ function DisputesPage() {
                   <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase">Documents joints</h4>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
-                      <span className="material-symbols-outlined text-red-600 text-lg">picture_as_pdf</span>
+                      <Icon name="picture_as_pdf" className="text-red-600 text-lg" />
                       <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Contrat</span>
                     </div>
                     <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
-                      <span className="material-symbols-outlined text-blue-600 text-lg">image</span>
+                      <Icon name="image" className="text-blue-600 text-lg" />
                       <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Photo Lot</span>
                     </div>
                     <div className="border border-[var(--admin-outline-variant)]/40 hover:border-[var(--admin-primary)] rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all bg-slate-50">
-                      <span className="material-symbols-outlined text-slate-600 text-lg">receipt</span>
+                      <Icon name="receipt" className="text-slate-600 text-lg" />
                       <span className="text-[10px] font-semibold text-[var(--admin-on-surface-variant)]">Facture</span>
                     </div>
                   </div>

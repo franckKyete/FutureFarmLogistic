@@ -1,7 +1,7 @@
 import { Processor, Process, InjectQueue } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Job, Queue } from 'bull';
+import type { Job, Queue } from 'bull';
 import { Repository } from 'typeorm';
 
 import {

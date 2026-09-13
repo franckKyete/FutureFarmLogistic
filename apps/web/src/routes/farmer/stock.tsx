@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery, deleteHarvestMutation } from '@/features/harvests/api/harvests.queries';
@@ -35,6 +36,7 @@ const CATEGORY_REVERSE_MAP: Record<Category, string> = {
 };
 
 function StockPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<Category>('Tout');
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,6 +63,18 @@ function StockPage() {
 
   // Fetch harvests query
   const { data: harvests, refetch } = useQuery(getFarmerHarvestsQuery());
+
+  // Auto-expand product groups on load so batches are immediately visible
+  useEffect(() => {
+    if (harvests && harvests.length > 0 && Object.keys(expandedGroups).length === 0) {
+      const initial: Record<string, boolean> = {};
+      harvests.forEach((h) => {
+        const prodId = h.product?.id || h.productId;
+        if (prodId) initial[prodId] = true;
+      });
+      setExpandedGroups(initial);
+    }
+  }, [harvests]);
 
   // Archive harvest mutation
   const { mutate: deleteHarvest, isPending: deletePending } = useMutation({
@@ -176,38 +190,20 @@ function StockPage() {
         {lowStockCount > 0 && (
           <div className="bg-[#ffddbb] text-[#2b1700] flex items-center justify-between p-3.5 rounded-xl border border-[#ffa93d]/30 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined">warning</span>
+              <Icon name="warning" />
               <span className="text-xs font-semibold">{lowStockCount} produits ont un stock faible</span>
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Link
-            to="/farmer/harvests/analyze"
-            className="flex-1 bg-primary text-white py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer text-center"
-          >
-            <span className="material-symbols-outlined">analytics</span>
-            Ajouter une récolte
-          </Link>
-          <button
-            onClick={() => void refetch()}
-            className="flex-1 bg-white border border-outline-variant text-on-surface py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer"
-          >
-            <span className="material-symbols-outlined">refresh</span>
-            Mettre à jour
-          </button>
-        </div>
+
 
         {/* Drafts Ready for Review Section */}
         {readyForReviewCount > 0 && (
           <section className="bg-[#eff4ff] border-2 border-[#004322] p-4 rounded-xl shadow-sm space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  auto_awesome
-                </span>
+                <Icon name="auto_awesome" className="text-[#004322] text-xl" />
                 <span className="text-xs font-bold text-[#004322]">
                   {readyForReviewCount} récolte{readyForReviewCount > 1 ? 's' : ''} analysée{readyForReviewCount > 1 ? 's' : ''} à réviser
                 </span>
@@ -226,7 +222,7 @@ function StockPage() {
                         {draft.localPhotos && draft.localPhotos[0] ? (
                           <img alt="Vignette" className="w-full h-full object-cover" src={draft.localPhotos[draft.featuredPhotoIndex || 0] || draft.localPhotos[0]} />
                         ) : (
-                          <span className="material-symbols-outlined text-xl">psychology</span>
+                          <Icon name="psychology" className="text-xl" />
                         )}
                       </div>
                       <div>
@@ -254,9 +250,7 @@ function StockPage() {
         {/* Drafts Pending AI Analysis Section */}
         {pendingAnalysisCount > 0 && (
           <section className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl shadow-sm flex items-start gap-3">
-            <span className="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">
-              cloud_sync
-            </span>
+            <Icon name="cloud_sync" className="text-amber-600 text-xl shrink-0 mt-0.5" />
             <div className="text-xs text-amber-900 leading-relaxed">
               <p className="font-bold">
                 {pendingAnalysisCount} lot{pendingAnalysisCount > 1 ? 's' : ''} en attente d'analyse IA
@@ -273,9 +267,7 @@ function StockPage() {
           <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl shadow-sm space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                  cloud_sync
-                </span>
+                <Icon name="cloud_sync" className="text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}" />
                 <span className="text-xs font-bold text-[#1a5c35]">
                   {pendingCount} récolte{pendingCount > 1 ? 's' : ''} en attente de synchronisation
                 </span>
@@ -286,7 +278,7 @@ function StockPage() {
                   disabled={isSyncing}
                   className="bg-[#004322] text-white py-1.5 px-3 rounded-lg text-[11px] font-bold active:scale-95 transition-transform cursor-pointer disabled:opacity-50 flex items-center gap-1"
                 >
-                  <span className={`material-symbols-outlined text-xs ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                  <Icon name="sync" className="text-xs ${isSyncing ? 'animate-spin' : ''}" />
                   {isSyncing ? 'En cours...' : 'Synchroniser'}
                 </button>
               )}
@@ -300,7 +292,7 @@ function StockPage() {
                       {item.metadata.photoUrl ? (
                         <img alt={item.metadata.productName} className="w-full h-full object-cover" src={item.metadata.photoUrl} />
                       ) : (
-                        <span className="material-symbols-outlined text-xl">agriculture</span>
+                        <Icon name="agriculture" className="text-xl" />
                       )}
                     </div>
                     <div>
@@ -329,7 +321,7 @@ function StockPage() {
           <div className="col-span-2 bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
             <div className="flex justify-between items-start mb-2">
               <span className="text-on-surface-variant text-xs font-semibold">Lots approuvés</span>
-              <span className="material-symbols-outlined text-primary">inventory_2</span>
+              <Icon name="inventory_2" className="text-primary" />
             </div>
             <div className="text-2xl font-bold font-display text-primary">{activeCount}</div>
             <div className="text-[10px] font-semibold text-on-surface-variant mt-1">Disponibles pour la vente</div>
@@ -361,7 +353,7 @@ function StockPage() {
         {/* Search & Filter */}
         <div className="space-y-3">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -407,26 +399,41 @@ function StockPage() {
                 <div key={group.id} className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
                   {/* Header Card */}
                   <div
-                    onClick={() => toggleGroup(group.id)}
-                    className="p-4 flex gap-4 items-center cursor-pointer hover:bg-surface-container-low transition-colors"
+                    className="p-4 flex gap-4 items-center bg-white hover:bg-surface-container-low transition-colors"
                   >
-                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30">
+                    <div
+                      onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: group.id } })}
+                      className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-outline-variant/30 cursor-pointer hover:opacity-90"
+                    >
                       <img alt={group.name} className="w-full h-full object-cover" src={group.imgUrl} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-sm text-on-surface truncate">{group.name}</h3>
+                        <h3
+                          onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: group.id } })}
+                          className="font-bold text-sm text-on-surface truncate cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5"
+                        >
+                          {group.name}
+                          <Icon name="open_in_new" className="text-xs text-on-surface-variant" />
+                        </h3>
                         <span className="bg-surface-container px-2 py-0.5 rounded text-[9px] font-bold text-on-surface-variant">
                           {group.category.toUpperCase()}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
+                      <div
+                        onClick={() => toggleGroup(group.id)}
+                        className="flex items-center justify-between mt-1 cursor-pointer"
+                      >
                         <span className="text-xs text-on-surface-variant">
                           Stock total : <span className="text-on-surface font-bold">{group.totalStock} {group.unit}</span>
                         </span>
-                        <span className="material-symbols-outlined text-on-surface-variant">
-                          {isExpanded ? 'expand_less' : 'expand_more'}
-                        </span>
+                        <button
+                          type="button"
+                          aria-label={isExpanded ? 'Réduire' : 'Déplier'}
+                          className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-0.5"
+                        >
+                          <Icon name={isExpanded ? 'expand_less' : 'expand_more'} size={18} />
+                        </button>
                       </div>
                       {/* Visual distributions */}
                       <div className="mt-2 space-y-1">
@@ -458,19 +465,31 @@ function StockPage() {
                         {group.details.map((detail) => (
                           <div
                             key={detail.id}
-                            className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm flex flex-col gap-2"
+                            onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: detail.id } })}
+                            className="bg-white p-3 rounded-lg border border-outline-variant/60 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-bold text-xs">{detail.month}</span>
+                              <span className="font-bold text-xs flex items-center gap-1">
+                                {detail.month}
+                                <Icon name="chevron_right" className="text-[14px] text-on-surface-variant" />
+                              </span>
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                   detail.status === 'APPROVED'
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : detail.status === 'PENDING_APPROVAL'
                                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : detail.status === 'FLAGGED_PHYSICAL'
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                     : 'bg-rose-50 text-rose-700 border border-rose-200'
                                 }`}>
-                                  {detail.status === 'APPROVED' ? 'Approuvé' : detail.status === 'PENDING_APPROVAL' ? 'En attente' : 'Rejeté'}
+                                  {detail.status === 'APPROVED'
+                                    ? 'Approuvé'
+                                    : detail.status === 'PENDING_APPROVAL'
+                                    ? 'En attente'
+                                    : detail.status === 'FLAGGED_PHYSICAL'
+                                    ? 'Visite requise'
+                                    : 'Rejeté'}
                                 </span>
                                 {detail.status === 'APPROVED' && (
                                   <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold">
@@ -498,7 +517,7 @@ function StockPage() {
                                 disabled={deletePending}
                                 className="text-error hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
                               >
-                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                <Icon name="delete" className="text-[14px]" />
                                 Archiver
                               </button>
                             </div>
@@ -508,7 +527,7 @@ function StockPage() {
                           to="/farmer/harvests/analyze"
                           className="w-full py-2 border-2 border-dashed border-primary text-primary rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors cursor-pointer text-center"
                         >
-                          <span className="material-symbols-outlined text-sm">analytics</span>
+                          <Icon name="analytics" className="text-sm" />
                           Ajouter une récolte
                         </Link>
                       </div>
@@ -520,6 +539,15 @@ function StockPage() {
           )}
         </div>
       </main>
+
+      {/* Floating Action Button (FAB) for New Harvest */}
+      <Link
+        to="/farmer/harvests/analyze"
+        aria-label="Nouvelle récolte"
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-primary hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+      >
+        <Icon name="add" className="text-2xl" />
+      </Link>
     </div>
   );
 }

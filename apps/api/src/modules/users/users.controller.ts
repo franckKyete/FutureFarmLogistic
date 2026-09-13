@@ -11,13 +11,22 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
   ApiCreatedResponse,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { UploadedFileDto } from '../products/products.controller';
 
 import { Permission, AuthUser, UserStatus } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -141,9 +150,12 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.USER_READ)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: List all users (paginated). Supports role, status, and search filters' })
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.usersService.findAll(query);
+  @ApiOperation({ summary: 'List all users (paginated). Supports role, status, search, and region filters' })
+  findAll(
+    @Query() query: PaginationQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.usersService.findAll(query, user);
   }
 
   @Get('profile/farmer')
@@ -312,21 +324,91 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.USER_READ)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a user by ID' })
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    const isSelf = currentUser?.id === id;
+    const hasUserRead = currentUser?.permissions?.includes(Permission.USER_READ);
+    if (!isSelf && !hasUserRead) {
+      throw new ForbiddenException('Missing required permissions: user:read');
+    }
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user details' })
+  update(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+    @Body() dto: UpdateUserDto,
+  ) {
+    const isSelf = currentUser?.id === id;
+    const hasAdminUpdate = currentUser?.permissions?.includes(Permission.USER_UPDATE);
+    const hasProfileUpdate = currentUser?.permissions?.includes(Permission.PROFILE_UPDATE);
+
+    if (!isSelf && !hasAdminUpdate) {
+      throw new ForbiddenException('Missing required permissions: user:update');
+    }
+    if (isSelf && !hasAdminUpdate && !hasProfileUpdate) {
+      throw new ForbiddenException('Missing required permissions: profile:update');
+    }
+
+    return this.usersService.updateUser(id, dto);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload avatar for current logged-in user' })
+  async uploadMyAvatar(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|webp|gif|heic|heif)/,
+            fallbackToMimetype: true,
+          }),
+        ],
+      }),
+    )
+    file: UploadedFileDto,
+  ) {
+    return this.usersService.updateAvatar(user.id, file.buffer, file.originalname, file.mimetype);
+  }
+
+  @Post(':id/avatar')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.USER_UPDATE)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: Update user details' })
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateUser(id, dto);
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Admin: Upload avatar for a specific user' })
+  async uploadUserAvatar(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|webp|gif|heic|heif)/,
+            fallbackToMimetype: true,
+          }),
+        ],
+      }),
+    )
+    file: UploadedFileDto,
+  ) {
+    return this.usersService.updateAvatar(id, file.buffer, file.originalname, file.mimetype);
   }
 
   @Delete(':id')

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
@@ -64,11 +65,11 @@ function OnboardingPage() {
       {/* Top Navigation Bar */}
       <header className="bg-surface-container-lowest w-full top-0 sticky border-b border-outline-variant flex items-center justify-between px-4 py-3 max-w-[480px] mx-auto z-50">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-xl">agriculture</span>
+          <Icon name="agriculture" className="text-primary text-xl" />
           <span className="font-display text-lg font-bold text-primary">AgriTrade</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer active:scale-95">help_outline</span>
+          <Icon name="help_outline" className="text-on-surface-variant cursor-pointer active:scale-95" />
         </div>
       </header>
 
@@ -93,7 +94,7 @@ function OnboardingPage() {
           {/* Section 1: Identité de la ferme */}
           <section className="bg-white rounded-xl border border-outline-variant p-4 flex flex-col gap-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-[20px]">id_card</span>
+              <Icon name="id_card" className="text-primary text-[20px]" />
               <h2 className="font-display text-base font-semibold">Identité de la ferme</h2>
             </div>
 
@@ -113,14 +114,14 @@ function OnboardingPage() {
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-on-surface-variant">Logo (Optionnel)</label>
                 <div className="aspect-square w-full rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container hover:border-primary-container transition-colors group">
-                  <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">add_a_photo</span>
+                  <Icon name="add_a_photo" className="text-on-surface-variant group-hover:text-primary transition-colors" />
                   <p className="text-[10px] text-on-surface-variant mt-1 text-center">Format 1:1</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-on-surface-variant">Bannière (Optionnel)</label>
                 <div className="aspect-video w-full rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container hover:border-primary-container transition-colors group">
-                  <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">image</span>
+                  <Icon name="image" className="text-on-surface-variant group-hover:text-primary transition-colors" />
                   <p className="text-[10px] text-on-surface-variant mt-1 text-center">Format 16:9</p>
                 </div>
               </div>
@@ -183,7 +184,7 @@ function OnboardingPage() {
           {/* Section 2: Localisation */}
           <section className="bg-white rounded-xl border border-outline-variant p-4 flex flex-col gap-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-[20px]">distance</span>
+              <Icon name="distance" className="text-primary text-[20px]" />
               <h2 className="font-display text-base font-semibold">Localisation</h2>
             </div>
 
@@ -204,7 +205,7 @@ function OnboardingPage() {
               ></div>
               <div className="absolute inset-0 flex items-center justify-center bg-black/5">
                 <div className="bg-white px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm border border-outline-variant">
-                  <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                  <Icon name="location_on" className="text-primary text-sm" />
                   <span className="text-xs font-semibold text-on-surface">Coordonnées GPS activées</span>
                 </div>
               </div>
@@ -242,7 +243,7 @@ function OnboardingPage() {
           {/* Section 3: Productions & Certifications */}
           <section className="bg-white rounded-xl border border-outline-variant p-4 flex flex-col gap-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-[20px]">potted_plant</span>
+              <Icon name="potted_plant" className="text-primary text-[20px]" />
               <h2 className="font-display text-base font-semibold">Productions &amp; Certifications</h2>
             </div>
 
@@ -263,7 +264,7 @@ function OnboardingPage() {
                       }`}
                     >
                       {product}
-                      {isSelected && <span className="material-symbols-outlined text-sm">check</span>}
+                      {isSelected && <Icon name="check" className="text-sm" />}
                     </button>
                   );
                 })}
@@ -287,7 +288,7 @@ function OnboardingPage() {
                       }`}
                     >
                       {cert}
-                      {isSelected && <span className="material-symbols-outlined text-sm">check</span>}
+                      {isSelected && <Icon name="check" className="text-sm" />}
                     </button>
                   );
                 })}
@@ -328,14 +329,14 @@ function OnboardingPage() {
           {/* Section 4: Documents de vérification */}
           <section className="bg-white rounded-xl border border-outline-variant p-4 flex flex-col gap-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-[20px]">verified_user</span>
+              <Icon name="verified_user" className="text-primary text-[20px]" />
               <h2 className="font-display text-base font-semibold">Documents de vérification</h2>
             </div>
 
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-on-surface-variant">Pièce d'identité * (Recto-verso)</label>
               <div className="w-full py-6 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container transition-all">
-                <span className="material-symbols-outlined text-on-surface-variant">upload_file</span>
+                <Icon name="upload_file" className="text-on-surface-variant" />
                 <p className="text-xs font-semibold text-on-surface-variant mt-1">Glisser un fichier PDF/JPG</p>
               </div>
             </div>
@@ -346,7 +347,7 @@ function OnboardingPage() {
                 <span className="bg-secondary-fixed text-on-secondary-fixed-variant text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-tighter">Recommandé</span>
               </div>
               <div className="w-full py-4 rounded-xl border border-outline-variant bg-surface-container-lowest flex items-center px-4 gap-3 cursor-pointer hover:bg-surface-container-low transition-colors">
-                <span className="material-symbols-outlined text-secondary">cloud_upload</span>
+                <Icon name="cloud_upload" className="text-secondary" />
                 <p className="text-xs font-semibold text-on-surface-variant">Télécharger le justificatif</p>
               </div>
             </div>
@@ -364,7 +365,7 @@ function OnboardingPage() {
                         : 'border-outline-variant text-on-surface-variant opacity-60'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[18px]">account_balance</span>
+                    <Icon name="account_balance" className="text-[18px]" />
                     Banque / IBAN
                   </button>
                   <button
@@ -376,7 +377,7 @@ function OnboardingPage() {
                         : 'border-outline-variant text-on-surface-variant opacity-60'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[18px]">phone_iphone</span>
+                    <Icon name="phone_iphone" className="text-[18px]" />
                     Mobile Money
                   </button>
                 </div>
@@ -422,7 +423,7 @@ function OnboardingPage() {
               type="submit"
               className="flex-[1.5] bg-primary text-white font-semibold text-xs px-3 py-3 rounded-xl transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 cursor-pointer"
             >
-              Soumettre <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              Soumettre <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </footer>
         </form>

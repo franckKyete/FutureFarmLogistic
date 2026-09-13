@@ -27,7 +27,9 @@ import { AuctionsGateway } from './auctions.gateway';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+import { StorageService } from '../storage/storage.service';
 import { PlaceBidDto } from './dto/place-bid.dto';
+import { Optional } from '@nestjs/common';
 
 @Injectable()
 export class AuctionsService {
@@ -47,7 +49,46 @@ export class AuctionsService {
     private readonly ordersService: OrdersService,
     private readonly notificationsService: NotificationsService,
     private readonly stripePaymentGateway: StripePaymentGateway,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
+
+  /**
+   * Hydrates auction harvest photo URLs and farmer avatars with valid signed URLs
+   */
+  private async hydrateAuction(auction: AuctionEntity): Promise<AuctionEntity> {
+    if (!auction || !this.storageService) return auction;
+    if (
+      auction.harvest?.photoUrls &&
+      Array.isArray(auction.harvest.photoUrls) &&
+      auction.harvest.photoUrls.length > 0
+    ) {
+      auction.harvest.photoUrls = await Promise.all(
+        auction.harvest.photoUrls.map((p) => this.storageService!.getSignedUrl(p)),
+      );
+    }
+    if (auction.farmerProfile?.avatarUrl) {
+      auction.farmerProfile.avatarUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.avatarUrl,
+      );
+    }
+    if (auction.farmerProfile?.bannerUrl) {
+      auction.farmerProfile.bannerUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.bannerUrl,
+      );
+    }
+    if (auction.farmerProfile?.user?.avatarUrl) {
+      auction.farmerProfile.user.avatarUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.user.avatarUrl,
+      );
+    }
+    return auction;
+  }
+
+  private async hydrateAuctions(auctions: AuctionEntity[]): Promise<AuctionEntity[]> {
+    if (!auctions || !this.storageService) return auctions;
+    return Promise.all(auctions.map((a) => this.hydrateAuction(a)));
+  }
 
   async createAuction(
     userId: string,
@@ -149,7 +190,8 @@ export class AuctionsService {
       start.getTime() + dto.priceDecrementIntervalMinutes * 60000,
     );
 
-    return this.auctionRepository.save(auction);
+    const saved = await this.auctionRepository.save(auction);
+    return this.hydrateAuction(saved);
   }
 
   async placeBid(
@@ -474,7 +516,8 @@ export class AuctionsService {
       auction.endAt = end;
     }
 
-    return this.auctionRepository.save(auction);
+    const saved = await this.auctionRepository.save(auction);
+    return this.hydrateAuction(saved);
   }
 
   async getAuction(auctionId: string): Promise<AuctionEntity> {
@@ -492,12 +535,13 @@ export class AuctionsService {
     if (!auction) {
       throw new NotFoundException('Auction not found');
     }
-    return auction;
+    return this.hydrateAuction(auction);
   }
 
   async listAuctions(options: {
     status?: AuctionStatus | undefined;
     harvestId?: string | undefined;
+    farmerProfileId?: string | undefined;
     page?: number | undefined;
     limit?: number | undefined;
   }): Promise<PaginatedResult<AuctionEntity>> {
@@ -519,13 +563,19 @@ export class AuctionsService {
         harvestId: options.harvestId,
       });
     }
+    if (options.farmerProfileId) {
+      qb.andWhere('auction.farmer_profile_id = :farmerProfileId', {
+        farmerProfileId: options.farmerProfileId,
+      });
+    }
 
     qb.orderBy('auction.createdAt', 'DESC').skip(skip).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    const hydratedData = await this.hydrateAuctions(data);
 
     return {
-      data,
+      data: hydratedData,
       meta: {
         total,
         page,
@@ -535,6 +585,36 @@ export class AuctionsService {
         hasPreviousPage: page > 1,
       },
     };
+  }
+
+  async listFarmerAuctions(
+    userId: string,
+    options: {
+      status?: AuctionStatus | undefined;
+      page?: number | undefined;
+      limit?: number | undefined;
+    },
+  ): Promise<PaginatedResult<AuctionEntity>> {
+    const profile = await this.farmerProfileRepository.findOne({
+      where: { userId },
+    });
+    if (!profile) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page: options.page || 1,
+          limit: options.limit || 20,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+    }
+    return this.listAuctions({
+      ...options,
+      farmerProfileId: profile.id,
+    });
   }
 
   async listMyBids(userId: string): Promise<BidEntity[]> {

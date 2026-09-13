@@ -28,7 +28,6 @@ import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AdminFeesRouteImport } from './routes/admin/fees'
 import { Route as AdminHarvestsRouteImport } from './routes/admin/harvests'
-import { Route as AdminInspectionCentersRouteImport } from './routes/admin/inspection-centers'
 import { Route as AdminInspectionsRouteImport } from './routes/admin/inspections'
 import { Route as AdminLogisticsRouteImport } from './routes/admin/logistics'
 import { Route as AdminRolesRouteImport } from './routes/admin/roles'
@@ -44,7 +43,6 @@ import { Route as DriverProfileRouteImport } from './routes/driver/profile'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
 import { Route as FarmerOnboardingRouteImport } from './routes/farmer/onboarding'
-import { Route as FarmerOrdersRouteImport } from './routes/farmer/orders'
 import { Route as FarmerProfileRouteImport } from './routes/farmer/profile'
 import { Route as FarmerStockRouteImport } from './routes/farmer/stock'
 import { Route as FarmerWelcomeRouteImport } from './routes/farmer/welcome'
@@ -54,10 +52,13 @@ import { Route as InspectorAccountsRouteImport } from './routes/inspector/accoun
 import { Route as InspectorDashboardRouteImport } from './routes/inspector/dashboard'
 import { Route as InspectorMyCenterRouteImport } from './routes/inspector/my-center'
 import { Route as InspectorPlanningRouteImport } from './routes/inspector/planning'
+import { Route as InspectorProfileRouteImport } from './routes/inspector/profile'
 import { Route as InspectorProxyRouteImport } from './routes/inspector/proxy'
 import { Route as InspectorValidateRouteImport } from './routes/inspector/validate'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as AdminInspectionCentersIndexRouteImport } from './routes/admin/inspection-centers/index'
+import { Route as AdminInspectionCentersNewRouteImport } from './routes/admin/inspection-centers/new'
 import { Route as AdminTransactionsIndexRouteImport } from './routes/admin/transactions/index'
 import { Route as AdminTransactionsIdRouteImport } from './routes/admin/transactions/$id'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
@@ -70,6 +71,8 @@ import { Route as FarmerAuctionsBidsRouteImport } from './routes/farmer/auctions
 import { Route as FarmerAuctionsNewRouteImport } from './routes/farmer/auctions/new'
 import { Route as FarmerHarvestsAnalyzeRouteImport } from './routes/farmer/harvests/analyze'
 import { Route as FarmerHarvestsNewRouteImport } from './routes/farmer/harvests/new'
+import { Route as FarmerOrdersIndexRouteImport } from './routes/farmer/orders/index'
+import { Route as FarmerOrdersIdRouteImport } from './routes/farmer/orders/$id'
 import { Route as FarmerProductsIdRouteImport } from './routes/farmer/products/$id'
 import { Route as HarvestsIdQualityRouteImport } from './routes/harvests/$id/quality'
 import { Route as InspectorHarvestsAnalyzeRouteImport } from './routes/inspector/harvests/analyze'
@@ -173,11 +176,6 @@ const AdminHarvestsRoute = AdminHarvestsRouteImport.update({
   path: '/harvests',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminInspectionCentersRoute = AdminInspectionCentersRouteImport.update({
-  id: '/inspection-centers',
-  path: '/inspection-centers',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminInspectionsRoute = AdminInspectionsRouteImport.update({
   id: '/inspections',
   path: '/inspections',
@@ -253,11 +251,6 @@ const FarmerOnboardingRoute = FarmerOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => FarmerRoute,
 } as any)
-const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => FarmerRoute,
-} as any)
 const FarmerProfileRoute = FarmerProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -303,6 +296,11 @@ const InspectorPlanningRoute = InspectorPlanningRouteImport.update({
   path: '/planning',
   getParentRoute: () => InspectorRoute,
 } as any)
+const InspectorProfileRoute = InspectorProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => InspectorRoute,
+} as any)
 const InspectorProxyRoute = InspectorProxyRouteImport.update({
   id: '/proxy',
   path: '/proxy',
@@ -323,6 +321,18 @@ const OrdersIdRoute = OrdersIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => OrdersRoute,
 } as any)
+const AdminInspectionCentersIndexRoute =
+  AdminInspectionCentersIndexRouteImport.update({
+    id: '/inspection-centers/',
+    path: '/inspection-centers/',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminInspectionCentersNewRoute =
+  AdminInspectionCentersNewRouteImport.update({
+    id: '/inspection-centers/new',
+    path: '/inspection-centers/new',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminTransactionsIndexRoute = AdminTransactionsIndexRouteImport.update({
   id: '/transactions/',
   path: '/transactions/',
@@ -383,6 +393,16 @@ const FarmerHarvestsNewRoute = FarmerHarvestsNewRouteImport.update({
   path: '/harvests/new',
   getParentRoute: () => FarmerRoute,
 } as any)
+const FarmerOrdersIndexRoute = FarmerOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOrdersIdRoute = FarmerOrdersIdRouteImport.update({
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => FarmerRoute,
+} as any)
 const FarmerProductsIdRoute = FarmerProductsIdRouteImport.update({
   id: '/products/$id',
   path: '/products/$id',
@@ -440,7 +460,6 @@ export interface FileRoutesByFullPath {
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -455,7 +474,6 @@ export interface FileRoutesByFullPath {
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
-  '/farmer/orders': typeof FarmerOrdersRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
@@ -464,12 +482,14 @@ export interface FileRoutesByFullPath {
   '/inspector/dashboard': typeof InspectorDashboardRoute
   '/inspector/my-center': typeof InspectorMyCenterRoute
   '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/profile': typeof InspectorProfileRoute
   '/inspector/proxy': typeof InspectorProxyRoute
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
@@ -478,16 +498,19 @@ export interface FileRoutesByFullPath {
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/orders/$id': typeof FarmerOrdersIdRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
   '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers/': typeof AdminInspectionCentersIndexRoute
   '/admin/transactions/': typeof AdminTransactionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
+  '/farmer/orders/': typeof FarmerOrdersIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesByTo {
@@ -508,7 +531,6 @@ export interface FileRoutesByTo {
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -523,7 +545,6 @@ export interface FileRoutesByTo {
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
-  '/farmer/orders': typeof FarmerOrdersRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
@@ -532,12 +553,14 @@ export interface FileRoutesByTo {
   '/inspector/dashboard': typeof InspectorDashboardRoute
   '/inspector/my-center': typeof InspectorMyCenterRoute
   '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/profile': typeof InspectorProfileRoute
   '/inspector/proxy': typeof InspectorProxyRoute
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions': typeof AuctionsIndexRoute
   '/inspector': typeof InspectorIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
@@ -546,16 +569,19 @@ export interface FileRoutesByTo {
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/orders/$id': typeof FarmerOrdersIdRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
   '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers': typeof AdminInspectionCentersIndexRoute
   '/admin/transactions': typeof AdminTransactionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/driver/runs': typeof DriverRunsIndexRoute
   '/farmer/auctions': typeof FarmerAuctionsIndexRoute
+  '/farmer/orders': typeof FarmerOrdersIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRoutesById {
@@ -579,7 +605,6 @@ export interface FileRoutesById {
   '/admin/disputes': typeof AdminDisputesRoute
   '/admin/fees': typeof AdminFeesRoute
   '/admin/harvests': typeof AdminHarvestsRoute
-  '/admin/inspection-centers': typeof AdminInspectionCentersRoute
   '/admin/inspections': typeof AdminInspectionsRoute
   '/admin/logistics': typeof AdminLogisticsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -594,7 +619,6 @@ export interface FileRoutesById {
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
-  '/farmer/orders': typeof FarmerOrdersRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/stock': typeof FarmerStockRoute
   '/farmer/welcome': typeof FarmerWelcomeRoute
@@ -603,12 +627,14 @@ export interface FileRoutesById {
   '/inspector/dashboard': typeof InspectorDashboardRoute
   '/inspector/my-center': typeof InspectorMyCenterRoute
   '/inspector/planning': typeof InspectorPlanningRoute
+  '/inspector/profile': typeof InspectorProfileRoute
   '/inspector/proxy': typeof InspectorProxyRoute
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
   '/admin/transactions/$id': typeof AdminTransactionsIdRoute
   '/admin/users/new': typeof AdminUsersNewRoute
   '/auctions/$id/auto-bid': typeof AuctionsIdAutoBidRoute
@@ -617,16 +643,19 @@ export interface FileRoutesById {
   '/farmer/auctions/new': typeof FarmerAuctionsNewRoute
   '/farmer/harvests/analyze': typeof FarmerHarvestsAnalyzeRoute
   '/farmer/harvests/new': typeof FarmerHarvestsNewRoute
+  '/farmer/orders/$id': typeof FarmerOrdersIdRoute
   '/farmer/products/$id': typeof FarmerProductsIdRoute
   '/harvests/$id/quality': typeof HarvestsIdQualityRoute
   '/inspector/harvests/analyze': typeof InspectorHarvestsAnalyzeRoute
   '/inspector/harvests/new': typeof InspectorHarvestsNewRoute
   '/inspector/reports/$id': typeof InspectorReportsIdRoute
   '/orders/$id/tracking': typeof OrdersIdTrackingRoute
+  '/admin/inspection-centers/': typeof AdminInspectionCentersIndexRoute
   '/admin/transactions/': typeof AdminTransactionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/driver/runs/': typeof DriverRunsIndexRoute
   '/farmer/auctions/': typeof FarmerAuctionsIndexRoute
+  '/farmer/orders/': typeof FarmerOrdersIndexRoute
   '/farmer/auctions/$id/bidders': typeof FarmerAuctionsIdBiddersRoute
 }
 export interface FileRouteTypes {
@@ -651,7 +680,6 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/admin/fees'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -666,7 +694,6 @@ export interface FileRouteTypes {
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
-    | '/farmer/orders'
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
@@ -675,12 +702,14 @@ export interface FileRouteTypes {
     | '/inspector/dashboard'
     | '/inspector/my-center'
     | '/inspector/planning'
+    | '/inspector/profile'
     | '/inspector/proxy'
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/inspection-centers/new'
     | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
@@ -689,16 +718,19 @@ export interface FileRouteTypes {
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
+    | '/farmer/orders/$id'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
     | '/inspector/harvests/analyze'
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers/'
     | '/admin/transactions/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
+    | '/farmer/orders/'
     | '/farmer/auctions/$id/bidders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -719,7 +751,6 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/admin/fees'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -734,7 +765,6 @@ export interface FileRouteTypes {
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
-    | '/farmer/orders'
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
@@ -743,12 +773,14 @@ export interface FileRouteTypes {
     | '/inspector/dashboard'
     | '/inspector/my-center'
     | '/inspector/planning'
+    | '/inspector/profile'
     | '/inspector/proxy'
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions'
     | '/inspector'
     | '/orders'
+    | '/admin/inspection-centers/new'
     | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
@@ -757,16 +789,19 @@ export interface FileRouteTypes {
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
+    | '/farmer/orders/$id'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
     | '/inspector/harvests/analyze'
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers'
     | '/admin/transactions'
     | '/admin/users'
     | '/driver/runs'
     | '/farmer/auctions'
+    | '/farmer/orders'
     | '/farmer/auctions/$id/bidders'
   id:
     | '__root__'
@@ -789,7 +824,6 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/admin/fees'
     | '/admin/harvests'
-    | '/admin/inspection-centers'
     | '/admin/inspections'
     | '/admin/logistics'
     | '/admin/roles'
@@ -804,7 +838,6 @@ export interface FileRouteTypes {
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
-    | '/farmer/orders'
     | '/farmer/profile'
     | '/farmer/stock'
     | '/farmer/welcome'
@@ -813,12 +846,14 @@ export interface FileRouteTypes {
     | '/inspector/dashboard'
     | '/inspector/my-center'
     | '/inspector/planning'
+    | '/inspector/profile'
     | '/inspector/proxy'
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
     | '/inspector/'
     | '/orders/'
+    | '/admin/inspection-centers/new'
     | '/admin/transactions/$id'
     | '/admin/users/new'
     | '/auctions/$id/auto-bid'
@@ -827,16 +862,19 @@ export interface FileRouteTypes {
     | '/farmer/auctions/new'
     | '/farmer/harvests/analyze'
     | '/farmer/harvests/new'
+    | '/farmer/orders/$id'
     | '/farmer/products/$id'
     | '/harvests/$id/quality'
     | '/inspector/harvests/analyze'
     | '/inspector/harvests/new'
     | '/inspector/reports/$id'
     | '/orders/$id/tracking'
+    | '/admin/inspection-centers/'
     | '/admin/transactions/'
     | '/admin/users/'
     | '/driver/runs/'
     | '/farmer/auctions/'
+    | '/farmer/orders/'
     | '/farmer/auctions/$id/bidders'
   fileRoutesById: FileRoutesById
 }
@@ -999,13 +1037,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHarvestsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/inspection-centers': {
-      id: '/admin/inspection-centers'
-      path: '/inspection-centers'
-      fullPath: '/admin/inspection-centers'
-      preLoaderRoute: typeof AdminInspectionCentersRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/inspections': {
       id: '/admin/inspections'
       path: '/inspections'
@@ -1111,13 +1142,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerOnboardingRouteImport
       parentRoute: typeof FarmerRoute
     }
-    '/farmer/orders': {
-      id: '/farmer/orders'
-      path: '/orders'
-      fullPath: '/farmer/orders'
-      preLoaderRoute: typeof FarmerOrdersRouteImport
-      parentRoute: typeof FarmerRoute
-    }
     '/farmer/profile': {
       id: '/farmer/profile'
       path: '/profile'
@@ -1181,6 +1205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspectorPlanningRouteImport
       parentRoute: typeof InspectorRoute
     }
+    '/inspector/profile': {
+      id: '/inspector/profile'
+      path: '/profile'
+      fullPath: '/inspector/profile'
+      preLoaderRoute: typeof InspectorProfileRouteImport
+      parentRoute: typeof InspectorRoute
+    }
     '/inspector/proxy': {
       id: '/inspector/proxy'
       path: '/proxy'
@@ -1208,6 +1239,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$id'
       preLoaderRoute: typeof OrdersIdRouteImport
       parentRoute: typeof OrdersRoute
+    }
+    '/admin/inspection-centers/': {
+      id: '/admin/inspection-centers/'
+      path: '/inspection-centers'
+      fullPath: '/admin/inspection-centers/'
+      preLoaderRoute: typeof AdminInspectionCentersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inspection-centers/new': {
+      id: '/admin/inspection-centers/new'
+      path: '/inspection-centers/new'
+      fullPath: '/admin/inspection-centers/new'
+      preLoaderRoute: typeof AdminInspectionCentersNewRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/transactions/': {
       id: '/admin/transactions/'
@@ -1293,6 +1338,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerHarvestsNewRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/farmer/orders/': {
+      id: '/farmer/orders/'
+      path: '/orders'
+      fullPath: '/farmer/orders/'
+      preLoaderRoute: typeof FarmerOrdersIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/orders/$id': {
+      id: '/farmer/orders/$id'
+      path: '/orders/$id'
+      fullPath: '/farmer/orders/$id'
+      preLoaderRoute: typeof FarmerOrdersIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/farmer/products/$id': {
       id: '/farmer/products/$id'
       path: '/products/$id'
@@ -1353,12 +1412,13 @@ interface AdminRouteChildren {
   AdminDisputesRoute: typeof AdminDisputesRoute
   AdminFeesRoute: typeof AdminFeesRoute
   AdminHarvestsRoute: typeof AdminHarvestsRoute
-  AdminInspectionCentersRoute: typeof AdminInspectionCentersRoute
   AdminInspectionsRoute: typeof AdminInspectionsRoute
   AdminLogisticsRoute: typeof AdminLogisticsRoute
   AdminRolesRoute: typeof AdminRolesRoute
+  AdminInspectionCentersNewRoute: typeof AdminInspectionCentersNewRoute
   AdminTransactionsIdRoute: typeof AdminTransactionsIdRoute
   AdminUsersNewRoute: typeof AdminUsersNewRoute
+  AdminInspectionCentersIndexRoute: typeof AdminInspectionCentersIndexRoute
   AdminTransactionsIndexRoute: typeof AdminTransactionsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
@@ -1371,12 +1431,13 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDisputesRoute: AdminDisputesRoute,
   AdminFeesRoute: AdminFeesRoute,
   AdminHarvestsRoute: AdminHarvestsRoute,
-  AdminInspectionCentersRoute: AdminInspectionCentersRoute,
   AdminInspectionsRoute: AdminInspectionsRoute,
   AdminLogisticsRoute: AdminLogisticsRoute,
   AdminRolesRoute: AdminRolesRoute,
+  AdminInspectionCentersNewRoute: AdminInspectionCentersNewRoute,
   AdminTransactionsIdRoute: AdminTransactionsIdRoute,
   AdminUsersNewRoute: AdminUsersNewRoute,
+  AdminInspectionCentersIndexRoute: AdminInspectionCentersIndexRoute,
   AdminTransactionsIndexRoute: AdminTransactionsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
@@ -1402,7 +1463,6 @@ interface FarmerRouteChildren {
   FarmerAnalyticsRoute: typeof FarmerAnalyticsRoute
   FarmerDashboardRoute: typeof FarmerDashboardRoute
   FarmerOnboardingRoute: typeof FarmerOnboardingRoute
-  FarmerOrdersRoute: typeof FarmerOrdersRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerStockRoute: typeof FarmerStockRoute
   FarmerWelcomeRoute: typeof FarmerWelcomeRoute
@@ -1410,8 +1470,10 @@ interface FarmerRouteChildren {
   FarmerAuctionsNewRoute: typeof FarmerAuctionsNewRoute
   FarmerHarvestsAnalyzeRoute: typeof FarmerHarvestsAnalyzeRoute
   FarmerHarvestsNewRoute: typeof FarmerHarvestsNewRoute
+  FarmerOrdersIdRoute: typeof FarmerOrdersIdRoute
   FarmerProductsIdRoute: typeof FarmerProductsIdRoute
   FarmerAuctionsIndexRoute: typeof FarmerAuctionsIndexRoute
+  FarmerOrdersIndexRoute: typeof FarmerOrdersIndexRoute
   FarmerAuctionsIdBiddersRoute: typeof FarmerAuctionsIdBiddersRoute
 }
 
@@ -1419,7 +1481,6 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerAnalyticsRoute: FarmerAnalyticsRoute,
   FarmerDashboardRoute: FarmerDashboardRoute,
   FarmerOnboardingRoute: FarmerOnboardingRoute,
-  FarmerOrdersRoute: FarmerOrdersRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerStockRoute: FarmerStockRoute,
   FarmerWelcomeRoute: FarmerWelcomeRoute,
@@ -1427,8 +1488,10 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerAuctionsNewRoute: FarmerAuctionsNewRoute,
   FarmerHarvestsAnalyzeRoute: FarmerHarvestsAnalyzeRoute,
   FarmerHarvestsNewRoute: FarmerHarvestsNewRoute,
+  FarmerOrdersIdRoute: FarmerOrdersIdRoute,
   FarmerProductsIdRoute: FarmerProductsIdRoute,
   FarmerAuctionsIndexRoute: FarmerAuctionsIndexRoute,
+  FarmerOrdersIndexRoute: FarmerOrdersIndexRoute,
   FarmerAuctionsIdBiddersRoute: FarmerAuctionsIdBiddersRoute,
 }
 
@@ -1440,6 +1503,7 @@ interface InspectorRouteChildren {
   InspectorDashboardRoute: typeof InspectorDashboardRoute
   InspectorMyCenterRoute: typeof InspectorMyCenterRoute
   InspectorPlanningRoute: typeof InspectorPlanningRoute
+  InspectorProfileRoute: typeof InspectorProfileRoute
   InspectorProxyRoute: typeof InspectorProxyRoute
   InspectorValidateRoute: typeof InspectorValidateRoute
   InspectorIndexRoute: typeof InspectorIndexRoute
@@ -1453,6 +1517,7 @@ const InspectorRouteChildren: InspectorRouteChildren = {
   InspectorDashboardRoute: InspectorDashboardRoute,
   InspectorMyCenterRoute: InspectorMyCenterRoute,
   InspectorPlanningRoute: InspectorPlanningRoute,
+  InspectorProfileRoute: InspectorProfileRoute,
   InspectorProxyRoute: InspectorProxyRoute,
   InspectorValidateRoute: InspectorValidateRoute,
   InspectorIndexRoute: InspectorIndexRoute,

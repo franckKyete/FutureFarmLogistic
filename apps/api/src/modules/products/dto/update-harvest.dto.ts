@@ -71,4 +71,10 @@ export class UpdateHarvestDto {
   @ValidateNested()
   @Type(() => PriceDecayConfigDto)
   priceDecayConfig?: PriceDecayConfigDto | null;
+
+  @ApiPropertyOptional({ example: 8.5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  qualityScore?: number;
 }

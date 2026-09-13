@@ -32,6 +32,10 @@ export class VisitEntity {
   @JoinColumn({ name: 'producer_id' })
   producer: UserEntity;
 
+  @Index()
+  @Column({ name: 'harvest_id', type: 'varchar', nullable: true })
+  harvestId: string | null;
+
   @Column({ name: 'planned_date', type: 'date' })
   plannedDate: Date;
 

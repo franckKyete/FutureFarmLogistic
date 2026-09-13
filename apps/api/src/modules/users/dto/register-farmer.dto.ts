@@ -24,9 +24,9 @@ export class RegisterFarmerDto {
   @IsString()
   lastName: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'Le numéro de téléphone est obligatoire' })
   @IsString()
-  phoneNumber?: string;
+  phoneNumber: string;
 
   @IsNotEmpty()
   @IsString()
@@ -35,6 +35,10 @@ export class RegisterFarmerDto {
   @IsNotEmpty()
   @IsString()
   address: string;
+
+  @IsNotEmpty({ message: 'La région d\'activité est obligatoire' })
+  @IsString()
+  regionName: string;
 
   @IsOptional()
   @IsString()

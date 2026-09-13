@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -166,9 +167,7 @@ function PlatformFeesAdminPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--admin-outline-variant)]/40 pb-5">
         <div>
           <h1 className="text-2xl font-black text-[var(--admin-on-surface)] tracking-tight flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-[28px] text-[var(--admin-primary)]">
-              payments
-            </span>
+            <Icon name="payments" className="text-[28px] text-[var(--admin-primary)]" />
             <span>Frais de plateforme & additionnels</span>
           </h1>
           <p className="text-xs text-[var(--admin-on-surface-variant)] mt-1">
@@ -180,7 +179,7 @@ function PlatformFeesAdminPage() {
           onClick={openCreateModal}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/90 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <Icon name="add" className="text-[18px]" />
           <span>Ajouter un frais</span>
         </button>
       </div>
@@ -192,9 +191,7 @@ function PlatformFeesAdminPage() {
             <span className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
               Total Frais
             </span>
-            <span className="material-symbols-outlined text-[20px] text-[var(--admin-primary)]">
-              tune
-            </span>
+            <Icon name="tune" className="text-[20px] text-[var(--admin-primary)]" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-[var(--admin-on-surface)]">{fees.length}</span>
@@ -207,9 +204,7 @@ function PlatformFeesAdminPage() {
             <span className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
               Frais Actifs
             </span>
-            <span className="material-symbols-outlined text-[20px] text-emerald-600">
-              check_circle
-            </span>
+            <Icon name="check_circle" className="text-[20px] text-emerald-600" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-700">{activeCount}</span>
@@ -224,9 +219,7 @@ function PlatformFeesAdminPage() {
             <span className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider">
               Structure active
             </span>
-            <span className="material-symbols-outlined text-[20px] text-blue-600">
-              analytics
-            </span>
+            <Icon name="analytics" className="text-[20px] text-blue-600" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-sm font-bold text-[var(--admin-on-surface)]">
@@ -240,9 +233,7 @@ function PlatformFeesAdminPage() {
       <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl overflow-hidden shadow-xs">
         <div className="p-5 border-b border-[var(--admin-outline-variant)]/40 flex items-center justify-between">
           <h2 className="text-sm font-bold text-[var(--admin-on-surface)] flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[var(--admin-primary)]">
-              list_alt
-            </span>
+            <Icon name="list_alt" className="text-[18px] text-[var(--admin-primary)]" />
             <span>Liste des frais configurés</span>
           </h2>
           <span className="text-xs text-[var(--admin-on-surface-variant)] font-medium">
@@ -257,9 +248,7 @@ function PlatformFeesAdminPage() {
           </div>
         ) : fees.length === 0 ? (
           <div className="p-12 text-center space-y-3">
-            <span className="material-symbols-outlined text-[40px] text-[var(--admin-on-surface-variant)]/50">
-              receipt_long
-            </span>
+            <Icon name="receipt_long" className="text-[40px] text-[var(--admin-on-surface-variant)]/50" />
             <p className="text-sm font-bold text-[var(--admin-on-surface)]">Aucun frais configuré</p>
             <p className="text-xs text-[var(--admin-on-surface-variant)]">
               Cliquez sur "Ajouter un frais" pour créer le premier frais de la plateforme.
@@ -305,12 +294,12 @@ function PlatformFeesAdminPage() {
                       <td className="py-3.5 px-4">
                         {isFixed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                            <span className="material-symbols-outlined text-[12px]">attach_money</span>
+                            <Icon name="attach_money" className="text-[12px]" />
                             <span>Montant Fixe</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                            <span className="material-symbols-outlined text-[12px]">percent</span>
+                            <Icon name="percent" className="text-[12px]" />
                             <span>Pourcentage</span>
                           </span>
                         )}
@@ -354,7 +343,7 @@ function PlatformFeesAdminPage() {
                             className="p-1.5 text-[var(--admin-on-surface-variant)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-surface-container-high)] rounded-lg transition-colors cursor-pointer"
                             title="Modifier"
                           >
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                            <Icon name="edit" className="text-[18px]" />
                           </button>
                           <button
                             type="button"
@@ -362,7 +351,7 @@ function PlatformFeesAdminPage() {
                             className="p-1.5 text-[var(--admin-on-surface-variant)] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Supprimer"
                           >
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                            <Icon name="delete" className="text-[18px]" />
                           </button>
                         </div>
                       </td>
@@ -381,9 +370,7 @@ function PlatformFeesAdminPage() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[var(--admin-outline-variant)] space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-base font-black text-[#0b1c30] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[22px] text-[var(--admin-primary)]">
-                  {editingFee ? 'edit_note' : 'add_circle'}
-                </span>
+                <Icon name={editingFee ? 'edit_note' : 'add_circle'} className="text-[22px] text-[var(--admin-primary)]" />
                 <span>{editingFee ? 'Modifier le frais' : 'Nouveau frais de plateforme'}</span>
               </h3>
               <button
@@ -391,7 +378,7 @@ function PlatformFeesAdminPage() {
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <Icon name="close" className="text-[20px]" />
               </button>
             </div>
 
@@ -441,7 +428,7 @@ function PlatformFeesAdminPage() {
                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[20px]">attach_money</span>
+                    <Icon name="attach_money" className="text-[20px]" />
                     <span>Montant Fixe ($ USD)</span>
                   </button>
 
@@ -454,7 +441,7 @@ function PlatformFeesAdminPage() {
                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[20px]">percent</span>
+                    <Icon name="percent" className="text-[20px]" />
                     <span>Pourcentage (%)</span>
                   </button>
                 </div>

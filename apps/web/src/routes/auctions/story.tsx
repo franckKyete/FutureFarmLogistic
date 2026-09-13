@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ export const Route = createFileRoute('/auctions/story')({
 function StoryBackgroundPlaceholder({ productName }: { productName: string }) {
   return (
     <div className="absolute inset-0 bg-gradient-to-br from-[#003319] via-[#0b1c30] to-[#040d16] flex flex-col items-center justify-center text-white/20">
-      <span className="material-symbols-outlined text-[120px]">agriculture</span>
+      <Icon name="agriculture" className="text-[120px]" />
       <p className="text-[20px] font-bold text-white/30 mt-2">{productName}</p>
     </div>
   );
@@ -222,9 +223,7 @@ function AuctionsStoryPage() {
   if (farmerGroups.length === 0) {
     return (
       <div className="bg-[#0b1c30] text-white min-h-screen flex flex-col items-center justify-center px-4 font-sans">
-        <span className="material-symbols-outlined text-[64px] text-[#707970] mb-4 block">
-          gavel
-        </span>
+        <Icon name="gavel" className="text-[64px] text-[#707970] mb-4 block" />
         <h2 className="text-[20px] font-semibold mb-2">Aucune enchère en cours</h2>
         <p className="text-[#c0c9be] text-[14px] mb-6 text-center">
           Revenez plus tard pour découvrir les nouvelles enchères en direct.
@@ -248,7 +247,9 @@ function AuctionsStoryPage() {
   const producerName = currentFarmerGroup.farmerName;
   const producerAvatar = currentFarmerGroup.farmerAvatar;
   const currency = currentAuction.currency || 'CDF';
-  const harvestImage = (currentAuction as any).harvest?.images?.[0];
+  const harvestImage =
+    (currentAuction as any).harvest?.photoUrls?.[0] ||
+    (currentAuction as any).harvest?.images?.[0];
   const qualityScore = (currentAuction as any).harvest?.qualityScore;
   const qualityGrade = (currentAuction as any).harvest?.qualityGrade;
 
@@ -326,7 +327,7 @@ function AuctionsStoryPage() {
             className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors cursor-pointer flex items-center justify-center pointer-events-auto shadow-md"
             aria-label="Fermer"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <Icon name="close" className="text-[20px]" />
           </Link>
         </header>
       </div>
@@ -349,7 +350,7 @@ function AuctionsStoryPage() {
             </span>
           )}
           <span className="bg-black/50 backdrop-blur-md text-white/90 px-3 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 border border-white/10">
-            <span className="material-symbols-outlined text-[13px]">alarm</span>
+            <Icon name="alarm" className="text-[13px]" />
             Se termine dans {formatTimeRemaining(currentAuction.endAt)}
           </span>
         </div>
@@ -367,9 +368,7 @@ function AuctionsStoryPage() {
               <>
                 <span className="text-white/40">•</span>
                 <span className="bg-[#1a5c35]/80 text-[#81c784] border border-[#81c784]/30 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px]">
-                    verified
-                  </span>
+                  <Icon name="verified" className="text-[12px]" />
                   IA : {qualityScore}%
                 </span>
               </>
@@ -397,9 +396,7 @@ function AuctionsStoryPage() {
               </span>
             </p>
             <div className="flex items-center gap-1.5 text-[11px] text-white/70 mt-1">
-              <span className="material-symbols-outlined text-[13px]">
-                gavel
-              </span>
+              <Icon name="gavel" className="text-[13px]" />
               <span>
                 Départ : {currentAuction.startingPrice.toLocaleString()} {currency}
               </span>
@@ -446,16 +443,12 @@ function AuctionsStoryPage() {
           className="w-full py-4 bg-[#004322] hover:bg-[#003319] text-white rounded-2xl text-[16px] font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xl cursor-pointer pointer-events-auto"
         >
           <span>Voir plus</span>
-          <span className="material-symbols-outlined text-[20px]">
-            arrow_forward
-          </span>
+          <Icon name="arrow_forward" className="text-[20px]" />
         </button>
 
         {/* Swipe hint */}
         <div className="flex flex-col items-center gap-0.5 text-white/50 text-[10px] font-semibold tracking-wider uppercase">
-          <span className="material-symbols-outlined text-[14px] animate-bounce">
-            keyboard_arrow_down
-          </span>
+          <Icon name="keyboard_arrow_down" className="text-[14px] animate-bounce" />
           <span>GLISSER POUR FERMER</span>
         </div>
       </div>

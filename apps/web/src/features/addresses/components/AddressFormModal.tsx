@@ -1,4 +1,6 @@
+import { Icon } from '@/features/shared/components/Icon';
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createAddressMutation,
@@ -84,6 +86,7 @@ export const AddressFormModal: React.FC<AddressFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!streetAddress.trim() || !city.trim() || !stateOrProvince.trim() || !country.trim()) {
       addToast('Veuillez remplir tous les champs obligatoires (*)', 'error');
@@ -106,13 +109,13 @@ export const AddressFormModal: React.FC<AddressFormModalProps> = ({
     }
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-[#e6f4ea] text-[#004322] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">location_on</span>
+              <Icon name="location_on" className="text-[20px]" />
             </div>
             <div>
               <h3 className="font-bold text-[#0b1c30] text-base">
@@ -126,7 +129,7 @@ export const AddressFormModal: React.FC<AddressFormModalProps> = ({
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#707970] hover:bg-gray-100 transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <Icon name="close" className="text-[20px]" />
           </button>
         </div>
 
@@ -263,4 +266,7 @@ export const AddressFormModal: React.FC<AddressFormModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 };
+

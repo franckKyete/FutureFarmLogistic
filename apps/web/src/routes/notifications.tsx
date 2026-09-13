@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -84,7 +85,7 @@ function NotificationsCenterPage() {
             title="Rafraîchir"
             aria-label="Rafraîchir"
           >
-            <span className="material-symbols-outlined text-[22px]">refresh</span>
+            <Icon name="refresh" className="text-[22px]" />
           </button>
         }
       />
@@ -134,9 +135,7 @@ function NotificationsCenterPage() {
             <div className="space-y-3">
               {filteredNotifications.length === 0 ? (
                 <div className="bg-white border border-[#c0c9be] rounded-xl p-8 text-center text-[#404941]">
-                  <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">
-                    notifications_off
-                  </span>
+                  <Icon name="notifications_off" className="text-[48px] text-[#707970] mb-2 block" />
                   Aucune notification trouvée.
                 </div>
               ) : (
@@ -159,7 +158,7 @@ function NotificationsCenterPage() {
                       <div
                         className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${config.bg} ${config.color}`}
                       >
-                        <span className="material-symbols-outlined text-sm">{config.icon}</span>
+                        <Icon name={config.icon} className="text-sm" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">

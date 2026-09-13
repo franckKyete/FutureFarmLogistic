@@ -14,32 +14,32 @@ export class CreateAddressDto {
   @ApiPropertyOptional({ enum: AddressableType })
   @IsOptional()
   @IsEnum(AddressableType)
-  addressableType?: AddressableType;
+  addressableType?: AddressableType | undefined;
 
   @ApiPropertyOptional({ description: 'Target entity ID (e.g. User, Center, Order)' })
   @IsOptional()
   @IsUUID()
-  addressableId?: string;
+  addressableId?: string | undefined;
 
   @ApiPropertyOptional({ enum: AddressType, default: AddressType.SHIPPING })
   @IsOptional()
   @IsEnum(AddressType)
-  type?: AddressType;
+  type?: AddressType | undefined;
 
   @ApiPropertyOptional({ example: 'Domicile' })
   @IsOptional()
   @IsString()
-  label?: string;
+  label?: string | undefined;
 
   @ApiPropertyOptional({ example: 'Jean Dupont' })
   @IsOptional()
   @IsString()
-  recipientName?: string;
+  recipientName?: string | undefined;
 
   @ApiPropertyOptional({ example: '+243990000000' })
   @IsOptional()
   @IsString()
-  phoneNumber?: string;
+  phoneNumber?: string | undefined;
 
   @ApiProperty({ example: '12 Avenue de la Paix' })
   @IsNotEmpty()
@@ -49,7 +49,7 @@ export class CreateAddressDto {
   @ApiPropertyOptional({ example: 'Appartement 4B' })
   @IsOptional()
   @IsString()
-  streetAddress2?: string;
+  streetAddress2?: string | undefined;
 
   @ApiProperty({ example: 'Kinshasa' })
   @IsNotEmpty()
@@ -59,30 +59,30 @@ export class CreateAddressDto {
   @ApiPropertyOptional({ example: 'Kinshasa' })
   @IsOptional()
   @IsString()
-  stateOrProvince?: string;
+  stateOrProvince?: string | undefined;
 
   @ApiPropertyOptional({ example: '10000' })
   @IsOptional()
   @IsString()
-  postalCode?: string;
+  postalCode?: string | undefined;
 
   @ApiPropertyOptional({ example: 'COD', default: 'COD' })
   @IsOptional()
   @IsString()
-  country?: string;
+  country?: string | undefined;
 
   @ApiPropertyOptional({ example: -4.325 })
   @IsOptional()
   @IsNumber()
-  latitude?: number;
+  latitude?: number | undefined;
 
   @ApiPropertyOptional({ example: 15.322 })
   @IsOptional()
   @IsNumber()
-  longitude?: number;
+  longitude?: number | undefined;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
-  isDefault?: boolean;
+  isDefault?: boolean | undefined;
 }

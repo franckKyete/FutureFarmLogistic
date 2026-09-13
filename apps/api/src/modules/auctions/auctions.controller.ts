@@ -46,6 +46,25 @@ export class AuctionsController {
     return this.auctionsService.listMyBids(user.id);
   }
 
+  @Get('farmer')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.HARVEST_READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get caller farmer's own auctions" })
+  @ApiOkResponse({ description: 'Paginated list of farmer auctions' })
+  async findFarmerAuctions(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: AuctionStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.auctionsService.listFarmerAuctions(user.id, {
+      status,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   // =============================================================================
   // Public Browse Endpoints (No Auth Required)
   // =============================================================================
@@ -56,12 +75,14 @@ export class AuctionsController {
   async findAll(
     @Query('status') status?: AuctionStatus,
     @Query('harvestId') harvestId?: string,
+    @Query('farmerProfileId') farmerProfileId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
     return this.auctionsService.listAuctions({
       status,
       harvestId,
+      farmerProfileId,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });

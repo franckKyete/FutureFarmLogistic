@@ -18,4 +18,8 @@ export class CreateVisitDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  harvestId?: string;
 }

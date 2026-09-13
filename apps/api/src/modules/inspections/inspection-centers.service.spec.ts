@@ -21,6 +21,7 @@ describe('InspectionCentersService', () => {
           provide: getRepositoryToken(InspectionCenterEntity),
           useValue: {
             findOne: jest.fn(),
+            find: jest.fn(),
             create: jest.fn((x) => x),
             save: jest.fn((x) => Promise.resolve({ id: 'center-1', ...x })),
             createQueryBuilder: jest.fn(),
@@ -58,10 +59,26 @@ describe('InspectionCentersService', () => {
     });
 
     it('should successfully create center', async () => {
-      centerRepo.findOne.mockResolvedValue(null);
+      centerRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'center-1', code: 'C01', name: 'Center 1' });
       const result = await service.createCenter({ name: 'Center 1', code: 'C01', regionName: 'Region', address: '123 Center St' });
       expect(result).toBeDefined();
       expect(result.code).toBe('C01');
+    });
+  });
+
+  describe('getActiveRegions', () => {
+    it('should return distinct sorted active regions', async () => {
+      centerRepo.find.mockResolvedValue([
+        { regionName: 'Thiès' },
+        { regionName: 'Dakar' },
+        { regionName: 'Dakar ' },
+        { regionName: '' },
+      ]);
+
+      const regions = await service.getActiveRegions();
+      expect(regions).toEqual(['Dakar', 'Thiès']);
     });
   });
 
@@ -85,6 +102,7 @@ describe('InspectionCentersService', () => {
 
     it('should deactivate center', async () => {
       centerRepo.findOne.mockResolvedValue({ id: 'center-1', code: 'C01', isActive: true });
+      assignmentRepo.find.mockResolvedValue([]);
       await service.deactivateCenter('center-1');
       expect(centerRepo.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
     });
@@ -102,16 +120,32 @@ describe('InspectionCentersService', () => {
       await expect(service.assignInspector('center-1', 'inspector-1')).rejects.toThrow(NotFoundException);
     });
 
-    it('should assign inspector, clear previous active assignment and save new', async () => {
+    it('should assign inspector and save assignment without clearing other active assignments', async () => {
       centerRepo.findOne.mockResolvedValue({ id: 'center-1', isActive: true });
       inspectorProfileRepo.findOne.mockResolvedValue({ id: 'inspector-1' });
+      assignmentRepo.findOne.mockResolvedValue(null);
 
       const result = await service.assignInspector('center-1', 'inspector-1');
       expect(result).toBeDefined();
-      expect(assignmentRepo.update).toHaveBeenCalledWith(
-        { inspectorProfileId: 'inspector-1', isCurrentAssignment: true },
-        { isCurrentAssignment: false },
+      expect(assignmentRepo.save).toHaveBeenCalled();
+    });
+
+    it('should unassign inspector if multiple active assignments exist', async () => {
+      assignmentRepo.find.mockResolvedValue([
+        { inspectionCenterId: 'center-1', isCurrentAssignment: true },
+        { inspectionCenterId: 'center-2', isCurrentAssignment: true },
+      ]);
+      await service.unassignInspector('center-1', 'inspector-1');
+      expect(assignmentRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isCurrentAssignment: false }),
       );
+    });
+
+    it('should throw BadRequestException when unassigning sole remaining center', async () => {
+      assignmentRepo.find.mockResolvedValue([
+        { inspectionCenterId: 'center-1', isCurrentAssignment: true },
+      ]);
+      await expect(service.unassignInspector('center-1', 'inspector-1')).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -126,7 +160,7 @@ describe('InspectionCentersService', () => {
 
     it('should get assigned center for inspector user id', async () => {
       inspectorProfileRepo.findOne.mockResolvedValue({ id: 'inspector-1' });
-      assignmentRepo.findOne.mockResolvedValue({ center: { id: 'center-1' } });
+      assignmentRepo.find.mockResolvedValue([{ center: { id: 'center-1', isActive: true } }]);
 
       const result = await service.getAssignedCenter('user-1');
       expect(result!.id).toBe('center-1');

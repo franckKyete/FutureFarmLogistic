@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/farmer/welcome')({
@@ -12,7 +13,7 @@ function WelcomePage() {
         <div className="bg-surface-container-lowest rounded-xl p-8 flex flex-col items-center border border-outline-variant/30 shadow-sm">
           {/* Success Header */}
           <div className="w-16 h-16 bg-[#EAF3DE] rounded-full flex items-center justify-center mb-6">
-            <span className="material-symbols-outlined text-[#2a6a42] text-[32px]">check</span>
+            <Icon name="check" className="text-[#2a6a42] text-[32px]" />
           </div>
           <h1 className="font-display text-2xl font-semibold text-on-surface text-center mb-2">
             Bienvenue, Amadou ! 🌱
@@ -26,7 +27,7 @@ function WelcomePage() {
             {/* Item 1: Compte créé */}
             <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-outline-variant/30">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                <Icon name="check_circle" className="text-primary" />
                 <span className="font-sans text-sm text-on-surface">Compte créé</span>
               </div>
               <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">Complété</span>
@@ -35,7 +36,7 @@ function WelcomePage() {
             {/* Item 2: Email vérifié */}
             <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-outline-variant/30">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                <Icon name="verified" className="text-primary" />
                 <span className="font-sans text-sm text-on-surface">Email vérifié</span>
               </div>
               <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">Complété</span>
@@ -44,7 +45,7 @@ function WelcomePage() {
             {/* Item 3: Profil de la ferme */}
             <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-outline-variant/30">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary">pending</span>
+                <Icon name="pending" className="text-secondary" />
                 <span className="font-sans text-sm text-on-surface">Profil de la ferme soumis</span>
               </div>
               <span className="px-3 py-1 bg-secondary/10 text-secondary text-xs font-semibold rounded-full">En attente de validation</span>
@@ -53,7 +54,7 @@ function WelcomePage() {
             {/* Item 4: Premier produit */}
             <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-outline-variant/30 opacity-60">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-outline">radio_button_unchecked</span>
+                <Icon name="radio_button_unchecked" className="text-outline" />
                 <span className="font-sans text-sm text-on-surface">Premier produit publié</span>
               </div>
               <span className="px-3 py-1 bg-outline-variant/20 text-on-surface-variant text-xs font-semibold rounded-full">Non commencé</span>
@@ -62,7 +63,7 @@ function WelcomePage() {
             {/* Item 5: Coordonnées bancaires */}
             <div className="flex items-center justify-between p-4 bg-surface rounded-lg border border-outline-variant/30 opacity-60">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-outline">radio_button_unchecked</span>
+                <Icon name="radio_button_unchecked" className="text-outline" />
                 <span className="font-sans text-sm text-on-surface">Coordonnées bancaires</span>
               </div>
               <span className="px-3 py-1 bg-outline-variant/20 text-on-surface-variant text-xs font-semibold rounded-full">Non commencé</span>
@@ -85,11 +86,11 @@ function WelcomePage() {
           {/* Action Buttons */}
           <div className="w-full flex flex-col gap-3">
             <Link
-              to="/farmer/harvests/new"
+              to="/farmer/harvests/analyze"
               className="w-full py-4 bg-primary text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center"
             >
               Publier mon premier produit
-              <span className="material-symbols-outlined">arrow_forward</span>
+              <Icon name="arrow_forward" />
             </Link>
             <Link
               to="/farmer/onboarding"
@@ -108,7 +109,7 @@ function WelcomePage() {
 
         {/* Validation Note Card */}
         <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4 flex items-start gap-4">
-          <span className="material-symbols-outlined text-secondary shrink-0">info</span>
+          <Icon name="info" className="text-secondary shrink-0" />
           <p className="font-sans text-xs text-on-secondary-container leading-relaxed">
             Votre profil est en cours de validation par notre équipe. Vous recevrez une notification par email et SMS dès que vous pourrez commencer à vendre vos produits.
           </p>

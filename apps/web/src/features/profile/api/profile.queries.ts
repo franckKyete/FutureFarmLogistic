@@ -69,9 +69,9 @@ export const createParcelMutation = () => ({
 export const uploadMediaFile = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await apiClient.post<{ url: string }>('/media/upload', formData, {
+  const { data } = await apiClient.post<{ data: { url: string; key?: string }; url?: string }>('/media/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return data.url;
+  return data?.data?.url || (data as any)?.url || '';
 };
 

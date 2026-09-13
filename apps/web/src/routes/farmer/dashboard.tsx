@@ -1,8 +1,10 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getFarmerHarvestsQuery } from '@/features/harvests/api/harvests.queries';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
+import { useVisits } from '@/features/inspector/api/visits.queries';
 import {
   useOfflineSyncState,
   syncOfflineHarvests,
@@ -14,8 +16,10 @@ export const Route = createFileRoute('/farmer/dashboard')({
 });
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [alertOpen, setAlertOpen] = useState(true);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
   const {
     isOnline,
     pendingCount,
@@ -37,6 +41,7 @@ function DashboardPage() {
   // Queries
   const { data: harvests } = useQuery(getFarmerHarvestsQuery());
   const { data: orders } = useQuery(getSellerOrdersQuery());
+  const { data: visits } = useVisits();
 
   // Stats calculations
   const totalRevenue = orders
@@ -45,40 +50,66 @@ function DashboardPage() {
         .reduce((sum, o) => sum + o.totalPrice, 0)
     : 0;
 
-  const approvedHarvests = harvests ? harvests.filter((h) => h.status === 'APPROVED') : [];
-  const averageQuality = approvedHarvests.length
-    ? Math.round((approvedHarvests.reduce((sum, h) => sum + (h.qualityScore || 0), 0) / approvedHarvests.length) * 10)
-    : 92; // default fallback metric if none
+  const harvestsWithScore = (harvests || []).filter(
+    (h) => h.qualityScore != null && !isNaN(Number(h.qualityScore)) && Number(h.qualityScore) > 0
+  );
+
+  const averageQuality = harvestsWithScore.length > 0
+    ? Math.round(
+        harvestsWithScore.reduce((sum, h) => {
+          const score = Number(h.qualityScore);
+          return sum + (score <= 10 ? score * 10 : score);
+        }, 0) / harvestsWithScore.length
+      )
+    : null;
 
   const activeListingsCount = harvests
-    ? harvests.filter((h) => h.status === 'APPROVED' || h.status === 'PENDING_APPROVAL').length
+    ? harvests.filter((h) => h.status === 'APPROVED' || h.status === 'PENDING_APPROVAL' || h.status === 'FLAGGED_PHYSICAL').length
     : 0;
 
   const pendingOrdersCount = orders ? orders.filter((o) => o.status === 'PENDING').length : 0;
+
+  // Upcoming visits & flagged harvests for physical inspection
+  const plannedVisits = (visits || []).filter((v) => v.status === 'PLANNED');
+  const flaggedHarvests = (harvests || []).filter((h) => h.status === 'FLAGGED_PHYSICAL');
 
   // Dynamic activity feed
   const activities = [
     ...(harvests || []).map((h) => ({
       id: h.id,
+      type: 'harvest' as const,
       title: `Lot #${h.id.slice(0, 4)} - ${h.product?.name || 'Produit'}`,
       description: h.status === 'APPROVED'
         ? 'Lot approuvé par l\'inspecteur'
         : h.status === 'PENDING_APPROVAL'
         ? 'Lot en attente d\'approbation'
+        : h.status === 'FLAGGED_PHYSICAL'
+        ? 'Visite d\'inspection sur site requise'
         : 'Lot rejeté ou archivé',
-      status: h.status === 'APPROVED' ? 'Actif' : h.status === 'PENDING_APPROVAL' ? 'En attente' : 'Inactif',
-      statusColor: h.status === 'APPROVED' ? 'text-[#1A5C35]' : 'text-[#885200]',
+      status: h.status === 'APPROVED'
+        ? 'Actif'
+        : h.status === 'PENDING_APPROVAL'
+        ? 'En attente'
+        : h.status === 'FLAGGED_PHYSICAL'
+        ? 'Visite requise'
+        : 'Inactif',
+      statusColor: h.status === 'APPROVED'
+        ? 'text-[#1A5C35]'
+        : h.status === 'FLAGGED_PHYSICAL'
+        ? 'text-amber-700'
+        : 'text-[#885200]',
       time: new Date(h.createdAt).toLocaleDateString(),
       image: h.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100',
     })),
     ...(orders || []).map((o) => ({
       id: o.id,
+      type: 'order' as const,
       title: `Commande #${o.id.slice(0, 4)}`,
       description: `Quantité : ${o.quantity} — Statut : ${o.status}`,
       status: 'Commande',
       statusColor: 'text-[#1a5c35]',
       time: new Date(o.createdAt).toLocaleDateString(),
-      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100',
+      image: o.harvest?.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100',
     })),
   ]
     .sort((a, b) => b.id.localeCompare(a.id))
@@ -89,17 +120,15 @@ function DashboardPage() {
       {/* Alert Banner */}
       {alertOpen && harvests?.some((h) => h.status === 'REJECTED') && (
         <div className="bg-secondary-container text-on-secondary-container px-4 py-3 flex items-center gap-3 animate-pulse shadow-sm max-w-[480px] mx-auto rounded-xl mt-2 mb-2">
-          <span className="material-symbols-outlined shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-            warning
-          </span>
+          <Icon name="warning" className="shrink-0" />
           <p className="text-xs font-semibold">
             Attention : Un de vos lots récoltés a été rejeté par l'inspecteur qualité.
           </p>
           <button
             onClick={() => setAlertOpen(false)}
-            className="ml-auto material-symbols-outlined text-sm hover:opacity-80 cursor-pointer"
+            className="ml-auto text-sm hover:opacity-80 cursor-pointer p-1"
           >
-            close
+            <Icon name="close" size={16} />
           </button>
         </div>
       )}
@@ -111,9 +140,7 @@ function DashboardPage() {
           <section className="bg-[#eff4ff] border-2 border-[#004322] p-4 rounded-xl shadow-md flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  auto_awesome
-                </span>
+                <Icon name="auto_awesome" className="text-[#004322] text-xl" />
                 <span className="text-xs font-bold text-[#004322]">
                   {readyForReviewCount} récolte{readyForReviewCount > 1 ? 's' : ''} analysée{readyForReviewCount > 1 ? 's' : ''} prête{readyForReviewCount > 1 ? 's' : ''} à réviser
                 </span>
@@ -157,9 +184,7 @@ function DashboardPage() {
         {/* Drafts Pending AI Analysis Banner */}
         {pendingAnalysisCount > 0 && (
           <section className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl shadow-sm flex items-start gap-3">
-            <span className="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">
-              cloud_sync
-            </span>
+            <Icon name="cloud_sync" className="text-amber-600 text-xl shrink-0 mt-0.5" />
             <div className="text-xs text-amber-900 leading-relaxed">
               <p className="font-bold">
                 {pendingAnalysisCount} récolte{pendingAnalysisCount > 1 ? 's' : ''} en attente d'analyse IA
@@ -176,9 +201,7 @@ function DashboardPage() {
           <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl shadow-sm flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                  sync
-                </span>
+                <Icon name="sync" className="text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}" />
                 <span className="text-xs font-bold text-[#1a5c35]">
                   {pendingCount} récolte{pendingCount > 1 ? 's' : ''} en attente de synchronisation
                 </span>
@@ -202,9 +225,7 @@ function DashboardPage() {
                 disabled={isSyncing}
                 className="bg-[#004322] text-white py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
               >
-                <span className={`material-symbols-outlined text-sm ${isSyncing ? 'animate-spin' : ''}`}>
-                  sync
-                </span>
+                <Icon name="sync" className="text-sm ${isSyncing ? 'animate-spin' : ''}" />
                 {isSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
               </button>
             )}
@@ -213,9 +234,7 @@ function DashboardPage() {
 
         {!isOnline && pendingCount === 0 && (
           <section className="bg-[#fff8e1] border border-[#ffe082] p-3 rounded-xl shadow-sm flex items-center gap-3">
-            <span className="material-symbols-outlined text-amber-700" style={{ fontVariationSettings: "'FILL' 1" }}>
-              cloud_off
-            </span>
+            <Icon name="cloud_off" className="text-amber-700" />
             <div className="text-xs">
               <p className="font-bold text-amber-800">Mode hors-ligne actif</p>
               <p className="text-amber-900/80 text-[10px] mt-0.5">
@@ -229,7 +248,7 @@ function DashboardPage() {
         <section className="grid grid-cols-2 gap-4">
           {/* Revenue Card */}
           <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex flex-col justify-between aspect-square shadow-sm">
-            <span className="material-symbols-outlined text-[#885200] self-start">payments</span>
+            <Icon name="payments" className="text-[#885200] self-start" />
             <div>
               <p className="text-xs text-[#6B7280]">Revenu total</p>
               <p className="text-lg font-bold text-[#1C1C1C] tracking-tight">
@@ -241,28 +260,48 @@ function DashboardPage() {
 
           {/* Quality Gauge Card */}
           <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex flex-col items-center justify-center aspect-square text-center shadow-sm">
-            <div className="relative w-20 h-20 mb-2 flex items-center justify-center">
-              <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90 block">
-                <circle cx="40" cy="40" fill="transparent" r="34" stroke="#E5E7EB" strokeWidth="6" />
-                <circle
-                  className="text-[#1A5C35]"
-                  cx="40"
-                  cy="40"
-                  fill="transparent"
-                  r="34"
-                  stroke="currentColor"
-                  strokeDasharray="213.63"
-                  strokeDashoffset={213.63 * (1 - (averageQuality || 0) / 100)}
-                  strokeLinecap="round"
-                  strokeWidth="6"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-base font-bold text-[#1C1C1C] leading-none">{averageQuality}%</span>
-              </div>
-            </div>
-            <p className="text-xs text-[#6B7280]">Score de qualité</p>
-            <p className="text-[9px] text-[#6B7280] mt-1 leading-tight">Moyenne des scores de vos lots approuvés</p>
+            {averageQuality !== null ? (
+              <>
+                <div className="relative w-20 h-20 mb-2 flex items-center justify-center">
+                  <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90 block">
+                    <circle cx="40" cy="40" fill="transparent" r="34" stroke="#E5E7EB" strokeWidth="6" />
+                    <circle
+                      className="text-[#1A5C35]"
+                      cx="40"
+                      cy="40"
+                      fill="transparent"
+                      r="34"
+                      stroke="currentColor"
+                      strokeDasharray="213.63"
+                      strokeDashoffset={213.63 * (1 - averageQuality / 100)}
+                      strokeLinecap="round"
+                      strokeWidth="6"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-base font-bold text-[#1C1C1C] leading-none">{averageQuality}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-[#6B7280]">Score de qualité</p>
+                <p className="text-[9px] text-[#6B7280] mt-1 leading-tight">Moyenne des scores de vos récoltes</p>
+              </>
+            ) : (
+              <>
+                <div className="relative w-20 h-20 mb-2 flex items-center justify-center">
+                  <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90 block">
+                    <circle cx="40" cy="40" fill="transparent" r="34" stroke="#E5E7EB" strokeWidth="6" strokeDasharray="4 4" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                    <Icon name="psychology_alt" className="text-xl" />
+                    <span className="text-xs font-bold text-gray-400 leading-none mt-0.5">--</span>
+                  </div>
+                </div>
+                <p className="text-xs text-[#6B7280] font-medium">Score de qualité</p>
+                <p className="text-[9px] text-gray-500 mt-1 leading-tight px-1">
+                  Aucune récolte pour calculer le score de qualité
+                </p>
+              </>
+            )}
           </div>
 
           {/* Active Listings */}
@@ -285,27 +324,98 @@ function DashboardPage() {
           </Link>
         </section>
 
-        {/* Quick Actions Row */}
-        <section className="flex justify-around items-center bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-sm">
-          <Link to="/farmer/harvests/new" className="flex flex-col items-center gap-2 group cursor-pointer">
-            <div className="w-12 h-12 rounded-full bg-[#1A5C35] text-white flex items-center justify-center group-active:scale-95 transition-transform">
-              <span className="material-symbols-outlined">add</span>
+        {/* Upcoming Physical Inspections & Visits */}
+        {(plannedVisits.length > 0 || flaggedHarvests.length > 0) && (
+          <section className="space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Icon name="event_available" className="text-amber-700 text-lg" />
+                <h2 className="text-base font-bold text-on-surface">Inspections terrain à venir</h2>
+              </div>
+              <span className="bg-amber-100 text-amber-800 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                {plannedVisits.length + flaggedHarvests.length}
+              </span>
             </div>
-            <span className="text-xs font-semibold text-[#1C1C1C]">Ajouter</span>
-          </Link>
-          <Link to="/farmer/auctions/new" className="flex flex-col items-center gap-2 group cursor-pointer">
-            <div className="w-12 h-12 rounded-full bg-[#ffa93d] text-[#2b1700] flex items-center justify-center group-active:scale-95 transition-transform">
-              <span className="material-symbols-outlined">gavel</span>
+
+            <div className="space-y-2.5">
+              {plannedVisits.map((visit) => (
+                <div
+                  key={visit.id}
+                  onClick={() => {
+                    if (visit.harvestId) {
+                      void navigate({ to: '/farmer/products/$id', params: { id: visit.harvestId } });
+                    }
+                  }}
+                    className={`bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl shadow-xs space-y-2 transition-all ${
+                      visit.harvestId ? 'cursor-pointer hover:bg-amber-100/70 hover:border-amber-300' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                          Visite programmée {visit.plannedDate ? `le ${visit.plannedDate}` : ''}
+                          {visit.harvestId && (
+                            <Icon name="chevron_right" className="text-xs text-amber-800" />
+                          )}
+                        </p>
+                        {visit.plannedTime && (
+                          <p className="text-[11px] text-amber-900/80 font-medium">
+                            Heure prévue : {visit.plannedTime}
+                          </p>
+                        )}
+                      </div>
+                      <span className="bg-amber-200/60 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Confirmée
+                      </span>
+                    </div>
+
+                    {visit.inspectorName && (
+                      <p className="text-[11px] text-gray-600 flex items-center gap-1">
+                        <Icon name="badge" className="text-xs" />
+                        Inspecteur : <span className="font-semibold text-gray-800">{visit.inspectorName}</span>
+                      </p>
+                    )}
+
+                    {visit.notes && (
+                      <p className="text-[11px] text-gray-600 bg-white/70 p-2 rounded-lg border border-amber-100 italic">
+                        « {visit.notes} »
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+              {flaggedHarvests
+                .filter((h) => !plannedVisits.some((v) => v.harvestId === h.id))
+                .map((harvest) => (
+                  <div
+                    key={harvest.id}
+                    onClick={() => void navigate({ to: '/farmer/products/$id', params: { id: harvest.id } })}
+                    className="bg-amber-50/50 border border-amber-200/60 p-3.5 rounded-xl shadow-xs space-y-2 cursor-pointer hover:bg-amber-100/60 hover:border-amber-300 transition-all"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                          {harvest.product?.name || 'Lot agricole'} #{harvest.id.slice(0, 4)}
+                          <Icon name="chevron_right" className="text-xs text-amber-800" />
+                        </p>
+                        <p className="text-[11px] text-amber-800">
+                          En attente de planification par l'inspecteur
+                        </p>
+                      </div>
+                      <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Visite requise
+                      </span>
+                    </div>
+                    {harvest.rejectionReason && (
+                      <p className="text-[11px] text-gray-600 bg-white/70 p-2 rounded-lg border border-amber-100">
+                        {harvest.rejectionReason}
+                      </p>
+                    )}
+                  </div>
+                ))}
             </div>
-            <span className="text-xs font-semibold text-[#1C1C1C]">Créer enchère</span>
-          </Link>
-          <Link to="/farmer/orders" className="flex flex-col items-center gap-2 group cursor-pointer">
-            <div className="w-12 h-12 rounded-full bg-[#4b5344] text-white flex items-center justify-center group-active:scale-95 transition-transform">
-              <span className="material-symbols-outlined">receipt_long</span>
-            </div>
-            <span className="text-xs font-semibold text-[#1C1C1C]">Commandes</span>
-          </Link>
-        </section>
+          </section>
+        )}
 
         {/* Activity Feed */}
         <section className="space-y-4">
@@ -319,7 +429,17 @@ function DashboardPage() {
               </div>
             ) : (
               activities.map((act) => (
-                <div key={act.id} className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 shadow-sm">
+                <div
+                  key={act.id}
+                  onClick={() => {
+                    if (act.type === 'harvest') {
+                      void navigate({ to: '/farmer/products/$id', params: { id: act.id } });
+                    } else {
+                      void navigate({ to: '/farmer/orders' });
+                    }
+                  }}
+                  className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex items-center gap-4 shadow-sm cursor-pointer hover:border-[#1A5C35] hover:shadow-md transition-all"
+                >
                   <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
                     <img
                       alt="Crop activity"
@@ -341,6 +461,93 @@ function DashboardPage() {
           </div>
         </section>
       </main>
+
+      {/* Floating Action Button (FAB) */}
+      <button
+        type="button"
+        onClick={() => setShowBottomSheet(true)}
+        aria-label="Actions rapides"
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-[#1A5C35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+      >
+        <Icon name="add" className="text-2xl" />
+      </button>
+
+      {/* Action Bottom Sheet */}
+      {showBottomSheet && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-20 md:pb-6 px-3">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowBottomSheet(false)}
+          />
+
+          {/* Sheet */}
+          <div className="relative z-10 w-full max-w-md bg-white rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200 border border-gray-200">
+            {/* Grab handle */}
+            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Actions rapides</h3>
+                <p className="text-xs text-gray-500">Choisissez une opération à effectuer</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBottomSheet(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+              >
+                <Icon name="close" className="text-xl" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBottomSheet(false);
+                  void navigate({ to: '/farmer/harvests/analyze' });
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 bg-emerald-50/60 hover:bg-emerald-100/60 border border-emerald-200 rounded-2xl text-left transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#1A5C35] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Icon name="add_photo_alternate" className="text-xl" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1A5C35]">
+                    Nouvelle Récolte
+                  </h4>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    Scanner et analyser un lot récolté par IA
+                  </p>
+                </div>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBottomSheet(false);
+                  void navigate({ to: '/farmer/auctions/new' });
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl text-left transition-colors cursor-pointer group shadow-2xs"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#ffa93d]/20 text-[#885200] border border-[#ffa93d]/30 flex items-center justify-center shrink-0">
+                  <Icon name="gavel" className="text-xl" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#885200]">
+                    Lancer une Enchère
+                  </h4>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    Mettre un lot aux enchères en direct
+                  </p>
+                </div>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

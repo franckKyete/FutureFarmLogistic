@@ -22,13 +22,21 @@ export class RegisterFarmerProxyDto {
   @IsString()
   phoneNumber?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  companyName: string;
+  companyName?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  address: string;
+  farmName?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  regionName?: string;
 
   @IsOptional()
   @IsString()

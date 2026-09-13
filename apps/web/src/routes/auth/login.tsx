@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -113,7 +114,7 @@ export function LoginPage() {
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <div className="w-12 h-12 rounded-full bg-[#004322]/10 flex items-center justify-center text-[#004322] mb-1">
-                  <span className="material-symbols-outlined text-2xl">verified_user</span>
+                  <Icon name="verified_user" className="text-2xl" />
                 </div>
                 <h2 className="text-2xl font-bold text-on-surface tracking-tight">
                   Authentification à deux facteurs
@@ -132,9 +133,7 @@ export function LoginPage() {
                     Code de sécurité (6 chiffres)
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                      pin
-                    </span>
+                    <Icon name="pin" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                     <input
                       className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
                       id="twoFactorCode"
@@ -170,7 +169,7 @@ export function LoginPage() {
                     disabled={isPending || twoFactorCode.trim().length !== 6}
                   >
                     {is2faPending ? 'Vérification...' : 'Valider le code'}
-                    <span className="material-symbols-outlined text-[18px]">check</span>
+                    <Icon name="check" className="text-[18px]" />
                   </button>
 
                   <button
@@ -193,7 +192,7 @@ export function LoginPage() {
                 <h2 className="text-2xl font-bold text-on-surface tracking-tight">Bienvenue</h2>
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-[10px] font-bold tracking-wider uppercase">
-                    <span className="material-symbols-outlined text-[14px]">agriculture</span>
+                    <Icon name="agriculture" className="text-[14px]" />
                     Agri-Fintech
                   </span>
                   <p className="text-[10px] text-on-surface-variant">Accédez à votre espace sécurisé</p>
@@ -204,12 +203,10 @@ export function LoginPage() {
                 {/* Email Field */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-on-surface-variant px-1" htmlFor="email">
-                    Adresse Email
+                    Adresse Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                      mail
-                    </span>
+                    <Icon name="mail" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                     <input
                       className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
                       id="email"
@@ -224,12 +221,10 @@ export function LoginPage() {
                 {/* Password Field */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-on-surface-variant px-1" htmlFor="password">
-                    Mot de passe
+                    Mot de passe <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                      lock
-                    </span>
+                    <Icon name="lock" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                     <input
                       className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-12 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
                       id="password"
@@ -244,9 +239,7 @@ export function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                     >
-                      <span className="material-symbols-outlined text-[20px]">
-                        {showPassword ? 'visibility_off' : 'visibility'}
-                      </span>
+                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} className="text-[20px]" />
                     </button>
                   </div>
                 </div>
@@ -272,7 +265,7 @@ export function LoginPage() {
 
                 {activeError && (
                   <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-700 font-semibold flex items-center gap-2.5 shadow-xs animate-slide-in">
-                    <span className="material-symbols-outlined text-red-600 text-lg shrink-0">error</span>
+                    <Icon name="error" className="text-red-600 text-lg shrink-0" />
                     <span className="flex-1 leading-relaxed">
                       {(() => {
                         const axiosErr = activeError as any;
@@ -295,7 +288,7 @@ export function LoginPage() {
                   disabled={isPending}
                 >
                   {isLoginPending ? 'Connexion en cours...' : 'Se connecter'}
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  <Icon name="arrow_forward" className="text-[18px]" />
                 </button>
               </form>
             </>

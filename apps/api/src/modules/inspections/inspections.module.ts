@@ -10,6 +10,7 @@ import { InspectorCenterAssignmentEntity } from './entities/inspector-center-ass
 import { UserEntity } from '../users/entities/user.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { ProductEntity } from '../products/entities/product.entity';
+import { VisitEntity } from '../visits/entities/visit.entity';
 
 import { InspectionsService } from './inspections.service';
 import { InspectionCentersService } from './inspection-centers.service';
@@ -18,6 +19,7 @@ import { InspectionCentersController } from './inspection-centers.controller';
 import { HarvestClassifyController } from './harvest-classify.controller';
 import { GeminiVisionProvider } from './providers/gemini-vision.provider';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -30,9 +32,11 @@ import { AuthModule } from '../auth/auth.module';
       UserEntity,
       HarvestEntity,
       ProductEntity,
+      VisitEntity,
     ]),
     ConfigModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [
     InspectionsController,

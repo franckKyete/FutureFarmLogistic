@@ -34,10 +34,11 @@ export interface RegisterFarmerPayload {
   password: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
+  phoneNumber?: string | undefined;
   companyName: string;
   address: string;
-  bio?: string;
+  regionName: string;
+  bio?: string | undefined;
 }
 
 export interface RegisterBuyerPayload {
@@ -45,12 +46,12 @@ export interface RegisterBuyerPayload {
   password: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
-  country: string;
-  preferredCurrency?: string;
-  companyName: string;
-  vatNumber: string;
-  businessType: BuyerBusinessType;
+  phoneNumber?: string | undefined;
+  country?: string | undefined;
+  preferredCurrency?: string | undefined;
+  companyName?: string | undefined;
+  vatNumber?: string | undefined;
+  businessType?: BuyerBusinessType | undefined;
   billingAddress: string;
   shippingAddress: string;
 }

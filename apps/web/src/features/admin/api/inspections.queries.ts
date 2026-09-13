@@ -51,6 +51,35 @@ export function useMyCenter() {
   });
 }
 
+export function useMyCenters() {
+  return useQuery<InspectionCenterDto[]>({
+    queryKey: ['inspector', 'my-centers'],
+    queryFn: async () => {
+      try {
+        const { data } = await apiClient.get<{ data: InspectionCenterDto[] }>(
+          '/inspection-centers/my-centers',
+        );
+        return data.data || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+}
+
+export function useActiveRegions() {
+  return useQuery<string[]>({
+    queryKey: ['public', 'inspection-centers', 'regions'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: string[] }>(
+        '/inspection-centers/regions',
+      );
+      return data.data || [];
+    },
+    staleTime: 60000,
+  });
+}
+
 export function useCreateCenter() {
   const queryClient = useQueryClient();
 
@@ -62,6 +91,7 @@ export function useCreateCenter() {
       address: string;
       latitude?: number;
       longitude?: number;
+      inspectorProfileIds?: string[];
     }) => {
       const { data } = await apiClient.post<{ data: InspectionCenterDto }>(
         '/inspection-centers',
@@ -71,6 +101,7 @@ export function useCreateCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'inspection-centers'] });
+      queryClient.invalidateQueries({ queryKey: ['public', 'inspection-centers', 'regions'] });
     },
   });
 }

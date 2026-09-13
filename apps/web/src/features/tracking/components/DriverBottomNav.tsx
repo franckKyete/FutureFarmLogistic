@@ -1,4 +1,5 @@
 import { useLocation, Link } from '@tanstack/react-router';
+import { Icon } from '@/features/shared/components/Icon';
 
 type Tab = {
   label: string;
@@ -27,7 +28,11 @@ export function DriverBottomNav() {
                 isActive ? 'text-[#004322] font-bold' : 'text-gray-400 font-medium'
               }`}
             >
-              <span className="material-symbols-outlined text-2xl">{tab.icon}</span>
+              <Icon
+                name={tab.icon}
+                size={22}
+                className={isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}
+              />
               <span className="text-[11px] mt-0.5">{tab.label}</span>
             </Link>
           );

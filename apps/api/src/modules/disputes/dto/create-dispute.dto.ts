@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
-import { DisputeSeverity, CreateDisputeDto } from '@futurefarm/types';
+import { DisputeSeverity, type CreateDisputeDto } from '@futurefarm/types';
 
 export class CreateDisputeDtoClass implements CreateDisputeDto {
   @ApiProperty({ example: 'Incorrect quality grading' })

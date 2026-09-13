@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,9 +15,7 @@ const CATEGORIES = ['Toutes', 'Céréales', 'Fruits', 'Légumes'];
 function ProductImagePlaceholder({ className = 'w-full h-full' }: { className?: string }) {
   return (
     <div className={`bg-gradient-to-br from-[#1a5c35]/15 to-[#004322]/25 flex items-center justify-center text-[#1a5c35] ${className}`}>
-      <span className="material-symbols-outlined text-[32px] opacity-70">
-        agriculture
-      </span>
+      <Icon name="agriculture" className="text-[32px] opacity-70" />
     </div>
   );
 }
@@ -160,9 +159,7 @@ function AuctionsListPage() {
 
         {/* Search Bar */}
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#707970] text-[20px]">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#707970] text-[20px]" />
           <input
             type="text"
             placeholder="Rechercher un produit..."
@@ -203,9 +200,7 @@ function AuctionsListPage() {
                 className="flex flex-col items-center gap-1 min-w-[56px] cursor-pointer group"
               >
                 <div className="w-12 h-12 rounded-full bg-[#004322] text-white flex items-center justify-center transition-all group-hover:scale-105 ring-2 ring-[#004322] ring-offset-1">
-                  <span className="material-symbols-outlined text-[20px]">
-                    agriculture
-                  </span>
+                  <Icon name="agriculture" className="text-[20px]" />
                 </div>
                 <span className="text-[10px] font-bold text-[#004322] truncate max-w-[56px]">
                   Toutes →
@@ -254,9 +249,12 @@ function AuctionsListPage() {
           >
             {/* Image Header */}
             <div className="relative h-52 w-full overflow-hidden bg-[#e0e0e0]">
-              {(featuredAuction as any).harvest?.images?.[0] ? (
+              {(featuredAuction as any).harvest?.photoUrls?.[0] || (featuredAuction as any).harvest?.images?.[0] ? (
                 <img
-                  src={(featuredAuction as any).harvest.images[0]}
+                  src={
+                    (featuredAuction as any).harvest?.photoUrls?.[0] ||
+                    (featuredAuction as any).harvest?.images?.[0]
+                  }
                   alt={
                     (featuredAuction as any).harvest?.product?.name ||
                     'Lot agricole'
@@ -281,9 +279,7 @@ function AuctionsListPage() {
                       'Lot agricole'}
                   </h3>
                   <p className="text-[12px] text-[#404941] flex items-center gap-1 mt-0.5">
-                    <span className="material-symbols-outlined text-[15px] text-[#004322]">
-                      verified
-                    </span>
+                    <Icon name="verified" className="text-[15px] text-[#004322]" />
                     {(featuredAuction as any).farmerProfile?.companyName ||
                       (featuredAuction as any).farmerProfile?.farmName ||
                       (featuredAuction as any).farmerProfile?.user?.name ||
@@ -300,7 +296,9 @@ function AuctionsListPage() {
                   </p>
                   {(featuredAuction as any).harvest?.qualityScore ? (
                     <span className="inline-block bg-[#e8f5e9] text-[#1a5c35] text-[10px] font-bold px-2 py-0.5 rounded-md mt-0.5">
-                      IA : {(featuredAuction as any).harvest.qualityScore}% Qualité
+                      IA : {Number((featuredAuction as any).harvest.qualityScore) <= 10
+                        ? Math.round(Number((featuredAuction as any).harvest.qualityScore) * 10)
+                        : Math.round(Number((featuredAuction as any).harvest.qualityScore))}% Qualité
                     </span>
                   ) : (featuredAuction as any).harvest?.qualityGrade ? (
                     <span className="inline-block bg-[#e8f5e9] text-[#1a5c35] text-[10px] font-bold px-2 py-0.5 rounded-md mt-0.5">
@@ -313,15 +311,11 @@ function AuctionsListPage() {
               {/* Status footer with countdown */}
               <div className="flex items-center justify-between text-[12px] text-[#404941] border-t border-[#c0c9be]/40 pt-3">
                 <div className="flex items-center gap-1.5 text-[#d32f2f] font-bold">
-                  <span className="material-symbols-outlined text-[18px]">
-                    alarm
-                  </span>
+                  <Icon name="alarm" className="text-[18px]" />
                   <span>{formatTimeRemaining(featuredAuction.endAt)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[#707970] font-medium">
-                  <span className="material-symbols-outlined text-[16px]">
-                    gavel
-                  </span>
+                  <Icon name="gavel" className="text-[16px]" />
                   <span>
                     {featuredAuction.status === AuctionStatus.ACTIVE
                       ? 'En direct'
@@ -347,7 +341,9 @@ function AuctionsListPage() {
               (auc as any).farmerProfile?.user?.name ||
               'Producteur';
             const currency = auc.currency || 'CDF';
-            const harvestImage = (auc as any).harvest?.images?.[0];
+            const harvestImage =
+              (auc as any).harvest?.photoUrls?.[0] ||
+              (auc as any).harvest?.images?.[0];
             const qualityScore = (auc as any).harvest?.qualityScore;
             const qualityGrade = (auc as any).harvest?.qualityGrade;
 
@@ -399,7 +395,7 @@ function AuctionsListPage() {
                     </p>
                     {qualityScore ? (
                       <span className="inline-block bg-[#e8f5e9] text-[#1a5c35] text-[9px] font-bold px-1.5 py-0.2 rounded mt-1">
-                        IA : {qualityScore}%
+                        IA : {Number(qualityScore) <= 10 ? Math.round(Number(qualityScore) * 10) : Math.round(Number(qualityScore))}%
                       </span>
                     ) : qualityGrade ? (
                       <span className="inline-block bg-[#e8f5e9] text-[#1a5c35] text-[9px] font-bold px-1.5 py-0.2 rounded mt-1">
@@ -410,15 +406,11 @@ function AuctionsListPage() {
 
                   <div className="flex items-center justify-between text-[11px] text-[#707970] mt-1">
                     <span className="flex items-center gap-1 font-semibold text-[#d32f2f]">
-                      <span className="material-symbols-outlined text-[14px]">
-                        schedule
-                      </span>
+                      <Icon name="schedule" className="text-[14px]" />
                       {formatTimeRemaining(auc.endAt)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">
-                        gavel
-                      </span>
+                      <Icon name="gavel" className="text-[14px]" />
                       En direct
                     </span>
                   </div>
@@ -430,9 +422,7 @@ function AuctionsListPage() {
 
         {filteredAuctions.length === 0 && (
           <div className="bg-white border border-[#c0c9be] rounded-2xl p-8 text-center text-[#404941]">
-            <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">
-              gavel
-            </span>
+            <Icon name="gavel" className="text-[48px] text-[#707970] mb-2 block" />
             <p className="font-semibold">Aucune enchère trouvée</p>
             <p className="text-[12px] text-[#707970] mt-1">
               Essayez de modifier vos filtres ou revenez plus tard.

@@ -1,12 +1,42 @@
 import React from 'react';
 import { useCurrencyStore } from '@/features/currency/store/currency.store';
+import type { AddressDto, CreateAddressDto } from '@futurefarm/types';
 
 export interface AddressValue {
   streetAddress: string;
   streetAddress2?: string;
   city: string;
   stateOrProvince?: string;
+  postalCode?: string;
   country?: string;
+}
+
+/**
+ * Converts a structured AddressDto or partial address object into AddressValue.
+ */
+export function toAddressValue(
+  addr?: Partial<AddressDto | CreateAddressDto | AddressValue> | null,
+  fallbackCountry = 'COD',
+): AddressValue {
+  if (!addr) {
+    return {
+      streetAddress: '',
+      streetAddress2: '',
+      city: '',
+      stateOrProvince: '',
+      postalCode: '',
+      country: fallbackCountry,
+    };
+  }
+
+  return {
+    streetAddress: addr.streetAddress || '',
+    streetAddress2: addr.streetAddress2 || '',
+    city: addr.city || '',
+    stateOrProvince: addr.stateOrProvince || '',
+    postalCode: addr.postalCode || '',
+    country: addr.country || fallbackCountry,
+  };
 }
 
 interface AddressInputGroupProps {
@@ -112,34 +142,50 @@ export const AddressInputGroup: React.FC<AddressInputGroupProps> = ({
         </div>
       </div>
 
-      {/* Pays */}
-      <div>
-        <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-          Pays {required && <span className="text-rose-500">*</span>}
-        </label>
-        <select
-          value={value.country || 'COD'}
-          onChange={(e) => updateField('country', e.target.value)}
-          disabled={disabled}
-          className="w-full bg-[#f8f9fc] border border-[#e2e8f0] focus:border-[#004322] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#0b1c30] outline-none transition-colors cursor-pointer disabled:opacity-50"
-        >
-          {countries && countries.length > 0 ? (
-            countries.map((c) => (
-              <option key={c.countryCode} value={c.countryCode}>
-                {c.flagEmoji} {c.countryName} ({c.countryCode})
-              </option>
-            ))
-          ) : (
-            <>
-              <option value="COD">🇨🇩 RD Congo (COD)</option>
-              <option value="SEN">🇸🇳 Sénégal (SEN)</option>
-              <option value="CIV">🇨🇮 Côte d'Ivoire (CIV)</option>
-              <option value="CMR">🇨🇲 Cameroun (CMR)</option>
-              <option value="MAR">🇲🇦 Maroc (MAR)</option>
-              <option value="FRA">🇫🇷 France (FRA)</option>
-            </>
-          )}
-        </select>
+      {/* Code postal (optionnel) & Pays */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+            Code postal <span className="text-[#707970] font-normal">(optionnel)</span>
+          </label>
+          <input
+            type="text"
+            value={value.postalCode || ''}
+            onChange={(e) => updateField('postalCode', e.target.value)}
+            placeholder="Ex: 10001"
+            disabled={disabled}
+            className="w-full bg-[#f8f9fc] border border-[#e2e8f0] focus:border-[#004322] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#0b1c30] outline-none transition-colors disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+            Pays {required && <span className="text-rose-500">*</span>}
+          </label>
+          <select
+            value={value.country || 'COD'}
+            onChange={(e) => updateField('country', e.target.value)}
+            disabled={disabled}
+            className="w-full bg-[#f8f9fc] border border-[#e2e8f0] focus:border-[#004322] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#0b1c30] outline-none transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {countries && countries.length > 0 ? (
+              countries.map((c) => (
+                <option key={c.countryCode} value={c.countryCode}>
+                  {c.flagEmoji} {c.countryName} ({c.countryCode})
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="COD">🇨🇩 RD Congo (COD)</option>
+                <option value="SEN">🇸🇳 Sénégal (SEN)</option>
+                <option value="CIV">🇨🇮 Côte d'Ivoire (CIV)</option>
+                <option value="CMR">🇨🇲 Cameroun (CMR)</option>
+                <option value="MAR">🇲🇦 Maroc (MAR)</option>
+                <option value="FRA">🇫🇷 France (FRA)</option>
+              </>
+            )}
+          </select>
+        </div>
       </div>
     </div>
   );

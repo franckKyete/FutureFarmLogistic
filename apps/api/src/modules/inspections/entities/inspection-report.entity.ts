@@ -9,7 +9,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { InspectionStatus, InspectionChecklist } from '@futurefarm/types';
+import { InspectionStatus, type InspectionChecklist } from '@futurefarm/types';
 import { HarvestEntity } from '../../products/entities/harvest.entity';
 import { InspectorProfileEntity } from './inspector-profile.entity';
 import { InspectionPhotoEntity } from './inspection-photo.entity';

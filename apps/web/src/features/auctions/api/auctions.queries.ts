@@ -8,10 +8,18 @@ import type {
   PaginatedResult,
 } from '@futurefarm/types';
 
-export const getAuctionsQuery = (filters?: { status?: AuctionStatus; harvestId?: string; page?: number; limit?: number }) => ({
+export const getAuctionsQuery = (filters?: { status?: AuctionStatus; harvestId?: string; farmerProfileId?: string; page?: number; limit?: number }) => ({
   queryKey: ['auctions', filters],
   queryFn: async (): Promise<PaginatedResult<AuctionDto>> => {
     const { data } = await apiClient.get<{ data: PaginatedResult<AuctionDto> }>('/auctions', { params: filters });
+    return data.data;
+  },
+});
+
+export const getFarmerAuctionsQuery = (filters?: { status?: AuctionStatus; page?: number; limit?: number }) => ({
+  queryKey: ['auctions', 'farmer', filters],
+  queryFn: async (): Promise<PaginatedResult<AuctionDto>> => {
+    const { data } = await apiClient.get<{ data: PaginatedResult<AuctionDto> }>('/auctions/farmer', { params: filters });
     return data.data;
   },
 });

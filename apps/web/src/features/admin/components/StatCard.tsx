@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import type { ReactNode } from 'react';
 
 type Trend = 'up' | 'down' | 'neutral';
@@ -42,7 +43,7 @@ export function StatCard({
       <div className="flex justify-between items-start">
         <div className={`p-2 ${iconBgColor} rounded-lg ${iconColor} flex items-center justify-center`}>
           {typeof icon === 'string' ? (
-            <span className="material-symbols-outlined text-[20px]">{icon}</span>
+            <Icon name={icon} className="text-[20px]" />
           ) : (
             icon
           )}
@@ -50,7 +51,7 @@ export function StatCard({
         {trend && (
           <span className={`text-[11px] font-bold flex items-center gap-0.5 ${trendColors[trend]}`}>
             {trendLabel}
-            <span className="material-symbols-outlined text-sm">{trendIcons[trend]}</span>
+            <Icon name={trendIcons[trend]} className="text-sm" />
           </span>
         )}
       </div>

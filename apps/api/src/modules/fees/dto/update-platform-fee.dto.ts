@@ -1,6 +1,6 @@
 import { IsString, IsEnum, IsNumber, IsOptional, IsBoolean, Min, Length } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { FeeCalculationType, UpdatePlatformFeeDto } from '@futurefarm/types';
+import { FeeCalculationType, type UpdatePlatformFeeDto } from '@futurefarm/types';
 
 export class UpdatePlatformFeeRequestDto implements UpdatePlatformFeeDto {
   @ApiPropertyOptional({ description: 'Display name of the fee' })

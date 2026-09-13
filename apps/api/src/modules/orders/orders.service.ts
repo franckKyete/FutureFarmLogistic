@@ -36,12 +36,13 @@ import { AuctionEntity } from '../auctions/entities/auction.entity';
 import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { PAYMENT_GATEWAY_PORT, PaymentGatewayPort } from './interfaces/payment-gateway.port';
+import { PAYMENT_GATEWAY_PORT, type PaymentGatewayPort } from './interfaces/payment-gateway.port';
 import { StripePaymentGateway } from './adapters/stripe.adapter';
 import { CurrenciesService } from '../currencies/currencies.service';
 import { FeesService } from '../fees/fees.service';
 import Stripe from 'stripe';
 import PDFDocument from 'pdfkit';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class OrdersService {
@@ -67,6 +68,8 @@ export class OrdersService {
     private readonly feesService?: FeesService,
     @Optional()
     private readonly notificationsGateway?: NotificationsGateway,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
 
   async checkout(
@@ -710,9 +713,13 @@ export class OrdersService {
       // Notify Buyer
       await this.notificationsService.send({
         recipientIds: [order.buyerId],
-        title: 'Order Line Confirmed',
-        body: `A farmer has confirmed items in your order #${order.id.slice(0, 8)}.`,
-        channels: [NotificationChannel.DATABASE],
+        title: 'Commande confirmée par le producteur',
+        body: `Un producteur a confirmé des articles de votre commande #${order.id.slice(0, 8)}.`,
+        channels: [NotificationChannel.DATABASE, NotificationChannel.EMAIL],
+        metadata: {
+          actionUrl: `/orders/${order.id}`,
+          actionText: 'Voir ma commande',
+        },
       });
 
       this.notificationsGateway?.emitOrderStatusChanged(order.buyerId, {
@@ -1295,7 +1302,10 @@ export class OrdersService {
   ): Promise<Buffer> {
     const order = await this.getOrderForUser(orderId, userId, permissions);
 
-    return new Promise<Buffer>((resolve, reject) => {
+    const formatCurrency = (val: number, currency: string = 'USD') =>
+      `${Number(val || 0).toLocaleString('fr-FR')} ${currency || 'USD'}`;
+
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
       try {
         const doc = new PDFDocument({
           size: 'A4',
@@ -1361,26 +1371,27 @@ export class OrdersService {
         doc.fillColor(mutedColor)
           .fontSize(8)
           .font('Helvetica-Bold')
-          .text('CLIENT / ACHETEUR', 52, boxTop + 10);
+          .text('ACHETEUR', 52, boxTop + 10);
 
         const buyerName = order.buyer
-          ? `${order.buyer.firstName} ${order.buyer.lastName}`.trim()
-          : 'Client FutureFarm';
-        const buyerPhone = order.buyer?.phoneNumber || 'Non renseigné';
-        const buyerEmail = order.buyer?.email || '';
-        const buyerAddress = order.deliveryAddress
-          ? `${order.deliveryAddress.street || ''}, ${order.deliveryAddress.city || ''} ${order.deliveryAddress.country || ''}`
-          : 'Non renseignée';
+          ? `${order.buyer.firstName} ${order.buyer.lastName}`
+          : 'Non spécifié';
+        const buyerEmail = order.buyer?.email || 'N/A';
+        const buyerPhone = order.buyer?.phoneNumber || 'N/A';
+        const buyerCompany = (order.buyer as any)?.buyerProfile?.companyName || '';
 
         doc.fillColor(secondaryColor)
-          .fontSize(10)
-          .font('Helvetica-Bold')
-          .text(buyerName, 52, boxTop + 24)
-          .font('Helvetica')
           .fontSize(9)
-          .text(`Tél : ${buyerPhone}`, 52, boxTop + 40)
-          .text(`Email : ${buyerEmail}`, 52, boxTop + 54, { width: 220 })
-          .text(`Adresse : ${buyerAddress}`, 52, boxTop + 68, { width: 220 });
+          .font('Helvetica-Bold')
+          .text(buyerCompany ? `${buyerName} (${buyerCompany})` : buyerName, 52, boxTop + 25, {
+            width: 220,
+          });
+
+        doc.font('Helvetica')
+          .fontSize(9)
+          .text(`Email : ${buyerEmail}`, 52, boxTop + 40, { width: 220 })
+          .text(`Tél : ${buyerPhone}`, 52, boxTop + 55, { width: 220 })
+          .text(`ID Client : ${order.buyerId.slice(0, 8)}...`, 52, boxTop + 70, { width: 220 });
 
         // Box 2: Livraison & Paiement
         const box2Left = 310;
@@ -1407,109 +1418,99 @@ export class OrdersService {
 
         // Table of Order Lines
         const tableTop = 230;
-        doc.rect(40, tableTop, 515, 22).fill('#004322');
+        doc.rect(40, tableTop, 515, 24).fill(primaryColor);
 
         doc.fillColor('#ffffff')
-          .fontSize(9)
+          .fontSize(8)
           .font('Helvetica-Bold')
-          .text('Produit / Récolte', 50, tableTop + 6, { width: 170 })
-          .text('Catégorie', 225, tableTop + 6, { width: 90 })
-          .text('Quantité', 320, tableTop + 6, { width: 65, align: 'center' })
-          .text('Prix Unit.', 390, tableTop + 6, { width: 75, align: 'right' })
-          .text('Total', 470, tableTop + 6, { width: 75, align: 'right' });
+          .text('PRODUIT / CULTURE', 52, tableTop + 7)
+          .text('PRODUCTEUR', 210, tableTop + 7)
+          .text('QTÉ', 330, tableTop + 7, { width: 50, align: 'right' })
+          .text('PRIX UNIT.', 390, tableTop + 7, { width: 70, align: 'right' })
+          .text('TOTAL', 470, tableTop + 7, { width: 75, align: 'right' });
 
-        let currentY = tableTop + 22;
-        const lines = order.lines || [];
+        let currentY = tableTop + 24;
 
-        lines.forEach((line, idx) => {
-          const isEven = idx % 2 === 0;
-          if (isEven) {
-            doc.rect(40, currentY, 515, 24).fill('#fbfcfd');
-          }
-          doc.rect(40, currentY, 515, 24).strokeColor('#edf2f7').stroke();
+        (order.lines || []).forEach((line, index) => {
+          const rowBg = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+          doc.rect(40, currentY, 515, 26).fill(rowBg);
+          doc.rect(40, currentY, 515, 26).strokeColor('#edf2f7').stroke();
 
-          const currencySymbol = order.currency || 'USD';
-          const prodName = line.harvest?.product?.name || 'Produit récolté';
-          const cat = line.harvest?.product?.category || 'MARAÎCHAGE';
-          const qty = `${line.quantity} ${(line.harvest?.unit || 'kg').toLowerCase()}`;
-          const unitPrice = `${Number(line.unitPrice).toLocaleString('fr-FR')} ${currencySymbol}`;
-          const totalPrice = `${Number(line.totalPrice).toLocaleString('fr-FR')} ${currencySymbol}`;
+          const harvestTitle = line.harvest?.product?.name || 'Produit Agricole';
+          const farmerName = (line as any).farmer
+            ? `${(line as any).farmer.firstName} ${(line as any).farmer.lastName}`
+            : (line as any).harvest?.farmerProfile?.farmName || (line as any).farmerProfile?.farmName || 'Exploitation Partenaire';
+
+          const unitPriceFormatted = formatCurrency(Number(line.unitPrice), order.currency);
+          const lineTotalFormatted = formatCurrency(Number(line.totalPrice), order.currency);
+          const harvestUnit = line.harvest?.unit || 'kg';
 
           doc.fillColor(secondaryColor)
-            .fontSize(9)
+            .fontSize(8.5)
             .font('Helvetica-Bold')
-            .text(prodName, 50, currentY + 7, { width: 170 })
-            .font('Helvetica')
-            .fontSize(8)
-            .fillColor(mutedColor)
-            .text(cat, 225, currentY + 7, { width: 90 })
-            .fillColor(secondaryColor)
-            .fontSize(9)
-            .text(qty, 320, currentY + 7, { width: 65, align: 'center' })
-            .text(unitPrice, 390, currentY + 7, { width: 75, align: 'right' })
-            .font('Helvetica-Bold')
-            .fillColor(primaryColor)
-            .text(totalPrice, 470, currentY + 7, { width: 75, align: 'right' });
+            .text(harvestTitle, 52, currentY + 8, { width: 150 });
 
-          currentY += 24;
+          doc.font('Helvetica')
+            .text(farmerName, 210, currentY + 8, { width: 115 })
+            .text(`${line.quantity} ${harvestUnit}`, 330, currentY + 8, {
+              width: 50,
+              align: 'right',
+            })
+            .text(unitPriceFormatted, 390, currentY + 8, { width: 70, align: 'right' })
+            .font('Helvetica-Bold')
+            .text(lineTotalFormatted, 470, currentY + 8, { width: 75, align: 'right' });
+
+          currentY += 26;
         });
 
-        // Totals Box (with breakdown of subtotal + additional fees)
-        currentY += 16;
-        const totalBoxWidth = 240;
-        const totalBoxLeft = 555 - totalBoxWidth;
-        const orderCurrency = order.currency || 'USD';
+        // Financial Summary Box
+        currentY += 20;
+        const summaryBoxLeft = 310;
+        const summaryBoxWidth = 245;
 
-        const cropsSubtotal = lines.reduce((sum, l) => sum + Number(l.totalPrice), 0);
-        const feesList = order.fees || [];
-        const totalBoxHeight = 44 + (feesList.length > 0 ? (feesList.length + 1) * 18 + 8 : 18);
+        const cropsSubtotal = (order.lines || []).reduce((sum, l) => sum + Number(l.totalPrice || 0), 0);
+        const subtotalFormatted = formatCurrency(cropsSubtotal, order.currency);
+        const totalFormatted = formatCurrency(Number(order.totalAmount), order.currency);
 
-        doc.rect(totalBoxLeft, currentY, totalBoxWidth, totalBoxHeight).fill(lightBg);
-        doc.rect(totalBoxLeft, currentY, totalBoxWidth, totalBoxHeight).strokeColor('#e2e8f0').stroke();
-
-        let summaryY = currentY + 10;
-
-        // Subtotal
-        doc.fillColor(secondaryColor)
+        doc.font('Helvetica')
           .fontSize(9)
-          .font('Helvetica')
-          .text('Sous-total récoltes :', totalBoxLeft + 12, summaryY)
-          .font('Helvetica-Bold')
-          .text(`${cropsSubtotal.toLocaleString('fr-FR')} ${orderCurrency}`, totalBoxLeft + 12, summaryY, {
-            width: totalBoxWidth - 24,
+          .fillColor(secondaryColor)
+          .text('Sous-total :', summaryBoxLeft, currentY)
+          .text(subtotalFormatted, summaryBoxLeft + 100, currentY, {
+            width: summaryBoxWidth - 100,
             align: 'right',
           });
-        summaryY += 18;
 
-        // Additional fees itemization
+        currentY += 16;
+        const feesList = (order.fees || []) as Array<{ name: string; amount: number }>;
         if (feesList.length > 0) {
           feesList.forEach((fee) => {
-            doc.fillColor(mutedColor)
-              .fontSize(8.5)
-              .font('Helvetica')
-              .text(fee.name, totalBoxLeft + 12, summaryY)
-              .font('Helvetica')
-              .fillColor(secondaryColor)
-              .text(`${Number(fee.amount).toLocaleString('fr-FR')} ${orderCurrency}`, totalBoxLeft + 12, summaryY, {
-                width: totalBoxWidth - 24,
+            const feeVal = formatCurrency(Number(fee.amount || 0), order.currency);
+            doc.text(`${fee.name} :`, summaryBoxLeft, currentY)
+              .text(feeVal, summaryBoxLeft + 100, currentY, {
+                width: summaryBoxWidth - 100,
                 align: 'right',
               });
-            summaryY += 18;
+            currentY += 16;
           });
-
-          // Inner divider before grand total
-          doc.strokeColor('#e2e8f0').lineWidth(0.5).moveTo(totalBoxLeft + 10, summaryY).lineTo(totalBoxLeft + totalBoxWidth - 10, summaryY).stroke();
-          summaryY += 6;
         }
 
-        // Grand Total TTC
-        const totalFormatted = `${Number(order.totalAmount).toLocaleString('fr-FR')} ${orderCurrency}`;
-        doc.fillColor(primaryColor)
+        currentY += 18;
+        const totalBoxTop = currentY;
+        const totalBoxWidth = summaryBoxWidth;
+        const totalBoxHeight = 32;
+        const totalBoxLeft = summaryBoxLeft;
+
+        doc.rect(totalBoxLeft, totalBoxTop, totalBoxWidth, totalBoxHeight).fill(primaryColor);
+
+        const summaryY = totalBoxTop + 10;
+
+        doc.fillColor('#ffffff')
           .fontSize(10)
           .font('Helvetica-Bold')
-          .text('Total commande TTC :', totalBoxLeft + 12, summaryY + 2);
+          .text('TOTAL TTC :', totalBoxLeft + 12, summaryY);
 
-        doc.fillColor(primaryColor)
+        doc.fillColor('#ffffff')
           .fontSize(12)
           .font('Helvetica-Bold')
           .text(totalFormatted, totalBoxLeft + 12, summaryY, {
@@ -1533,6 +1534,59 @@ export class OrdersService {
         reject(err);
       }
     });
+
+    // Automatically archive/upload document to S3 bucket
+    if (this.storageService) {
+      try {
+        await this.storageService.uploadFile(
+          pdfBuffer,
+          `bon-de-commande-${order.id.slice(0, 8).toUpperCase()}.pdf`,
+          'application/pdf',
+          'documents/orders',
+        );
+      } catch (err: any) {
+        this.logger.warn(`Failed archiving PDF to S3: ${err.message}`);
+      }
+    }
+
+    return pdfBuffer;
+  }
+
+  async getOrderPdfSignedUrl(
+    orderId: string,
+    userId: string,
+    permissions: Permission[],
+  ): Promise<{ url: string; key: string }> {
+    const order = await this.getOrderForUser(orderId, userId, permissions);
+    const filename = `bon-de-commande-${order.id.slice(0, 8).toUpperCase()}.pdf`;
+    const key = `documents/orders/${filename}`;
+
+    if (this.storageService) {
+      const signedUrl = await this.storageService.getSignedUrl(key);
+      if (signedUrl && !signedUrl.includes(key)) {
+        return { url: signedUrl, key };
+      }
+    }
+
+    // Generate fresh and upload
+    const buffer = await this.generateOrderPdf(orderId, userId, permissions);
+    if (this.storageService) {
+      const uploadResult = await this.storageService.uploadFile(
+        buffer,
+        filename,
+        'application/pdf',
+        'documents/orders',
+      );
+      return {
+        url: uploadResult.signedUrl || uploadResult.url,
+        key: uploadResult.key,
+      };
+    }
+
+    return {
+      url: `/orders/${orderId}/pdf`,
+      key,
+    };
   }
 
   async getOrderForUser(
@@ -1555,6 +1609,21 @@ export class OrdersService {
       throw new ForbiddenException(
         'You are not authorized to view this order',
       );
+    }
+
+    // When viewed by a farmer (not admin, not buyer), ensure order has cleared payment & isolate lines
+    if (isSeller && !isAdmin && !isBuyer && farmerProfile) {
+      if (order.status === OrderStatus.PENDING_PAYMENT) {
+        throw new ForbiddenException('Order is pending payment');
+      }
+      order.lines = (order.lines || []).filter(
+        (l) => l.farmerProfileId === farmerProfile.id,
+      );
+      const farmerLinesTotal = order.lines.reduce(
+        (sum, l) => sum + Number(l.totalPrice || 0),
+        0,
+      );
+      order.totalAmount = Number(farmerLinesTotal.toFixed(2));
     }
 
     return order;
@@ -1616,11 +1685,20 @@ export class OrdersService {
       throw new ForbiddenException('User is not a farmer');
     }
 
-    return this.orderLineRepository.find({
-      where: { farmerProfileId: farmerProfile.id },
-      relations: ['order', 'harvest', 'harvest.product'],
-      order: { createdAt: 'DESC' },
-    });
+    return this.orderLineRepository
+      .createQueryBuilder('line')
+      .innerJoinAndSelect('line.order', 'order')
+      .leftJoinAndSelect('order.buyer', 'buyer')
+      .leftJoinAndSelect('line.harvest', 'harvest')
+      .leftJoinAndSelect('harvest.product', 'product')
+      .where('line.farmerProfileId = :farmerProfileId', {
+        farmerProfileId: farmerProfile.id,
+      })
+      .andWhere('order.status != :pendingPaymentStatus', {
+        pendingPaymentStatus: OrderStatus.PENDING_PAYMENT,
+      })
+      .orderBy('line.createdAt', 'DESC')
+      .getMany();
   }
 
   async listAllOrdersAdmin(options: {

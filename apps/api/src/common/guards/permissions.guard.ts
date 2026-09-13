@@ -9,7 +9,10 @@ import type { Request } from 'express';
 
 import type { AuthUser, Permission } from '@futurefarm/types';
 
-import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import {
+  PERMISSIONS_KEY,
+  REQUIRE_ANY_PERMISSIONS_KEY,
+} from '../decorators/require-permissions.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -30,8 +33,16 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // No @RequirePermissions() → route is accessible to any authenticated user
-    if (!requiredPermissions || requiredPermissions.length === 0) {
+    const anyPermissions = this.reflector.getAllAndOverride<Permission[]>(
+      REQUIRE_ANY_PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    // No permissions required → route is accessible to any authenticated user
+    if (
+      (!requiredPermissions || requiredPermissions.length === 0) &&
+      (!anyPermissions || anyPermissions.length === 0)
+    ) {
       return true;
     }
 
@@ -44,14 +55,28 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Access denied');
     }
 
-    const hasAllPermissions = requiredPermissions.every((perm) =>
-      user.permissions.includes(perm),
-    );
-
-    if (!hasAllPermissions) {
-      throw new ForbiddenException(
-        `Missing required permissions: ${requiredPermissions.join(', ')}`,
+    if (requiredPermissions && requiredPermissions.length > 0) {
+      const hasAllPermissions = requiredPermissions.every((perm) =>
+        user.permissions.includes(perm),
       );
+
+      if (!hasAllPermissions) {
+        throw new ForbiddenException(
+          `Missing required permissions: ${requiredPermissions.join(', ')}`,
+        );
+      }
+    }
+
+    if (anyPermissions && anyPermissions.length > 0) {
+      const hasAnyPermission = anyPermissions.some((perm) =>
+        user.permissions.includes(perm),
+      );
+
+      if (!hasAnyPermission) {
+        throw new ForbiddenException(
+          `Missing required permissions: one of ${anyPermissions.join(', ')}`,
+        );
+      }
     }
 
     return true;

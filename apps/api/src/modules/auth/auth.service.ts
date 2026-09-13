@@ -64,6 +64,9 @@ export class AuthService {
         'email',
         'firstName',
         'lastName',
+        'country',
+        'preferredCurrency',
+        'phoneNumber',
         'password',
         'isActive',
         'status',
@@ -122,6 +125,7 @@ export class AuthService {
       lastName: user.lastName,
       country: user.country || 'COD',
       preferredCurrency: user.preferredCurrency || 'CDF',
+      phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
       mustChangePassword: user.mustChangePassword,
@@ -142,23 +146,18 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
-    let sub: string;
+    let payload: { sub: string };
     try {
-      const payload = await this.jwtService.verifyAsync<{
-        sub: string;
-        isTemp?: boolean;
-      }>(tempToken);
-      if (!payload.isTemp || !payload.sub) {
-        throw new UnauthorizedException('Invalid temporary token');
-      }
-      sub = payload.sub;
+      payload = await this.jwtService.verifyAsync<{ sub: string }>(
+        tempToken,
+        { secret: this.config.get<string>('JWT_SECRET') || 'dev-secret' },
+      );
     } catch {
-      throw new UnauthorizedException('Temporary token expired or invalid');
+      throw new UnauthorizedException('Invalid 2FA session');
     }
 
     const user = await this.usersRepository.findOne({
-      where: { id: sub, isActive: true },
-      relations: ['roles'],
+      where: { id: payload.sub },
       select: [
         'id',
         'email',
@@ -166,16 +165,17 @@ export class AuthService {
         'lastName',
         'country',
         'preferredCurrency',
+        'phoneNumber',
         'isActive',
-        'status',
-        'mustChangePassword',
         'isTwoFactorEnabled',
         'twoFactorSecret',
+        'mustChangePassword',
       ],
+      relations: ['roles'],
     });
 
-    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
-      throw new UnauthorizedException('2FA is not enabled for this user.');
+    if (!user || !user.twoFactorSecret) {
+      throw new UnauthorizedException('Invalid 2FA session');
     }
 
     const { valid: isValid } = await this.totp.verify(code, {
@@ -183,7 +183,7 @@ export class AuthService {
     });
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid 2FA code');
+      throw new BadRequestException('Invalid 2FA code');
     }
 
     const permissions: Permission[] = [
@@ -197,6 +197,7 @@ export class AuthService {
       lastName: user.lastName,
       country: user.country || 'COD',
       preferredCurrency: user.preferredCurrency || 'CDF',
+      phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
       mustChangePassword: user.mustChangePassword,

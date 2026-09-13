@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 
 import { VehicleEntity } from './entities/vehicle.entity';
 import { DeliveryRunEntity } from './entities/delivery-run.entity';
@@ -25,11 +25,8 @@ import {
   ROUTE_OPTIMIZER_PORT,
   OsrmRouteOptimizer,
 } from './interfaces/route-optimizer.port';
-import {
-  STORAGE_PORT,
-  S3StorageAdapter,
-  LocalStorageAdapter,
-} from './interfaces/storage.port';
+import { STORAGE_PORT } from './interfaces/storage.port';
+import { StorageService } from '../storage/storage.service';
 
 import { OrdersModule } from '../orders/orders.module';
 import { InspectionsModule } from '../inspections/inspections.module';
@@ -70,17 +67,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
       useClass: OsrmRouteOptimizer,
     },
     {
-      // Use S3 adapter when STORAGE_BUCKET is configured, otherwise fall back
-      // to local disk storage (safe for local dev / CI without cloud credentials).
       provide: STORAGE_PORT,
-      useFactory: (config: ConfigService) => {
-        const bucket = config.get<string>('STORAGE_BUCKET');
-        if (bucket) {
-          return new S3StorageAdapter(config);
-        }
-        return new LocalStorageAdapter();
-      },
-      inject: [ConfigService],
+      useExisting: StorageService,
     },
   ],
   exports: [LogisticsService, VehiclesService, DriverProfileService],

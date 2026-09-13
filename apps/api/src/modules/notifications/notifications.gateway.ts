@@ -8,7 +8,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from '@futurefarm/types';
+import type { JwtPayload } from '@futurefarm/types';
 import { NotificationEntity } from './entities/notification.entity';
 
 @WebSocketGateway({

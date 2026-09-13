@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createRootRouteWithContext, Link, Outlet, useLocation } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import type { QueryClient } from '@tanstack/react-query';
@@ -113,37 +114,48 @@ function RootLayout() {
               : 'bg-blue-50 border-blue-200 text-blue-800'
           }`}
         >
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>
-            {toast.type === 'success'
+          <Icon name={toast.type === 'success'
               ? 'check_circle'
               : toast.type === 'error'
               ? 'error'
               : toast.type === 'warning'
               ? 'warning'
-              : 'info'}
-          </span>
+              : 'info'} className="text-[20px]" />
           <span className="flex-1 leading-snug">{toast.message}</span>
-          <span className="material-symbols-outlined text-[16px] opacity-70 hover:opacity-100">
-            close
-          </span>
+          <Icon name="close" className="text-[16px] opacity-70 hover:opacity-100" />
         </div>
       ))}
     </div>
   );
 
   const renderMustChangePasswordBanner = () => {
-    if (!isAuthenticated || !user?.mustChangePassword || location.pathname.startsWith('/profile')) {
+    const isProfilePage =
+      location.pathname.startsWith('/profile') ||
+      location.pathname.startsWith('/inspector/profile') ||
+      location.pathname.startsWith('/farmer/profile') ||
+      location.pathname.startsWith('/driver/profile');
+
+    if (!isAuthenticated || !user?.mustChangePassword || isProfilePage) {
       return null;
     }
+
+    const targetProfileUrl = user?.roles?.includes('Inspector')
+      ? '/inspector/profile'
+      : user?.roles?.includes('Driver')
+      ? '/driver/profile'
+      : user?.roles?.includes('Farmer')
+      ? '/farmer/profile'
+      : '/profile';
+
     return (
       <div className="bg-amber-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold z-50 sticky top-0 animate-slide-in">
         <div className="flex items-center gap-2 max-w-7xl mx-auto flex-1">
-          <span className="material-symbols-outlined text-lg">warning</span>
+          <Icon name="warning" className="text-lg" />
           <span className="truncate sm:whitespace-normal">
             Vous utilisez un mot de passe temporaire. Veuillez définir votre mot de passe personnalisé.
           </span>
           <Link
-            to="/profile"
+            to={targetProfileUrl}
             className="ml-auto underline font-bold hover:text-amber-100 bg-amber-700/80 px-3 py-1 rounded-lg shrink-0"
           >
             Changer de mot de passe

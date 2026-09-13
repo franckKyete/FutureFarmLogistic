@@ -2,20 +2,19 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { farmerLayoutStore } from '../store/farmer-layout.store';
 import { useStore } from '@tanstack/react-store';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { Icon } from '@/features/shared/components/Icon';
 
 interface NavItem {
   label: string;
   to: string;
   icon: string;
-  fillIcon?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Accueil', to: '/farmer/dashboard', icon: 'home' },
   { label: 'Produits', to: '/farmer/stock', icon: 'inventory_2' },
-  { label: 'Analyses', to: '/farmer/harvests/analyze', icon: 'query_stats' },
+  { label: 'Enchères', to: '/farmer/auctions', icon: 'gavel' },
   { label: 'Commandes', to: '/farmer/orders', icon: 'local_shipping' },
-  { label: 'Profil', to: '/farmer/profile', icon: 'person' },
 ];
 
 const BUYER_NAV_ITEMS: NavItem[] = [
@@ -68,12 +67,11 @@ export function FarmerBottomNav() {
                 : 'text-[#4B5344] hover:text-[#1A5C35] font-medium'
             }`}
           >
-            <span
-              className="material-symbols-outlined text-[22px]"
-              style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-            >
-              {item.icon}
-            </span>
+            <Icon
+              name={item.icon}
+              size={22}
+              className={`transition-transform duration-150 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`}
+            />
             <span className="text-[11px] mt-0.5 tracking-tight">{item.label}</span>
           </Link>
         );

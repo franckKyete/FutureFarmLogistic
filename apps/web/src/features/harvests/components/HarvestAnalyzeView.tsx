@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useRef } from 'react';
 import { useCamera } from '@/hooks/useCamera';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -221,7 +222,7 @@ export function HarvestAnalyzeView({
             onClick={() => setShowPreview(false)}
             className="absolute top-6 left-4 w-10 h-10 flex items-center justify-center bg-black/60 backdrop-blur-md rounded-full text-white active:scale-95 transition-transform cursor-pointer z-10"
           >
-            <span className="material-symbols-outlined text-2xl">close</span>
+            <Icon name="close" className="text-2xl" />
           </button>
           {/* Preview: delete button */}
           <button
@@ -231,7 +232,7 @@ export function HarvestAnalyzeView({
             }}
             className="absolute top-6 right-4 w-10 h-10 flex items-center justify-center bg-red-600/80 rounded-full text-white active:scale-95 transition-transform cursor-pointer z-10"
           >
-            <span className="material-symbols-outlined text-2xl">delete</span>
+            <Icon name="delete" className="text-2xl" />
           </button>
         </div>
       )}
@@ -255,12 +256,12 @@ export function HarvestAnalyzeView({
           onClick={onNavigateBack}
           className="w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white active:scale-95 transition-transform cursor-pointer border border-white/10"
         >
-          <span className="material-symbols-outlined text-2xl">close</span>
+          <Icon name="close" className="text-2xl" />
         </button>
 
         {isProxy && farmerName && (
           <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-3.5 py-1.5 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-400 text-sm">person</span>
+            <Icon name="person" className="text-emerald-400 text-sm" />
             <span className="text-xs font-bold text-emerald-300 truncate max-w-[200px]">
               {farmerName}
             </span>
@@ -279,14 +280,9 @@ export function HarvestAnalyzeView({
           ) : classifiedData ? (
             <div className="space-y-6 max-w-sm bg-white text-[#0b1c30] p-6 rounded-2xl shadow-xl w-full">
               <div className="flex flex-col items-center text-center">
-                <span
-                  className={`material-symbols-outlined text-[56px] mb-2 ${
+                <Icon name={classifiedData.isIdentified ? 'stars' : 'help'} className="text-[56px] mb-2 ${
                     classifiedData.isIdentified ? 'text-[#004322]' : 'text-amber-600'
-                  }`}
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  {classifiedData.isIdentified ? 'stars' : 'help'}
-                </span>
+                  }" />
                 <h3 className="font-display text-lg font-bold text-[#004322] tracking-tight">
                   {classifiedData.isIdentified ? "Culture Identifiée par l'IA" : "Culture Non Identifiée"}
                 </h3>
@@ -422,12 +418,7 @@ export function HarvestAnalyzeView({
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600/90 hover:bg-red-600 rounded-full flex items-center justify-center active:scale-90 transition-all cursor-pointer z-10"
                         title="Supprimer"
                       >
-                        <span
-                          className="material-symbols-outlined text-white text-[12px]"
-                          style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                          close
-                        </span>
+                        <Icon name="close" className="text-white text-[12px]" />
                       </button>
                     </div>
                   );
@@ -447,7 +438,7 @@ export function HarvestAnalyzeView({
                   className="flex-shrink-0 w-14 h-14 rounded-lg border border-dashed border-white/40 flex items-center justify-center bg-white/5 active:scale-95 transition-transform cursor-pointer"
                   title="Choisir depuis la galerie"
                 >
-                  <span className="material-symbols-outlined text-white/60">photo_library</span>
+                  <Icon name="photo_library" className="text-white/60" />
                 </button>
               )}
 
@@ -468,7 +459,7 @@ export function HarvestAnalyzeView({
                   disabled={images.length === 0}
                   className="w-full bg-[#004322] hover:bg-[#1a5c35] text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  <Icon name="arrow_forward" />
                   Continuer hors-ligne (Saisie manuelle)
                 </button>
               ) : (
@@ -478,7 +469,7 @@ export function HarvestAnalyzeView({
                   disabled={images.length === 0 || classify.isPending}
                   className="w-full bg-emerald-700 text-white font-bold py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/25 cursor-pointer text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <span className="material-symbols-outlined">analytics</span>
+                  <Icon name="analytics" />
                   {classify.isPending ? 'Analyse en cours...' : 'Analyser la récolte'}
                 </button>
               )}

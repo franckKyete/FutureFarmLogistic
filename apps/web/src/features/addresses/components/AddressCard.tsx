@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import React from 'react';
 import type { AddressDto } from '@futurefarm/types';
 
@@ -80,7 +81,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                 className="text-[#475569] hover:text-[#0b1c30] p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                 title="Modifier"
               >
-                <span className="material-symbols-outlined text-[18px]">edit</span>
+                <Icon name="edit" className="text-[18px]" />
               </button>
             )}
             {onDelete && (
@@ -93,7 +94,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                 className="text-[#dc2626] hover:text-[#b91c1c] p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                 title="Supprimer"
               >
-                <span className="material-symbols-outlined text-[18px]">delete</span>
+                <Icon name="delete" className="text-[18px]" />
               </button>
             )}
           </div>
@@ -112,16 +113,14 @@ export const AddressCard: React.FC<AddressCardProps> = ({
           </p>
         )}
         <p className="flex items-start gap-1.5 text-[#707970]">
-          <span className="material-symbols-outlined text-[15px] text-[#707970] shrink-0 mt-0.5">
-            location_on
-          </span>
+          <Icon name="location_on" className="text-[15px] text-[#707970] shrink-0 mt-0.5" />
           <span className="leading-relaxed font-medium text-[#0b1c30]">
             {[address.city, address.stateOrProvince, address.country].filter(Boolean).join(', ')}
           </span>
         </p>
         {hasExtraContact && (
           <p className="text-[11px] text-[#707970] flex items-center gap-1.5 pt-0.5">
-            <span className="material-symbols-outlined text-[14px]">person</span>
+            <Icon name="person" className="text-[14px]" />
             <span>{[address.recipientName, address.phoneNumber].filter(Boolean).join(' • ')}</span>
           </p>
         )}

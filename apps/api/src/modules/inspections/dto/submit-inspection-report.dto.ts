@@ -8,7 +8,7 @@ import {
   IsString,
   IsObject,
 } from 'class-validator';
-import {
+import type {
   SubmitInspectionReportDto,
   InspectionChecklist,
 } from '@futurefarm/types';

@@ -32,11 +32,17 @@ export class FarmerProfileEntity {
   @Column('text')
   address: string;
 
+  @Column({ name: 'region_name', type: 'varchar', length: 255, nullable: true })
+  regionName: string | null;
+
   @Column('text', { nullable: true })
   bio: string | null;
 
   @Column({ name: 'avatar_url', type: 'text', nullable: true })
   avatarUrl: string | null;
+
+  @Column({ name: 'banner_url', type: 'text', nullable: true })
+  bannerUrl: string | null;
 
   @Column({ name: 'is_certified', default: false })
   isCertified: boolean;

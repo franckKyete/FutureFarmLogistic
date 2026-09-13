@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useRef, useEffect } from 'react';
 import {
   useCurrencyStore,
@@ -56,18 +57,14 @@ export function CountryCurrencySelector() {
         <span className="text-emerald-700 font-mono uppercase text-[11px]">
           ({selectedCurrency})
         </span>
-        <span
-          className={`material-symbols-outlined text-[16px] text-emerald-700 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-        >
-          expand_more
-        </span>
+        <Icon name="expand_more" className="text-[16px] text-emerald-700 transition-transform ${isOpen ? 'rotate-180' : ''}" />
       </button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white shadow-xl border border-gray-100 z-50 p-2 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="px-3 py-2 border-b border-gray-100 mb-1">
             <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              <span className="material-symbols-outlined text-[16px] text-emerald-600">public</span>
+              <Icon name="public" className="text-[16px] text-emerald-600" />
               <span>Votre Pays & Devise</span>
             </div>
             <p className="text-[11px] text-gray-400 mt-0.5">
@@ -104,9 +101,7 @@ export function CountryCurrencySelector() {
                       </div>
                     </div>
                     {isSelected && (
-                      <span className="material-symbols-outlined text-[18px] text-emerald-600 shrink-0 font-bold">
-                        check
-                      </span>
+                      <Icon name="check" className="text-[18px] text-emerald-600 shrink-0 font-bold" />
                     )}
                   </button>
 

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -70,6 +71,16 @@ const getDaysUntilExpiration = (expirationDate?: string | Date): number | null =
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 };
 
+function getInitials(name?: string): string {
+  if (!name) return 'FL';
+  const clean = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+  }
+  return clean.slice(0, 2).toUpperCase() || 'FL';
+}
+
 interface ProducerGroup {
   producerId: string;
   name: string;
@@ -117,7 +128,11 @@ function CartItemCard({
   const category = categoryLabel(line.harvest?.product?.category);
   const unit = unitLabel(line.harvest?.unit);
   const qualityScore = line.harvest?.qualityScore
-    ? Math.round(Number(line.harvest.qualityScore))
+    ? Math.round(
+        Number(line.harvest.qualityScore) <= 10
+          ? Number(line.harvest.qualityScore) * 10
+          : Number(line.harvest.qualityScore),
+      )
     : 98;
 
   const daysUntilExpiration = getDaysUntilExpiration(line.harvest?.expirationDate);
@@ -150,7 +165,7 @@ function CartItemCard({
               className="text-[#dc2626] hover:text-[#b91c1c] p-1 rounded-md hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
               aria-label="Supprimer cet article"
             >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+              <Icon name="delete" className="text-[18px]" />
             </button>
           </div>
 
@@ -171,9 +186,7 @@ function CartItemCard({
       {/* Expiration Warning Banner */}
       {isExpiringSoon && (
         <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-2.5 flex items-start gap-2 text-xs text-[#92400e]">
-          <span className="material-symbols-outlined text-[18px] text-[#d97706] shrink-0 mt-0.5">
-            warning
-          </span>
+          <Icon name="warning" className="text-[18px] text-[#d97706] shrink-0 mt-0.5" />
           <p className="leading-snug">
             Ce produit expire dans {daysUntilExpiration} jour
             {daysUntilExpiration > 1 ? 's' : ''} — commandez rapidement pour garantir la fraîcheur.
@@ -196,7 +209,7 @@ function CartItemCard({
             className="w-7 h-7 rounded-lg border border-[#c0c9be] flex items-center justify-center text-[#0b1c30] hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-40"
             aria-label="Diminuer la quantité"
           >
-            <span className="material-symbols-outlined text-[16px]">remove</span>
+            <Icon name="remove" className="text-[16px]" />
           </button>
           <span className="w-8 text-center text-sm font-bold text-[#0b1c30]">
             {line.quantity}
@@ -210,7 +223,7 @@ function CartItemCard({
             className="w-7 h-7 rounded-lg border border-[#c0c9be] flex items-center justify-center text-[#0b1c30] hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-40"
             aria-label="Augmenter la quantité"
           >
-            <span className="material-symbols-outlined text-[16px]">add</span>
+            <Icon name="add" className="text-[16px]" />
           </button>
         </div>
 
@@ -238,11 +251,13 @@ export function CartPage() {
     for (const line of rawLines) {
       const producer = line.harvest?.farmerProfile;
       const producerId = producer?.id || line.harvest?.farmerProfileId || 'default-producer';
-      const name = producer?.companyName || 'Ferme locale';
-      const address = producer?.address || 'France';
-      const avatarUrl =
-        producer?.avatarUrl ||
-        'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=120&q=80';
+      const name =
+        producer?.companyName ||
+        ((producer as any)?.user
+          ? `${(producer as any).user.firstName || ''} ${(producer as any).user.lastName || ''}`.trim()
+          : 'Ferme locale');
+      const address = producer?.address || (producer?.regionName ? `${producer.regionName}` : 'RD Congo');
+      const avatarUrl = producer?.avatarUrl || (producer as any)?.user?.avatarUrl || null;
       const isCertified = producer?.isCertified ?? true;
 
       const unitPrice = Number(line.harvest?.pricePerUnit ?? 0);
@@ -339,9 +354,7 @@ export function CartPage() {
         {rawLines.length === 0 ? (
           <div className="bg-white border border-[#e2e8f0] rounded-2xl p-8 text-center shadow-sm">
             <div className="w-16 h-16 rounded-full bg-[#e6f4ea] flex items-center justify-center mx-auto mb-3">
-              <span className="material-symbols-outlined text-[32px] text-[#004322]">
-                shopping_cart
-              </span>
+              <Icon name="shopping_cart" className="text-[32px] text-[#004322]" />
             </div>
             <h2 className="text-base font-bold text-[#0b1c30] mb-1">Votre panier est vide</h2>
             <p className="text-xs text-[#707970] mb-5">
@@ -362,23 +375,24 @@ export function CartPage() {
                 <section key={producer.producerId} className="space-y-3">
                   {/* Producer Header */}
                   <div className="flex items-center gap-3 px-1">
-                    <img
-                      src={producer.avatarUrl || 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=120&q=80'}
-                      alt={producer.name}
-                      className="w-10 h-10 rounded-full object-cover border border-[#e2e8f0] shadow-sm shrink-0"
-                    />
+                    {producer.avatarUrl ? (
+                      <img
+                        src={producer.avatarUrl}
+                        alt={producer.name}
+                        className="w-10 h-10 rounded-full object-cover border border-[#e2e8f0] shadow-sm shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-[#1a5c35] text-white flex items-center justify-center font-bold text-xs uppercase border border-[#e2e8f0] shadow-sm shrink-0">
+                        {getInitials(producer.name)}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <h2 className="text-sm font-bold text-[#0b1c30] truncate">
                           {producer.name}
                         </h2>
                         {producer.isCertified && (
-                          <span
-                            className="material-symbols-outlined text-[16px] text-[#004322] shrink-0"
-                            title="Producteur certifié"
-                          >
-                            verified
-                          </span>
+                          <Icon name="verified" className="text-[16px] text-[#004322] shrink-0" title="Producteur certifié" />
                         )}
                       </div>
                       <p className="text-[11px] text-[#707970] truncate">{producer.address}</p>
@@ -411,9 +425,9 @@ export function CartPage() {
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-[#0b1c30]">Récapitulatif</h3>
                 <div className="flex items-center gap-2 text-[#707970]">
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                  <span className="material-symbols-outlined text-[18px]">credit_card</span>
-                  <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                  <Icon name="receipt_long" className="text-[18px]" />
+                  <Icon name="credit_card" className="text-[18px]" />
+                  <Icon name="account_balance_wallet" className="text-[18px]" />
                 </div>
               </div>
 
@@ -436,7 +450,7 @@ export function CartPage() {
                 <div>
                   <span className="text-sm font-bold text-[#0b1c30] block">Total TTC</span>
                   <span className="text-xs text-[#059669] font-medium flex items-center gap-1 mt-0.5">
-                    <span className="material-symbols-outlined text-[14px]">schedule</span>
+                    <Icon name="schedule" className="text-[14px]" />
                     <span>Demain avant 14h</span>
                   </span>
                 </div>
@@ -450,7 +464,7 @@ export function CartPage() {
                 className="w-full py-3.5 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>Procéder au paiement</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-[18px]" />
               </button>
             </section>
           </>

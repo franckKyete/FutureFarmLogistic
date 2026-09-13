@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -69,7 +70,7 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
           }}
           className="text-xs font-bold text-[#1a5c35] hover:text-[#004322] flex items-center gap-1 cursor-pointer transition-colors"
         >
-          <span className="material-symbols-outlined text-[16px]">add_location_alt</span>
+          <Icon name="add_location_alt" className="text-[16px]" />
           <span>+ Nouvelle adresse</span>
         </button>
       </div>
@@ -81,7 +82,7 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
       ) : addresses.length === 0 ? (
         <div className="p-5 bg-white border border-dashed border-[#c0c9be] rounded-2xl text-center space-y-2">
           <div className="w-10 h-10 rounded-full bg-[#f1f5f9] text-[#707970] flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-[20px]">location_off</span>
+            <Icon name="location_off" className="text-[20px]" />
           </div>
           <p className="text-xs text-[#707970]">Aucune adresse enregistrée</p>
           <button

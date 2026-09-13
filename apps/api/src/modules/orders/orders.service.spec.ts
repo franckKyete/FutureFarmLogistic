@@ -102,7 +102,18 @@ describe('OrdersService', () => {
         },
         {
           provide: getRepositoryToken(OrderLineEntity),
-          useValue: { find: jest.fn(), save: jest.fn() },
+          useValue: {
+            find: jest.fn(),
+            save: jest.fn(),
+            createQueryBuilder: jest.fn(() => ({
+              innerJoinAndSelect: jest.fn().mockReturnThis(),
+              leftJoinAndSelect: jest.fn().mockReturnThis(),
+              where: jest.fn().mockReturnThis(),
+              andWhere: jest.fn().mockReturnThis(),
+              orderBy: jest.fn().mockReturnThis(),
+              getMany: jest.fn().mockResolvedValue([{ id: 'line-1', farmerProfileId: 'farmer-1' }]),
+            })),
+          },
         },
         {
           provide: getRepositoryToken(PaymentRecordEntity),

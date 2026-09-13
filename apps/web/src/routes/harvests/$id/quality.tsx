@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +15,8 @@ function HarvestQualityPage() {
 
   // Gauge animation
   const [gaugeScore, setGaugeScore] = useState(0);
-  const qualityScore = harvest?.qualityScore ?? null;
+  const rawScore = harvest?.qualityScore != null ? Number(harvest.qualityScore) : null;
+  const qualityScore = rawScore !== null ? (rawScore <= 10 ? rawScore * 10 : rawScore) : null;
 
   useEffect(() => {
     if (qualityScore === null) return;
@@ -73,11 +75,11 @@ function HarvestQualityPage() {
       <div className="bg-[#f8f9ff] min-h-screen font-sans">
         <div className="max-w-[480px] mx-auto p-4 pt-20">
           <Link to="/harvests/$id" params={{ id }} className="flex items-center gap-2 text-[#004322] mb-6">
-            <span className="material-symbols-outlined">arrow_back</span>
+            <Icon name="arrow_back" />
             <span className="font-bold text-sm">Retour au produit</span>
           </Link>
           <div className="bg-white rounded-xl border border-[#c0c9be] p-8 text-center">
-            <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">error_outline</span>
+            <Icon name="error_outline" className="text-[48px] text-[#707970] mb-2 block" />
             <p className="text-[#404941] font-semibold">Récolte introuvable</p>
           </div>
         </div>
@@ -96,9 +98,9 @@ function HarvestQualityPage() {
           <Link
             to="/harvests/$id"
             params={{ id }}
-            className="material-symbols-outlined text-[#004322] cursor-pointer shrink-0"
+            className="text-[#004322] cursor-pointer shrink-0 p-1 -ml-1 hover:opacity-80"
           >
-            arrow_back
+            <Icon name="arrow_back" size={24} />
           </Link>
           <h1 className="text-[18px] font-bold text-[#004322] truncate">
             Qualité — {harvest.product?.name ?? 'Produit'}
@@ -178,9 +180,7 @@ function HarvestQualityPage() {
             <>
               <div className="flex justify-center mb-4">
                 <div className="w-32 h-32 rounded-full bg-[#eff4ff] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[#707970] text-[48px]">
-                    science
-                  </span>
+                  <Icon name="science" className="text-[#707970] text-[48px]" />
                 </div>
               </div>
               <h2 className="text-lg font-bold text-[#0b1c30] mb-2">
@@ -202,7 +202,7 @@ function HarvestQualityPage() {
           {qualityScore !== null ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-[#eff4ff] rounded-lg">
-                <span className="material-symbols-outlined text-[#1a5c35]">lab_research</span>
+                <Icon name="lab_research" className="text-[#1a5c35]" />
                 <div className="flex-1">
                   <p className="text-[12px] font-bold text-[#0b1c30]">Analyse organoleptique</p>
                   <p className="text-[11px] text-[#707970]">
@@ -214,7 +214,7 @@ function HarvestQualityPage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 p-3 bg-[#eff4ff] rounded-lg">
-                <span className="material-symbols-outlined text-[#1a5c35]">science</span>
+                <Icon name="science" className="text-[#1a5c35]" />
                 <div className="flex-1">
                   <p className="text-[12px] font-bold text-[#0b1c30]">Analyse physico-chimique</p>
                   <p className="text-[11px] text-[#707970]">Résultats disponibles</p>
@@ -226,9 +226,7 @@ function HarvestQualityPage() {
             </div>
           ) : (
             <div className="text-center py-6">
-              <span className="material-symbols-outlined text-[#707970] text-[36px] mb-2 block">
-                pending
-              </span>
+              <Icon name="pending" className="text-[#707970] text-[36px] mb-2 block" />
               <p className="text-[13px] text-[#404941]">
                 Aucune analyse en laboratoire disponible pour cette récolte.
               </p>
@@ -244,16 +242,16 @@ function HarvestQualityPage() {
           {harvest.farmingMethods ? (
             <div className="flex flex-wrap gap-2">
               <span className="flex items-center gap-1.5 px-3 py-2 bg-[#E6F3EA] text-[#1A5C35] rounded-lg border border-[#1A5C35]/20 text-[12px] font-bold">
-                <span className="material-symbols-outlined text-[18px]">eco</span>
+                <Icon name="eco" className="text-[18px]" />
                 {harvest.farmingMethods}
               </span>
               <span className="flex items-center gap-1.5 px-3 py-2 bg-[#FFF8E6] text-[#885200] rounded-lg border border-[#885200]/20 text-[12px] font-bold">
-                <span className="material-symbols-outlined text-[18px]">verified_user</span>
+                <Icon name="verified_user" className="text-[18px]" />
                 Agriculture durable
               </span>
               {qualityScore !== null && qualityScore >= 70 && (
                 <span className="flex items-center gap-1.5 px-3 py-2 bg-[#E8F5E9] text-[#2E7D32] rounded-lg border border-[#2E7D32]/20 text-[12px] font-bold">
-                  <span className="material-symbols-outlined text-[18px]">verified</span>
+                  <Icon name="verified" className="text-[18px]" />
                   Qualité certifiée
                 </span>
               )}
@@ -280,7 +278,7 @@ function HarvestQualityPage() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[#707970]">image</span>
+                  <Icon name="image" className="text-[#707970]" />
                 </div>
               )}
             </div>
@@ -309,7 +307,7 @@ function HarvestQualityPage() {
           params={{ id }}
           className="flex items-center justify-center gap-2 py-3 text-[#004322] font-bold text-sm rounded-xl border border-[#c0c9be] bg-white hover:bg-[#eff4ff] transition-colors"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <Icon name="arrow_back" />
           Retour au produit
         </Link>
       </main>

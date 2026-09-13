@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -141,7 +142,7 @@ export function OrderTrackingPage() {
         <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-[#e2e8f0] h-14 max-w-[480px] mx-auto px-4 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2">
             <Link to="/orders" className="p-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center">
-              <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+              <Icon name="arrow_back" className="text-[20px]" />
             </Link>
             <span className="font-extrabold text-[#004322] text-base tracking-tight">Future Farm</span>
           </div>
@@ -159,9 +160,7 @@ export function OrderTrackingPage() {
     return (
       <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9ff] pt-20 px-4 text-center">
         <div className="py-16 bg-white rounded-2xl border border-[#c0c9be] p-6 shadow-xs">
-          <span className="material-symbols-outlined text-4xl text-gray-400 mb-2 block">
-            error_outline
-          </span>
+          <Icon name="error_outline" className="text-4xl text-gray-400 mb-2 block" />
           <p className="text-sm text-[#0b1c30] font-bold">Impossible de charger le suivi</p>
           <p className="text-xs text-[#707970] mt-1">
             Les détails de cette commande sont introuvables.
@@ -188,7 +187,7 @@ export function OrderTrackingPage() {
             className="p-1 rounded-lg text-[#004322] hover:bg-gray-100 flex items-center"
             aria-label="Retour aux détails de la commande"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[20px]" />
           </Link>
           <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-300 shrink-0">
             <img
@@ -207,7 +206,7 @@ export function OrderTrackingPage() {
           className="p-1.5 text-[#404941] hover:text-[#004322] hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
           aria-label="Notifications"
         >
-          <span className="material-symbols-outlined text-[22px]">notifications</span>
+          <Icon name="notifications" className="text-[22px]" />
         </Link>
       </header>
 
@@ -215,7 +214,7 @@ export function OrderTrackingPage() {
       <div className="pt-14 relative w-full h-[320px] bg-[#eef3ee] overflow-hidden">
         {/* Floating truck badge in top-left */}
         <div className="absolute top-16 left-3 z-10 bg-white/90 backdrop-blur-sm text-[#004322] p-1.5 rounded-lg shadow-sm border border-[#c0c9be]/50 flex items-center justify-center">
-          <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+          <Icon name="local_shipping" className="text-[18px]" />
         </div>
 
         {/* Real Interactive Leaflet Map */}
@@ -290,7 +289,7 @@ export function OrderTrackingPage() {
             data-testid="driver-phone-btn"
             className="w-10 h-10 rounded-full bg-white hover:bg-emerald-50 text-[#004322] flex items-center justify-center border border-[#c0c9be] shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
           >
-            <span className="material-symbols-outlined text-[19px]">call</span>
+            <Icon name="call" className="text-[19px]" />
           </a>
         </div>
 
@@ -358,7 +357,7 @@ export function OrderTrackingPage() {
             data-testid="contact-driver-btn"
             className="w-full bg-[#004322] hover:bg-[#1a5c35] text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 text-sm shadow-xs transition-all active:scale-[0.99] cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[19px]">chat</span>
+            <Icon name="chat" className="text-[19px]" />
             <span>Contact Driver</span>
           </a>
 
@@ -368,7 +367,7 @@ export function OrderTrackingPage() {
             data-testid="report-issue-btn"
             className="w-full bg-white hover:bg-rose-50/60 border border-rose-300 text-rose-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm shadow-xs transition-all active:scale-[0.99] cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[19px] text-rose-600">error_outline</span>
+            <Icon name="error_outline" className="text-[19px] text-rose-600" />
             <span>Report Issue</span>
           </button>
         </div>
@@ -380,37 +379,35 @@ export function OrderTrackingPage() {
           to="/marketplace"
           className="flex flex-col items-center gap-0.5 text-[#707970] hover:text-[#004322] transition-colors py-1 px-3"
         >
-          <span className="material-symbols-outlined text-[22px]">home</span>
+          <Icon name="home" className="text-[22px]" />
           <span className="text-[10px] font-semibold">Home</span>
         </Link>
         <Link
           to="/marketplace"
           className="flex flex-col items-center gap-0.5 text-[#707970] hover:text-[#004322] transition-colors py-1 px-3"
         >
-          <span className="material-symbols-outlined text-[22px]">spa</span>
+          <Icon name="spa" className="text-[22px]" />
           <span className="text-[10px] font-semibold">Products</span>
         </Link>
         <Link
           to="/auctions"
           className="flex flex-col items-center gap-0.5 text-[#707970] hover:text-[#004322] transition-colors py-1 px-3"
         >
-          <span className="material-symbols-outlined text-[22px]">gavel</span>
+          <Icon name="gavel" className="text-[22px]" />
           <span className="text-[10px] font-semibold">Auctions</span>
         </Link>
         <Link
           to="/orders"
           className="flex flex-col items-center gap-0.5 text-[#004322] font-bold py-1 px-3"
         >
-          <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            local_shipping
-          </span>
+          <Icon name="local_shipping" className="text-[22px]" />
           <span className="text-[10px] font-bold">Orders</span>
         </Link>
         <Link
           to="/profile"
           className="flex flex-col items-center gap-0.5 text-[#707970] hover:text-[#004322] transition-colors py-1 px-3"
         >
-          <span className="material-symbols-outlined text-[22px]">person</span>
+          <Icon name="person" className="text-[22px]" />
           <span className="text-[10px] font-semibold">Profile</span>
         </Link>
       </nav>

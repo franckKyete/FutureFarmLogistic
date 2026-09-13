@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderEntity } from '../entities/order.entity';
-import { PaymentGatewayPort } from '../interfaces/payment-gateway.port';
+import type { PaymentGatewayPort } from '../interfaces/payment-gateway.port';
 import {
   PaymentInitResult,
   PaymentConfirmResult,

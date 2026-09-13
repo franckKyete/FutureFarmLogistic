@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -119,7 +120,8 @@ function HarvestDetailPage() {
 
   const currentPrice = Number(decayedPrice?.currentPrice ?? harvest?.pricePerUnit ?? 0);
   const unit = unitLabel(harvest?.unit as HarvestUnit);
-  const qualityScore = Number(harvest?.qualityScore ?? 92);
+  const rawScore = Number(harvest?.qualityScore ?? 9.2);
+  const qualityScore = rawScore <= 10 ? rawScore * 10 : rawScore;
 
   const harvestDateObj = useMemo(
     () => (harvest?.harvestDate ? new Date(harvest.harvestDate) : new Date()),
@@ -212,14 +214,14 @@ function HarvestDetailPage() {
         <BuyerHeader title="Détails Produit" showBack backTo="/marketplace" />
         <div className="max-w-[480px] mx-auto p-4 pt-20">
           <div className="bg-white rounded-2xl border border-[#c0c9be] p-8 text-center shadow-sm">
-            <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">error_outline</span>
+            <Icon name="error_outline" className="text-[48px] text-[#707970] mb-2 block" />
             <h3 className="text-lg font-bold text-[#0b1c30] mb-1">Récolte introuvable</h3>
             <p className="text-sm text-[#707970] mb-4">Cette récolte n'existe plus ou a été retirée du catalogue.</p>
             <Link
               to="/marketplace"
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a3824] text-white rounded-xl text-sm font-semibold hover:bg-[#062618] transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+              <Icon name="arrow_back" className="text-[18px]" />
               Retour au marché
             </Link>
           </div>
@@ -243,7 +245,7 @@ function HarvestDetailPage() {
             title="Voir l'audit qualité complet"
             aria-label="Voir l'audit qualité complet"
           >
-            <span className="material-symbols-outlined text-[22px]">more_vert</span>
+            <Icon name="more_vert" className="text-[22px]" />
           </Link>
         }
       />
@@ -263,7 +265,7 @@ function HarvestDetailPage() {
             {/* Certifié Bio overlay badge */}
             {isCertifiedBio && (
               <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm text-[#0a3824] px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md border border-gray-100">
-                <span className="material-symbols-outlined text-[16px] text-[#0a3824]">verified</span>
+                <Icon name="verified" className="text-[16px] text-[#0a3824]" />
                 <span>Certifié Bio</span>
               </div>
             )}
@@ -316,19 +318,19 @@ function HarvestDetailPage() {
             {/* Feature bullets */}
             <div className="flex flex-col gap-2 text-xs text-white/90">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-white/80">calendar_today</span>
+                <Icon name="calendar_today" className="text-[16px] text-white/80" />
                 <span>
                   Mois de récolte : <strong className="text-white font-semibold">{harvestMonthYear}</strong>
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-white/80">layers</span>
+                <Icon name="layers" className="text-[16px] text-white/80" />
                 <span>
                   Récoltes disponibles : <strong className="text-white font-semibold">{Math.max(allBatches.length, 1)} lots</strong>
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-white/80">verified_user</span>
+                <Icon name="verified_user" className="text-[16px] text-white/80" />
                 <span>
                   <strong className="text-white font-semibold">
                     {isCertifiedBio ? 'Certifié Bio' : 'Agriculture Contrôlée'}
@@ -369,12 +371,12 @@ function HarvestDetailPage() {
               </p>
               <div className="flex flex-col gap-1.5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#eaf5ee] text-[#14532d] rounded-lg border border-[#bbf7d0] text-xs font-bold w-fit">
-                  <span className="material-symbols-outlined text-[15px]">eco</span>
+                  <Icon name="eco" className="text-[15px]" />
                   <span>Agriculture Bio</span>
                 </div>
                 {isHVE && (
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#fef3c7] text-[#92400e] rounded-lg border border-[#fde68a] text-xs font-bold w-fit">
-                    <span className="material-symbols-outlined text-[15px]">shield</span>
+                    <Icon name="shield" className="text-[15px]" />
                     <span>HVE</span>
                   </div>
                 )}
@@ -397,9 +399,7 @@ function HarvestDetailPage() {
 
           {/* Location banner */}
           <div className="bg-[#f8f9fc] border border-[#e2e8f0] rounded-xl p-3 flex items-start gap-2.5">
-            <span className="material-symbols-outlined text-[20px] text-[#9a3412] mt-0.5 shrink-0">
-              location_on
-            </span>
+            <Icon name="location_on" className="text-[20px] text-[#9a3412] mt-0.5 shrink-0" />
             <p className="text-xs text-gray-700 leading-snug">
               Disponible à: <span className="font-medium text-gray-900">{distributionLocation}</span>
             </p>
@@ -459,7 +459,8 @@ function HarvestDetailPage() {
               const batchMonth =
                 batchDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
               const batchMonthFormatted = batchMonth.charAt(0).toUpperCase() + batchMonth.slice(1);
-              const batchScore = Math.round(Number(batch.qualityScore ?? 90));
+              const rawBatchScore = batch.qualityScore != null ? Number(batch.qualityScore) : 9.0;
+              const batchScore = Math.round(rawBatchScore <= 10 ? rawBatchScore * 10 : rawBatchScore);
               const batchPrice = Number(batch.pricePerUnit);
 
               return (
@@ -535,7 +536,7 @@ function HarvestDetailPage() {
             className="w-9 h-9 rounded-lg bg-white flex items-center justify-center cursor-pointer hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-colors"
             aria-label="Diminuer la quantité"
           >
-            <span className="material-symbols-outlined text-[18px] text-[#0a3824]">remove</span>
+            <Icon name="remove" className="text-[18px] text-[#0a3824]" />
           </button>
           <span className="w-10 text-center font-bold text-sm text-[#0b1c30]">
             {quantity}
@@ -547,7 +548,7 @@ function HarvestDetailPage() {
             className="w-9 h-9 rounded-lg bg-white flex items-center justify-center cursor-pointer hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-colors"
             aria-label="Augmenter la quantité"
           >
-            <span className="material-symbols-outlined text-[18px] text-[#0a3824]">add</span>
+            <Icon name="add" className="text-[18px] text-[#0a3824]" />
           </button>
         </div>
 
@@ -560,7 +561,7 @@ function HarvestDetailPage() {
             className="flex-1 py-3 px-4 bg-[#0a3824] hover:bg-[#062618] active:bg-[#03160e] text-white font-bold rounded-xl text-sm transition-colors cursor-pointer shadow-md flex items-center justify-between gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <span className="material-symbols-outlined text-[20px] shrink-0">shopping_cart</span>
+              <Icon name="shopping_cart" className="text-[20px] shrink-0" />
               <span className="truncate">
                 {addToBasket.isPending ? 'Ajout...' : `Ajouter (${quantity} ${unit})`}
               </span>
@@ -576,7 +577,7 @@ function HarvestDetailPage() {
             className="flex-1 py-3 px-4 bg-[#0a3824] hover:bg-[#062618] active:bg-[#03160e] text-white font-bold rounded-xl text-sm transition-colors cursor-pointer shadow-md flex items-center justify-between gap-2"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <span className="material-symbols-outlined text-[20px] shrink-0">login</span>
+              <Icon name="login" className="text-[20px] shrink-0" />
               <span className="truncate">Se connecter</span>
             </div>
             <span className="shrink-0 text-xs bg-[#1a4a34] px-2.5 py-1 rounded-lg text-[#a7f3d0] font-bold">

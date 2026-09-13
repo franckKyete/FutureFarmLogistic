@@ -9,11 +9,21 @@ export interface DriverProfileInfo {
   totalDeliveriesCompleted: number;
 }
 
+export interface AssignedCenterInfo {
+  id: string;
+  name: string;
+  code: string;
+  regionName: string;
+  address: string;
+}
+
 export interface InspectorProfileInfo {
+  id?: string;
   licenseNumber: string;
   agencyName: string;
   specializations: string[];
   isActiveInspector: boolean;
+  assignedCenters?: AssignedCenterInfo[];
 }
 
 export interface FarmerParcelInfo {
@@ -51,6 +61,7 @@ export interface AdminUserDto {
   status: UserStatus;
   isActive: boolean;
   phone?: string | null;
+  phoneNumber?: string | null;
   roles: Array<{ id: string; name: string }>;
   profile?: DriverProfileInfo | InspectorProfileInfo | FarmerProfileInfo | BuyerProfileInfo | null;
   createdAt: string;

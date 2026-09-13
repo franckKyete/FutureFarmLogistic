@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProducers } from '../api/accounts.queries';
@@ -133,7 +134,7 @@ export function PlanVisitModal({ isOpen, onClose }: PlanVisitModalProps) {
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-lg">close</span>
+          <Icon name="close" className="text-lg" />
         </button>
 
         <h2 className="text-lg font-bold text-[#1a5c35] mb-6">Planifier une visite</h2>
@@ -160,7 +161,7 @@ export function PlanVisitModal({ isOpen, onClose }: PlanVisitModalProps) {
                   }}
                   className="shrink-0 ml-2 text-gray-400 hover:text-gray-600 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <Icon name="close" className="text-lg" />
                 </button>
               </div>
             ) : (

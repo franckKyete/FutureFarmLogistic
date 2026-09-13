@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useMemo } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -155,7 +156,7 @@ function TransactionsPage() {
     return (
       <div className="rounded-2xl border border-[var(--admin-error-container)] bg-[var(--admin-error-container)]/50 p-6">
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[var(--admin-error)] text-2xl">error</span>
+          <Icon name="error" className="text-[var(--admin-error)] text-2xl" />
           <div>
             <h3 className="text-sm font-bold text-[var(--admin-error)]">
               Erreur de chargement
@@ -173,9 +174,7 @@ function TransactionsPage() {
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="border-b border-[var(--admin-outline-variant)]/40 pb-5">
         <h1 className="text-2xl font-black text-[var(--admin-on-surface)] tracking-tight flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[28px] text-[var(--admin-primary)]">
-            receipt_long
-          </span>
+          <Icon name="receipt_long" className="text-[28px] text-[var(--admin-primary)]" />
           <span>Gestion des transactions & commandes</span>
         </h1>
         <p className="mt-1 text-xs text-[var(--admin-on-surface-variant)]">
@@ -268,9 +267,7 @@ function TransactionsPage() {
 
       {orderList.length === 0 ? (
         <div className="rounded-2xl border border-[var(--admin-outline-variant)]/60 bg-[var(--admin-surface-container-lowest)] p-12 text-center">
-          <span className="material-symbols-outlined text-4xl text-[var(--admin-on-surface-variant)]/50 mb-2 block">
-            receipt_long
-          </span>
+          <Icon name="receipt_long" className="text-4xl text-[var(--admin-on-surface-variant)]/50 mb-2 block" />
           <p className="text-sm font-bold text-[var(--admin-on-surface)]">Aucune transaction trouvée</p>
           <p className="text-xs text-[var(--admin-on-surface-variant)] mt-1">
             Modifiez vos filtres ou effectuez de nouvelles commandes pour afficher des données.
@@ -329,7 +326,7 @@ function TransactionsPage() {
                   >
                     <td className="py-4 px-5">
                       <div className="font-mono font-bold text-[var(--admin-primary)] group-hover:underline flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]">receipt</span>
+                        <Icon name="receipt" className="text-[16px]" />
                         <span>#ORD-{truncateId(order.id)}</span>
                       </div>
                     </td>
@@ -367,9 +364,7 @@ function TransactionsPage() {
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
                       >
-                        <span className="material-symbols-outlined text-[13px]">
-                          {statusInfo.icon}
-                        </span>
+                        <Icon name={statusInfo.icon} className="text-[13px]" />
                         <span>{statusInfo.label}</span>
                       </span>
                     </td>
@@ -381,7 +376,7 @@ function TransactionsPage() {
                     <td className="py-4 px-4 text-right">
                       <span className="inline-flex items-center gap-1 text-[var(--admin-primary)] font-bold group-hover:translate-x-0.5 transition-transform">
                         <span>Voir</span>
-                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        <Icon name="arrow_forward" className="text-[16px]" />
                       </span>
                     </td>
                   </tr>
@@ -403,7 +398,7 @@ function TransactionsPage() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[var(--admin-outline-variant)] text-xs font-semibold text-[var(--admin-on-surface)] hover:bg-[var(--admin-surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            <Icon name="chevron_left" className="text-[16px]" />
             Précédent
           </button>
           <span className="px-2 font-bold">
@@ -416,7 +411,7 @@ function TransactionsPage() {
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[var(--admin-outline-variant)] text-xs font-semibold text-[var(--admin-on-surface)] hover:bg-[var(--admin-surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             Suivant
-            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            <Icon name="chevron_right" className="text-[16px]" />
           </button>
         </div>
       </div>

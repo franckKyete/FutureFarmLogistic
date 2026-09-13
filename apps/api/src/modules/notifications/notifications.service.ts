@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, FindManyOptions } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import type { Queue } from 'bull';
 
 import type { PaginatedResult } from '@futurefarm/types';
 import { NotificationStatus } from '@futurefarm/types';

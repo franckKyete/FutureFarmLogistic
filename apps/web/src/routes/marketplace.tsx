@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -144,9 +145,7 @@ export function MarketplacePage() {
       <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-4">
         {/* Search input matching design */}
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-[20px]" />
           <input
             type="text"
             value={searchQuery}
@@ -157,14 +156,12 @@ export function MarketplacePage() {
           {searchQuery ? (
             <button
               onClick={() => setSearchQuery('')}
-              className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-[18px] cursor-pointer"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
             >
-              close
+              <Icon name="close" size={18} />
             </button>
           ) : (
-            <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">
-              mic
-            </span>
+            <Icon name="search" size={20} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           )}
         </div>
 
@@ -202,9 +199,7 @@ export function MarketplacePage() {
                 className="flex flex-col items-center gap-1 min-w-[56px] cursor-pointer group"
               >
                 <div className="w-12 h-12 rounded-full bg-[#004322] text-white flex items-center justify-center transition-all group-hover:scale-105 ring-2 ring-[#004322] ring-offset-1">
-                  <span className="material-symbols-outlined text-[20px]">
-                    agriculture
-                  </span>
+                  <Icon name="agriculture" className="text-[20px]" />
                 </div>
                 <span className="text-[10px] font-bold text-[#004322] truncate max-w-[56px]">
                   Toutes →
@@ -247,9 +242,7 @@ export function MarketplacePage() {
           </div>
         ) : filteredHarvests.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-xs">
-            <span className="material-symbols-outlined text-[48px] text-gray-400 mb-2 block">
-              inventory_2
-            </span>
+            <Icon name="inventory_2" className="text-[48px] text-gray-400 mb-2 block" />
             <p className="text-[#404941] font-semibold text-sm">No products available</p>
           </div>
         ) : (
@@ -274,7 +267,7 @@ export function MarketplacePage() {
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#ea8e1b] hover:bg-[#d97d0e] text-white rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-all duration-200 cursor-pointer"
         aria-label="View Shopping Cart"
       >
-        <span className="material-symbols-outlined text-[26px]">shopping_cart</span>
+        <Icon name="shopping_cart" className="text-[26px]" />
         {basketLineCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-[#004322] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
             {basketLineCount > 99 ? '99+' : basketLineCount}
@@ -294,7 +287,11 @@ function MarketplaceHarvestCard({
 }) {
   const photoUrl = harvest.photoUrls?.[0];
   const qualityScore = harvest.qualityScore !== undefined && harvest.qualityScore !== null
-    ? Math.round(Number(harvest.qualityScore))
+    ? Math.round(
+        Number(harvest.qualityScore) <= 10
+          ? Number(harvest.qualityScore) * 10
+          : Number(harvest.qualityScore),
+      )
     : null;
 
   const radius = 13;
@@ -367,7 +364,7 @@ function MarketplaceHarvestCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-[#eff4ff]">
-            <span className="material-symbols-outlined text-gray-400 text-[36px]">image</span>
+            <Icon name="image" className="text-gray-400 text-[36px]" />
           </div>
         )}
 

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -141,7 +142,7 @@ function AdminTransactionDetailPage() {
     return (
       <div className="p-8 max-w-4xl mx-auto">
         <div className="bg-white border border-[var(--admin-outline-variant)] rounded-2xl p-8 text-center space-y-3">
-          <span className="material-symbols-outlined text-4xl text-gray-400">error</span>
+          <Icon name="error" className="text-4xl text-gray-400" />
           <h2 className="text-base font-bold text-gray-900">Transaction introuvable</h2>
           <p className="text-xs text-gray-500">
             La transaction demandée #{id.slice(0, 8)} n'existe pas ou a été supprimée.
@@ -150,7 +151,7 @@ function AdminTransactionDetailPage() {
             to="/admin/transactions"
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--admin-primary)] text-white text-xs font-bold rounded-xl shadow-xs"
           >
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[16px]" />
             <span>Retour aux transactions</span>
           </Link>
         </div>
@@ -205,7 +206,7 @@ function AdminTransactionDetailPage() {
               className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors inline-flex items-center"
               title="Retour aux transactions"
             >
-              <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+              <Icon name="arrow_back" className="text-[20px]" />
             </Link>
             <h1 className="text-2xl font-black text-[var(--admin-on-surface)] tracking-tight font-mono">
               #ORD-{order.id.slice(0, 8).toUpperCase()}
@@ -213,7 +214,7 @@ function AdminTransactionDetailPage() {
             <span
               className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
             >
-              <span className="material-symbols-outlined text-[15px]">{statusInfo.icon}</span>
+              <Icon name={statusInfo.icon} className="text-[15px]" />
               <span>{statusInfo.label}</span>
             </span>
           </div>
@@ -233,7 +234,7 @@ function AdminTransactionDetailPage() {
             {isDownloadingPdf ? (
               <div className="w-4 h-4 border-2 border-[var(--admin-primary)] border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span className="material-symbols-outlined text-[18px]">download</span>
+              <Icon name="download" className="text-[18px]" />
             )}
             <span>Télécharger Bon de Commande (PDF)</span>
           </button>
@@ -248,9 +249,7 @@ function AdminTransactionDetailPage() {
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl overflow-hidden shadow-xs">
             <div className="p-4 bg-[var(--admin-surface-container-low)] border-b border-[var(--admin-outline-variant)]/40 flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-[var(--admin-primary)]">
-                  inventory_2
-                </span>
+                <Icon name="inventory_2" className="text-[18px] text-[var(--admin-primary)]" />
                 <span>Récoltes & Produits Commandés ({order.lines.length})</span>
               </span>
               <span className="text-xs font-bold text-[var(--admin-primary)]">
@@ -295,7 +294,7 @@ function AdminTransactionDetailPage() {
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--admin-on-surface-variant)]">
                         <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">person</span>
+                          <Icon name="person" className="text-[14px]" />
                           <span>Vendeur : <strong>{farmerName}</strong></span>
                         </span>
                         <span>
@@ -324,7 +323,7 @@ function AdminTransactionDetailPage() {
           {/* Card: Vendeurs / Producteurs associés */}
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl p-5 shadow-xs space-y-4">
             <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-emerald-700">agriculture</span>
+              <Icon name="agriculture" className="text-[18px] text-emerald-700" />
               <span>Producteurs & Vendeurs impliqués ({farmersList.length})</span>
             </span>
 
@@ -350,13 +349,7 @@ function AdminTransactionDetailPage() {
                       <div className="font-bold text-gray-900 truncate flex items-center gap-1.5">
                         <span>{name}</span>
                         {farmer.isCertified && (
-                          <span
-                            className="material-symbols-outlined text-[#004322] text-[15px]"
-                            title="Producteur certifié"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                          >
-                            verified
-                          </span>
+                          <Icon name="verified" className="text-[#004322] text-[15px]" title="Producteur certifié" />
                         )}
                       </div>
                       {user?.email && <div className="text-gray-500 truncate">Email : {user.email}</div>}
@@ -372,7 +365,7 @@ function AdminTransactionDetailPage() {
           {/* Card: Expédition & Logistique */}
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl p-5 shadow-xs space-y-3">
             <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-amber-700">local_shipping</span>
+              <Icon name="local_shipping" className="text-[18px] text-amber-700" />
               <span>Logistique & Livraison</span>
             </span>
 
@@ -403,7 +396,7 @@ function AdminTransactionDetailPage() {
           {/* Card: Client / Acheteur */}
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl p-5 shadow-xs space-y-3">
             <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-blue-600">person</span>
+              <Icon name="person" className="text-[18px] text-blue-600" />
               <span>Client / Acheteur</span>
             </span>
 
@@ -425,7 +418,7 @@ function AdminTransactionDetailPage() {
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-[var(--admin-primary)]">payments</span>
+                <Icon name="payments" className="text-[18px] text-[var(--admin-primary)]" />
                 <span>Règlement & Frais</span>
               </span>
               <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -446,9 +439,7 @@ function AdminTransactionDetailPage() {
                 order.fees.map((fee, idx) => (
                   <div key={idx} className="flex items-center justify-between text-gray-600">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px] text-gray-400">
-                        {fee.code.includes('DELIVERY') ? 'local_shipping' : 'receipt'}
-                      </span>
+                      <Icon name={fee.code.includes('DELIVERY') ? 'local_shipping' : 'receipt'} className="text-[14px] text-gray-400" />
                       <span>{fee.name} :</span>
                     </span>
                     <span className="font-bold text-gray-900">
@@ -484,7 +475,7 @@ function AdminTransactionDetailPage() {
           {/* Card: Statut Paiement */}
           <div className="bg-[var(--admin-surface-container-lowest)] border border-[var(--admin-outline-variant)]/60 rounded-2xl p-5 shadow-xs space-y-3">
             <span className="text-xs font-bold text-[var(--admin-on-surface)] uppercase tracking-wider flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-purple-600">account_balance_wallet</span>
+              <Icon name="account_balance_wallet" className="text-[18px] text-purple-600" />
               <span>Passerelle & Paiement</span>
             </span>
 

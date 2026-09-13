@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -174,15 +175,11 @@ export function OrdersListPage() {
         <div className="space-y-4">
           {isLoading ? (
             <div className="flex justify-center py-12">
-              <span className="material-symbols-outlined text-[#1a5c35] animate-spin text-2xl">
-                sync
-              </span>
+              <Icon name="sync" className="text-[#1a5c35] animate-spin text-2xl" />
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="text-center py-12 space-y-3">
-              <span className="material-symbols-outlined text-4xl text-[#707970]">
-                shopping_cart
-              </span>
+              <Icon name="shopping_cart" className="text-4xl text-[#707970]" />
               <p className="text-sm font-semibold text-[#707970]">Aucune commande</p>
               <Link
                 to="/marketplace"
@@ -228,9 +225,7 @@ export function OrdersListPage() {
 
                 {order.status === OrderStatus.AWAITING_CONFIRMATION && (
                   <div className="pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[11px] text-[#004322]">
-                    <span className="material-symbols-outlined text-[15px] text-emerald-600">
-                      inventory_2
-                    </span>
+                    <Icon name="inventory_2" className="text-[15px] text-emerald-600" />
                     <span>Le producteur prépare votre commande et vérifie la disponibilité de chaque récolte.</span>
                   </div>
                 )}

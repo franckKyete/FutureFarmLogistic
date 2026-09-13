@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -266,7 +267,7 @@ function AuctionDetailPage() {
   const startPoint = { x: 30, y: 30, price: startingPrice, label: 'Départ' };
   const endPoint = { x: 310, y: 105, price: reservePrice, label: 'Plancher' };
 
-  const { stairPath, stairAreaPath, stairSteps, currentPoint } = useMemo(() => {
+  const { stairPath, stairAreaPath, stairSteps, currentPoint, bidPoint } = useMemo(() => {
     const startX = 30;
     const endX = 310;
     const startY = 30;
@@ -302,6 +303,27 @@ function AuctionDetailPage() {
     const curX = currentPlateau.x + stepFraction * (currentPlateau.nextX - currentPlateau.x);
     const curY = currentPlateau.y;
 
+    const bidPriceVal = existingBid?.autoBidMaxPrice
+      ? Number(existingBid.autoBidMaxPrice)
+      : existingBid?.priceAtBid
+        ? Number(existingBid.priceAtBid)
+        : null;
+
+    let calculatedBidPoint: { x: number; y: number; price: number } | null = null;
+    if (bidPriceVal !== null && bidPriceVal >= reservePrice && bidPriceVal <= startingPrice) {
+      const bidProgressRatio = Math.max(0, Math.min(1, (startingPrice - bidPriceVal) / priceRange));
+      const bidStepIdx = Math.min(stepCount - 1, Math.floor(bidProgressRatio * stepCount));
+      const bidFraction = bidProgressRatio * stepCount - bidStepIdx;
+      const bidPlateau = stepsArr[bidStepIdx] || { x: startX, y: startY, nextX: endX };
+      const bX = bidPlateau.x + bidFraction * (bidPlateau.nextX - bidPlateau.x);
+      const bY = bidPlateau.y;
+      calculatedBidPoint = {
+        x: Math.max(startX, Math.min(endX, bX)),
+        y: bY,
+        price: bidPriceVal,
+      };
+    }
+
     return {
       stairPath: pathD,
       stairAreaPath: areaD,
@@ -310,14 +332,15 @@ function AuctionDetailPage() {
         x: Math.max(startX, Math.min(endX, curX)),
         y: curY,
       },
+      bidPoint: calculatedBidPoint,
     };
-  }, [startingPrice, reservePrice, priceRange, progressRatio, auction?.priceDecrementAmount]);
+  }, [startingPrice, reservePrice, priceRange, progressRatio, auction?.priceDecrementAmount, existingBid]);
 
   if (!auction) {
     return (
       <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen flex items-center justify-center font-sans">
         <div className="text-center">
-          <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">gavel</span>
+          <Icon name="gavel" className="text-[48px] text-[#707970] mb-2 block" />
           <p className="text-[#404941]">Chargement de l'enchère...</p>
         </div>
       </div>
@@ -406,14 +429,12 @@ function AuctionDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/auctions"
-            className="material-symbols-outlined text-[#004322] cursor-pointer hover:opacity-80 transition-opacity"
+            className="text-[#004322] cursor-pointer hover:opacity-80 transition-opacity p-1 -ml-1"
           >
-            arrow_back
+            <Icon name="arrow_back" size={24} />
           </Link>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#004322] text-[22px]">
-              agriculture
-            </span>
+            <Icon name="agriculture" className="text-[#004322] text-[22px]" />
             <h1 className="text-[17px] font-bold text-[#004322]">Future Farm</h1>
           </div>
         </div>
@@ -440,9 +461,7 @@ function AuctionDetailPage() {
         {existingBid && existingBid.status === BidStatus.PENDING && (
           <div className="mx-4 mt-4 bg-[#e8f5e9] border border-[#1a5c35]/30 rounded-2xl p-4 flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2.5">
-              <span className="material-symbols-outlined text-[#1a5c35] text-[22px]">
-                timer
-              </span>
+              <Icon name="timer" className="text-[#1a5c35] text-[22px]" />
               <div>
                 <p className="text-[13px] font-bold text-[#1a5c35]">
                   Offre enregistrée
@@ -496,9 +515,7 @@ function AuctionDetailPage() {
           {/* Countdown Badge */}
           {isActive && (
             <div className="absolute top-4 right-4 bg-[#d32f2f] text-white text-[12px] font-extrabold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg tracking-wider z-10 backdrop-blur-xs">
-              <span className="material-symbols-outlined text-[16px] animate-pulse">
-                timer
-              </span>
+              <Icon name="timer" className="text-[16px] animate-pulse" />
               <span>{countdown}</span>
             </div>
           )}
@@ -512,7 +529,7 @@ function AuctionDetailPage() {
                 aria-label="Image précédente"
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center backdrop-blur-sm transition-colors cursor-pointer z-10 shadow-md"
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                <Icon name="chevron_left" className="text-[20px]" />
               </button>
               <button
                 type="button"
@@ -520,7 +537,7 @@ function AuctionDetailPage() {
                 aria-label="Image suivante"
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center backdrop-blur-sm transition-colors cursor-pointer z-10 shadow-md"
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                <Icon name="chevron_right" className="text-[20px]" />
               </button>
 
               {/* Dot Indicators */}
@@ -577,9 +594,7 @@ function AuctionDetailPage() {
                 </div>
                 {priceDropped && (
                   <span className="inline-flex items-center text-[10px] font-bold text-[#1a5c35] gap-0.5">
-                    <span className="material-symbols-outlined text-[14px]">
-                      trending_down
-                    </span>
+                    <Icon name="trending_down" className="text-[14px]" />
                     Prix en baisse
                   </span>
                 )}
@@ -597,9 +612,9 @@ function AuctionDetailPage() {
               <div className="bg-[#f0f4f8] border border-[#d0dbe5] rounded-2xl p-3">
                 <p className="text-[11px] text-[#607080] font-semibold">Qualité</p>
                 <p className="text-[15px] font-extrabold text-[#004322] mt-0.5">
-                  {auction.harvest?.qualityScore
-                    ? `${auction.harvest.qualityScore}/100 Certifié`
-                    : '88.00/100 Certifié'}
+                  {auction.harvest?.qualityScore != null
+                    ? `${Number(auction.harvest.qualityScore) <= 10 ? Math.round(Number(auction.harvest.qualityScore) * 10) : Math.round(Number(auction.harvest.qualityScore))}/100 Certifié`
+                    : '88/100 Certifié'}
                 </p>
               </div>
             </div>
@@ -614,9 +629,7 @@ function AuctionDetailPage() {
                 onClick={handleOpenBottomSheet}
                 className="w-full py-4 bg-[#004322] hover:bg-[#003319] text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2.5 shadow-md active:scale-[0.98] transition-all cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">
-                  gavel
-                </span>
+                <Icon name="gavel" className="text-[20px]" />
                 <span>Placer une offre</span>
               </button>
 
@@ -645,9 +658,7 @@ function AuctionDetailPage() {
           <section className="bg-white border border-[#c0c9be] rounded-3xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[#004322]">
-                <span className="material-symbols-outlined text-[22px]">
-                  show_chart
-                </span>
+                <Icon name="show_chart" className="text-[22px]" />
                 <h3 className="text-[15px] font-extrabold text-[#0b1c30]">
                   Évolution du prix dégressif
                 </h3>
@@ -734,6 +745,51 @@ function AuctionDetailPage() {
                   Actuel: {displayPrice.toLocaleString()} {currency}
                 </text>
 
+                {/* Buyer's Active Bid Point */}
+                {bidPoint && (
+                  <g>
+                    <line
+                      x1={bidPoint.x}
+                      y1={bidPoint.y}
+                      x2={bidPoint.x}
+                      y2={110}
+                      stroke="#0284c7"
+                      strokeDasharray="2 2"
+                      strokeWidth="1.2"
+                      strokeOpacity="0.8"
+                    />
+                    <circle
+                      cx={bidPoint.x}
+                      cy={bidPoint.y}
+                      r="9"
+                      fill="#0284c7"
+                      fillOpacity="0.25"
+                    />
+                    <circle
+                      cx={bidPoint.x}
+                      cy={bidPoint.y}
+                      r="5.5"
+                      fill="#0284c7"
+                      stroke="#ffffff"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x={Math.max(65, Math.min(260, bidPoint.x))}
+                      y={
+                        Math.abs(bidPoint.x - currentPoint.x) < 55
+                          ? bidPoint.y + 18
+                          : Math.max(22, bidPoint.y - 12)
+                      }
+                      fill="#0284c7"
+                      fontSize="10"
+                      fontWeight="900"
+                      textAnchor="middle"
+                    >
+                      Votre offre: {bidPoint.price.toLocaleString()} {currency}
+                    </text>
+                  </g>
+                )}
+
                 {/* Reserve Price Point */}
                 <circle cx={endPoint.x} cy={endPoint.y} r="5" fill="#ba1a1a" />
                 <text x="310" y="125" fill="#ba1a1a" fontSize="10" fontWeight="bold" textAnchor="end">
@@ -742,7 +798,7 @@ function AuctionDetailPage() {
               </svg>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
+            <div className={`grid ${bidPoint ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-[11px] pt-1`}>
               <div className="bg-[#f0f4f8] rounded-xl p-2 border border-[#d0dbe5]">
                 <p className="text-[#707970]">Prix départ</p>
                 <p className="font-extrabold text-[#0b1c30]">{startingPrice.toLocaleString()} {currency}</p>
@@ -751,6 +807,12 @@ function AuctionDetailPage() {
                 <p className="text-[#885200] font-bold">Prix actuel</p>
                 <p className="font-extrabold text-[#885200]">{displayPrice.toLocaleString()} {currency}</p>
               </div>
+              {bidPoint && (
+                <div className="bg-[#e0f2fe] rounded-xl p-2 border border-[#7dd3fc]">
+                  <p className="text-[#0369a1] font-bold">Votre offre</p>
+                  <p className="font-extrabold text-[#0369a1]">{bidPoint.price.toLocaleString()} {currency}</p>
+                </div>
+              )}
               <div className="bg-[#ffebee] rounded-xl p-2 border border-[#ffcdd2]">
                 <p className="text-[#ba1a1a]">Prix plancher</p>
                 <p className="font-extrabold text-[#ba1a1a]">{reservePrice.toLocaleString()} {currency}</p>
@@ -766,16 +828,12 @@ function AuctionDetailPage() {
               className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[#004322] text-[22px]">
-                  verified
-                </span>
+                <Icon name="verified" className="text-[#004322] text-[22px]" />
                 <span className="text-[14px] font-bold text-[#0b1c30]">
                   Certification & Qualité
                 </span>
               </div>
-              <span className={`material-symbols-outlined text-[#707970] transition-transform duration-200 ${qualityAccordionOpen ? 'rotate-180' : ''}`}>
-                expand_more
-              </span>
+              <Icon name="expand_more" className="text-[#707970] transition-transform duration-200 ${qualityAccordionOpen ? 'rotate-180' : ''}" />
             </button>
 
             {qualityAccordionOpen && (
@@ -783,7 +841,9 @@ function AuctionDetailPage() {
                 <div className="flex justify-between py-1.5 border-b border-gray-100">
                   <span className="text-[#707970]">Score de qualité</span>
                   <span className="font-bold text-[#004322]">
-                    {auction.harvest?.qualityScore ? `${auction.harvest.qualityScore} / 100` : '88.00 / 100 Certifié'}
+                    {auction.harvest?.qualityScore != null
+                      ? `${Number(auction.harvest.qualityScore) <= 10 ? Math.round(Number(auction.harvest.qualityScore) * 10) : Math.round(Number(auction.harvest.qualityScore))} / 100`
+                      : '88 / 100 Certifié'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-gray-100">
@@ -811,9 +871,7 @@ function AuctionDetailPage() {
           {/* Ended / Expired status message */}
           {(auctionEnded || auction.status === AuctionStatus.SOLD || auction.status === AuctionStatus.EXPIRED) && (
             <div className="bg-[#e8f5e9] border border-[#1a5c35]/20 rounded-3xl p-5 text-center">
-              <span className="material-symbols-outlined text-[#1a5c35] text-[36px] mb-1">
-                check_circle
-              </span>
+              <Icon name="check_circle" className="text-[#1a5c35] text-[36px] mb-1" />
               <h4 className="text-[16px] font-bold text-[#1a5c35]">
                 Cette enchère est terminée
               </h4>
@@ -837,9 +895,7 @@ function AuctionDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-[#c0c9be]/40">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322] text-[24px]">
-                  gavel
-                </span>
+                <Icon name="gavel" className="text-[#004322] text-[24px]" />
                 <h3 className="text-[18px] font-extrabold text-[#0b1c30]">
                   Placer une offre
                 </h3>
@@ -849,7 +905,7 @@ function AuctionDetailPage() {
                 onClick={() => setIsBottomSheetOpen(false)}
                 className="text-[#707970] hover:text-[#0b1c30] p-1 rounded-lg transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <Icon name="close" className="text-[20px]" />
               </button>
             </div>
 
@@ -857,9 +913,7 @@ function AuctionDetailPage() {
             {!hasPaymentMethod ? (
               <div className="space-y-4 py-2">
                 <div className="p-4 bg-[#fff8e1] border border-[#ffa93d]/50 rounded-2xl flex items-start gap-3">
-                  <span className="material-symbols-outlined text-[#885200] text-[24px] shrink-0 mt-0.5">
-                    lock
-                  </span>
+                  <Icon name="lock" className="text-[#885200] text-[24px] shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-[14px] font-bold text-[#885200]">
                       Moyen de paiement requis
@@ -871,9 +925,7 @@ function AuctionDetailPage() {
                 </div>
 
                 <div className="text-[12px] text-[#404941] flex items-start gap-2 bg-[#eff4ff] p-3.5 rounded-xl">
-                  <span className="material-symbols-outlined text-[#004322] text-[18px] shrink-0 mt-0.5">
-                    security
-                  </span>
+                  <Icon name="security" className="text-[#004322] text-[18px] shrink-0 mt-0.5" />
                   <span>
                     Vos coordonnées sont protégées et gérées sur l'infrastructure sécurisée de Stripe.
                   </span>
@@ -895,16 +947,12 @@ function AuctionDetailPage() {
                   >
                     {createSetupSession.isPending ? (
                       <>
-                        <span className="animate-spin material-symbols-outlined text-[18px]">
-                          progress_activity
-                        </span>
+                        <Icon name="progress_activity" className="animate-spin  text-[18px]" />
                         Redirection...
                       </>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-[18px]">
-                          open_in_new
-                        </span>
+                        <Icon name="open_in_new" className="text-[18px]" />
                         Ajouter une carte (Stripe)
                       </>
                     )}
@@ -917,9 +965,7 @@ function AuctionDetailPage() {
                 {/* 1. Saved Payment Method Badge */}
                 <div className="flex items-center justify-between p-3.5 bg-[#e8f5e9] border border-[#1a5c35]/30 rounded-2xl">
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[#1a5c35] text-[22px]">
-                      credit_card
-                    </span>
+                    <Icon name="credit_card" className="text-[#1a5c35] text-[22px]" />
                     <div>
                       <p className="text-[13px] font-bold text-[#0b1c30] capitalize">
                         {paymentMethod.brand || 'Carte bancaire'} •••• {paymentMethod.last4}
@@ -1033,16 +1079,12 @@ function AuctionDetailPage() {
                   >
                     {placeBid.isPending ? (
                       <>
-                        <span className="animate-spin material-symbols-outlined text-[18px]">
-                          progress_activity
-                        </span>
+                        <Icon name="progress_activity" className="animate-spin  text-[18px]" />
                         Traitement...
                       </>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-[18px]">
-                          gavel
-                        </span>
+                        <Icon name="gavel" className="text-[18px]" />
                         {bidPrice >= displayPrice ? 'Confirmer l\'achat' : 'Confirmer l\'offre'}
                       </>
                     )}
