@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -89,7 +90,7 @@ export function Modal({
               onClick={onClose}
               className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-auto"
             >
-              <span className="material-symbols-outlined text-xl">close</span>
+              <Icon name="close" className="text-xl" />
             </button>
           </div>
           <div className="px-6 py-4 overflow-y-auto max-h-[calc(100vh-5rem)]">
@@ -116,7 +117,7 @@ export function Modal({
                 onClick={onClose}
                 className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-auto"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
             <div className={`px-6 py-4 ${className}`}>{children}</div>

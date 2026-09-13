@@ -61,6 +61,7 @@ export interface AdminUserDto {
   status: UserStatus;
   isActive: boolean;
   phone?: string | null;
+  phoneNumber?: string | null;
   roles: Array<{ id: string; name: string }>;
   profile?: DriverProfileInfo | InspectorProfileInfo | FarmerProfileInfo | BuyerProfileInfo | null;
   createdAt: string;

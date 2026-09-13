@@ -74,6 +74,19 @@ export class OrderLineEntity {
   })
   totalPrice: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'USD' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 1.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
   @Column({
     type: 'enum',
     enum: OrderLineStatus,

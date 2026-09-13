@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -121,6 +122,15 @@ function InspectionReportFormPage() {
     useState<InspectionChecklist>(DEFAULT_CHECKLIST);
   const [overallNotes, setOverallNotes] = useState('');
   const [finalQualityScore, setFinalQualityScore] = useState<number>(8.5);
+
+  // Computed: Strict Quality Checklist Validation
+  const allChecklistPassed = useMemo(() => {
+    const activeKeys = Object.keys(checklist) as (keyof typeof checklist)[];
+    if (activeKeys.length === 0) return false;
+    return activeKeys.every(
+      (itemKey) => checklist[itemKey]?.passed === true,
+    );
+  }, [checklist]);
 
   // Modals state
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -454,6 +464,13 @@ function InspectionReportFormPage() {
   // Action 1: Approve & Certify
   const handleSubmitApprove = () => {
     if (!activeReportId) return;
+    if (!allChecklistPassed) {
+      addToast(
+        'Impossible d\'approuver : tous les critères de conformité qualité doivent être validés (verts).',
+        'error',
+      );
+      return;
+    }
     submitReport.mutate({
       id: activeReportId,
       dto: {
@@ -589,7 +606,7 @@ function InspectionReportFormPage() {
             to="/inspector/validate"
             className="p-1 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
           >
-            <span className="material-symbols-outlined text-xl">arrow_back</span>
+            <Icon name="arrow_back" className="text-xl" />
           </Link>
           <div>
             <h1 className="text-sm font-bold text-[#0b1c30]">
@@ -605,7 +622,7 @@ function InspectionReportFormPage() {
 
         {isCertified ? (
           <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">verified</span>
+            <Icon name="verified" className="text-sm" />
             Certifié
           </span>
         ) : (
@@ -623,9 +640,7 @@ function InspectionReportFormPage() {
       <main className="p-4 space-y-4 flex-1 max-w-3xl mx-auto w-full">
         {isCertified && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 shadow-2xs">
-            <span className="material-symbols-outlined text-emerald-600 text-2xl shrink-0">
-              verified
-            </span>
+            <Icon name="verified" className="text-emerald-600 text-2xl shrink-0" />
             <div className="min-w-0">
               <h4 className="text-xs font-bold text-emerald-900">
                 Rapport d'inspection certifié conforme sur le terrain
@@ -674,7 +689,7 @@ function InspectionReportFormPage() {
           <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-700">edit_note</span>
+                <Icon name="edit_note" className="text-amber-700" />
                 <div>
                   <h3 className="text-sm font-bold text-amber-950">
                     Détails & Ajustement du lot agricole
@@ -689,9 +704,7 @@ function InspectionReportFormPage() {
                 onClick={() => setIsHarvestDetailsOpen(!isHarvestDetailsOpen)}
                 className="text-amber-800 p-1 hover:bg-amber-100 rounded-lg cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">
-                  {isHarvestDetailsOpen ? 'expand_less' : 'expand_more'}
-                </span>
+                <Icon name={isHarvestDetailsOpen ? 'expand_less' : 'expand_more'} className="text-base" />
               </button>
             </div>
 
@@ -789,7 +802,7 @@ function InspectionReportFormPage() {
                     disabled={updateHarvestMutation.isPending}
                     className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-sm">save</span>
+                    <Icon name="save" className="text-sm" />
                     <span>
                       {updateHarvestMutation.isPending
                         ? 'Enregistrement...'
@@ -804,14 +817,37 @@ function InspectionReportFormPage() {
 
         {/* Inspection Checklist */}
         <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-[#0b1c30]">
-              Grille de conformité qualité
-            </h3>
-            <p className="text-xs text-gray-500">
-              Cochez les critères validés et ajoutez vos remarques.
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#0b1c30]">
+                Grille de conformité qualité
+              </h3>
+              <p className="text-xs text-gray-500">
+                Tous les critères doivent être vérifiés et conformes (verts) pour pouvoir certifier le lot.
+              </p>
+            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                allChecklistPassed
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-rose-100 text-rose-800'
+              }`}
+            >
+              {allChecklistPassed ? '100% Conforme' : 'Non-conformité détectée'}
+            </span>
           </div>
+
+          {!allChecklistPassed && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-slide-in">
+              <Icon name="cancel" className="text-rose-600 text-lg shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Approbation bloquée en cas de non-conformité</p>
+                <p className="text-[11px] text-rose-700 mt-0.5">
+                  Un ou plusieurs critères de qualité ne sont pas validés. Vous ne pouvez pas approuver ce rapport. Seules les actions de <strong>Rejet</strong> ou de <strong>Visite physique</strong> sont autorisées tant que la conformité n'est pas totale.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {(Object.keys(CHECKLIST_LABELS) as (keyof typeof CHECKLIST_LABELS)[]).map(
@@ -830,15 +866,11 @@ function InspectionReportFormPage() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`material-symbols-outlined text-lg p-1.5 rounded-lg ${
+                        <Icon name={meta.icon} className="text-lg p-1.5 rounded-lg ${
                             item.passed
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'bg-rose-100 text-rose-800'
-                          }`}
-                        >
-                          {meta.icon}
-                        </span>
+                          }" />
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-gray-900">
                             {meta.title}
@@ -895,7 +927,7 @@ function InspectionReportFormPage() {
                 onClick={() => setShowManualInspectionModal(true)}
                 className="px-3 py-1.5 bg-[#1a5c35] text-white text-xs font-bold rounded-xl hover:bg-[#144a2a] flex items-center gap-1.5 shadow-2xs active:scale-98 transition-all cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">photo_camera</span>
+                <Icon name="photo_camera" className="text-base" />
                 <span>Prendre des photos</span>
               </button>
             )}
@@ -920,7 +952,7 @@ function InspectionReportFormPage() {
                   />
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <span className="p-2 bg-white/90 text-gray-900 rounded-full shadow-sm">
-                      <span className="material-symbols-outlined text-lg">zoom_in</span>
+                      <Icon name="zoom_in" className="text-lg" />
                     </span>
                     {!isCertified && photo.isReportPhoto && (
                       <button
@@ -936,7 +968,7 @@ function InspectionReportFormPage() {
                         className="p-2 bg-rose-600/90 text-white rounded-full hover:bg-rose-700 shadow-sm cursor-pointer"
                         title="Supprimer la photo"
                       >
-                        <span className="material-symbols-outlined text-lg">delete</span>
+                        <Icon name="delete" className="text-lg" />
                       </button>
                     )}
                   </div>
@@ -948,7 +980,7 @@ function InspectionReportFormPage() {
             </div>
           ) : (
             <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-              <span className="material-symbols-outlined text-3xl text-gray-400">no_photography</span>
+              <Icon name="no_photography" className="text-3xl text-gray-400" />
               <p className="text-xs text-gray-500 mt-1">Aucune photo enregistrée pour ce lot.</p>
             </div>
           )}
@@ -959,9 +991,7 @@ function InspectionReportFormPage() {
           <div className="bg-gradient-to-br from-emerald-900 to-[#1a5c35] text-white rounded-2xl p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-2xl text-emerald-300">
-                  fact_check
-                </span>
+                <Icon name="fact_check" className="text-2xl text-emerald-300" />
                 <div>
                   <h3 className="text-sm font-bold">Résultats de l'Inspection Manuelle &amp; IA</h3>
                   <p className="text-[11px] text-emerald-200">
@@ -992,7 +1022,7 @@ function InspectionReportFormPage() {
                   onClick={() => setShowManualInspectionModal(true)}
                   className="px-4 py-2 bg-white text-[#1a5c35] font-bold text-xs rounded-xl shadow-xs hover:bg-emerald-50 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-sm">photo_camera</span>
+                  <Icon name="photo_camera" className="text-sm" />
                   <span>Reprendre des photos / Re-scanner</span>
                 </button>
               </div>
@@ -1004,7 +1034,7 @@ function InspectionReportFormPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#1a5c35] flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-2xl">camera_alt</span>
+                    <Icon name="camera_alt" className="text-2xl" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">
@@ -1022,7 +1052,7 @@ function InspectionReportFormPage() {
                 onClick={() => setShowManualInspectionModal(true)}
                 className="w-full py-3 bg-[#1a5c35] hover:bg-[#144a2a] text-white font-bold text-xs rounded-xl shadow-xs active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">photo_camera</span>
+                <Icon name="photo_camera" className="text-base" />
                 <span>Commencer l'inspection manuelle</span>
               </button>
             </div>
@@ -1081,7 +1111,7 @@ function InspectionReportFormPage() {
           {isCertified ? (
             <div className="w-full flex items-center justify-between px-2 py-1">
               <div className="flex items-center gap-2 text-[#1a5c35]">
-                <span className="material-symbols-outlined text-lg">verified</span>
+                <Icon name="verified" className="text-lg" />
                 <span className="text-xs font-bold">
                   Rapport d'audit certifié conforme &amp; archivé
                 </span>
@@ -1101,7 +1131,7 @@ function InspectionReportFormPage() {
                 onClick={() => setShowRejectModal(true)}
                 className="flex-1 py-3 px-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl hover:bg-rose-100 active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">close</span>
+                <Icon name="close" className="text-base" />
                 Rejeter
               </button>
 
@@ -1112,7 +1142,7 @@ function InspectionReportFormPage() {
                   onClick={() => setShowRescheduleModal(true)}
                   className="flex-1 py-3 px-2 bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs rounded-xl hover:bg-amber-100 active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base text-amber-700">event_repeat</span>
+                  <Icon name="event_repeat" className="text-base text-amber-700" />
                   Reprogrammer
                 </button>
               ) : (
@@ -1124,7 +1154,7 @@ function InspectionReportFormPage() {
                   }}
                   className="flex-1 py-3 px-2 bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs rounded-xl hover:bg-amber-100 active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base text-amber-700">pin_drop</span>
+                  <Icon name="pin_drop" className="text-base text-amber-700" />
                   Visite physique
                 </button>
               )}
@@ -1133,10 +1163,15 @@ function InspectionReportFormPage() {
               <button
                 type="button"
                 onClick={() => setShowApproveModal(true)}
-                disabled={submitReport.isPending || !activeReportId}
-                className="flex-2 py-3 px-3 bg-[#1a5c35] text-white font-bold text-xs rounded-xl hover:bg-[#144a2a] active:scale-98 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                disabled={submitReport.isPending || !activeReportId || !allChecklistPassed}
+                title={
+                  !allChecklistPassed
+                    ? 'Tous les critères de conformité doivent être validés (verts) pour approuver le rapport'
+                    : 'Valider et certifier ce lot'
+                }
+                className="flex-2 py-3 px-3 bg-[#1a5c35] text-white font-bold text-xs rounded-xl hover:bg-[#144a2a] active:scale-98 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-base">verified</span>
+                <Icon name="verified" className="text-base" />
                 Valider & Certifier
               </button>
             </>
@@ -1149,7 +1184,7 @@ function InspectionReportFormPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#1a5c35] flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-2xl">verified_user</span>
+              <Icon name="verified_user" className="text-2xl" />
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-bold text-base text-gray-900">
@@ -1175,8 +1210,8 @@ function InspectionReportFormPage() {
                   setShowApproveModal(false);
                   handleSubmitApprove();
                 }}
-                disabled={submitReport.isPending}
-                className="flex-1 py-2.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer"
+                disabled={submitReport.isPending || !allChecklistPassed}
+                className="flex-1 py-2.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitReport.isPending ? 'Envoi...' : 'Confirmer'}
               </button>
@@ -1191,14 +1226,14 @@ function InspectionReportFormPage() {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-600">calendar_month</span>
+                <Icon name="calendar_month" className="text-amber-600" />
                 Planifier une inspection physique
               </h3>
               <button
                 onClick={() => setShowScheduleModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
               </button>
             </div>
 
@@ -1210,7 +1245,7 @@ function InspectionReportFormPage() {
             {isOverCapacity && !dismissCapacityWarning && (
               <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-2">
                 <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-amber-600 text-base shrink-0 mt-0.5">warning</span>
+                  <Icon name="warning" className="text-amber-600 text-base shrink-0 mt-0.5" />
                   <div>
                     <p className="font-bold">Capacité journalière recommandée atteinte</p>
                     <p className="text-[11px] text-amber-800 mt-0.5">
@@ -1297,7 +1332,7 @@ function InspectionReportFormPage() {
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-xl">gpp_bad</span>
+                <Icon name="gpp_bad" className="text-xl" />
               </div>
               <div>
                 <h3 className="font-bold text-base text-gray-900">Rejeter ce lot</h3>
@@ -1345,14 +1380,14 @@ function InspectionReportFormPage() {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-600">event_repeat</span>
+                <Icon name="event_repeat" className="text-amber-600" />
                 Reprogrammer la visite physique
               </h3>
               <button
                 onClick={() => setShowRescheduleModal(false)}
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
               </button>
             </div>
 
@@ -1427,7 +1462,7 @@ function InspectionReportFormPage() {
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#1a5c35] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-2xl">photo_camera</span>
+                  <Icon name="photo_camera" className="text-2xl" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">
@@ -1443,7 +1478,7 @@ function InspectionReportFormPage() {
                 onClick={() => setShowManualInspectionModal(false)}
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
 
@@ -1474,9 +1509,7 @@ function InspectionReportFormPage() {
                   disabled={uploadMedia.isPending || addPhoto.isPending}
                   className="p-4 border-2 border-dashed border-emerald-600/40 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
                 >
-                  <span className="material-symbols-outlined text-3xl text-[#1a5c35]">
-                    photo_camera
-                  </span>
+                  <Icon name="photo_camera" className="text-3xl text-[#1a5c35]" />
                   <span className="text-xs font-bold text-[#1a5c35]">
                     Prendre une photo
                   </span>
@@ -1489,9 +1522,7 @@ function InspectionReportFormPage() {
                   disabled={uploadMedia.isPending || addPhoto.isPending}
                   className="p-4 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
                 >
-                  <span className="material-symbols-outlined text-3xl text-gray-600">
-                    photo_library
-                  </span>
+                  <Icon name="photo_library" className="text-3xl text-gray-600" />
                   <span className="text-xs font-bold text-gray-800">
                     Importer galerie
                   </span>
@@ -1501,7 +1532,7 @@ function InspectionReportFormPage() {
 
               {(uploadMedia.isPending || addPhoto.isPending) && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3 text-xs text-emerald-800">
-                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-lg" />
                   <span>Téléversement de la photo d'inspection en cours...</span>
                 </div>
               )}
@@ -1542,9 +1573,7 @@ function InspectionReportFormPage() {
                             className="absolute top-1 right-1 p-1 bg-rose-600/90 hover:bg-rose-700 text-white rounded-full shadow-xs cursor-pointer"
                             title="Supprimer la photo"
                           >
-                            <span className="material-symbols-outlined text-sm leading-none">
-                              delete
-                            </span>
+                            <Icon name="delete" className="text-sm leading-none" />
                           </button>
                         )}
                         <span className="absolute bottom-1 left-1 text-[8px] font-mono text-white bg-black/60 px-1 py-0.5 rounded">
@@ -1585,12 +1614,12 @@ function InspectionReportFormPage() {
               >
                 {isProcessingManualInspection ? (
                   <>
-                    <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-sm" />
                     <span>Analyse en cours...</span>
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                    <Icon name="auto_awesome" className="text-sm" />
                     <span>Lancer l'analyse et enregistrer</span>
                   </>
                 )}
@@ -1634,7 +1663,7 @@ function InspectionReportFormPage() {
                 className="p-1.5 hover:bg-white/20 rounded-lg disabled:opacity-30 cursor-pointer"
                 title="Dézoomer"
               >
-                <span className="material-symbols-outlined text-lg">zoom_out</span>
+                <Icon name="zoom_out" className="text-lg" />
               </button>
               <span className="text-xs font-mono w-10 text-center">
                 {zoomLevel.toFixed(1)}x
@@ -1646,7 +1675,7 @@ function InspectionReportFormPage() {
                 className="p-1.5 hover:bg-white/20 rounded-lg disabled:opacity-30 cursor-pointer"
                 title="Zoomer"
               >
-                <span className="material-symbols-outlined text-lg">zoom_in</span>
+                <Icon name="zoom_in" className="text-lg" />
               </button>
               {zoomLevel !== 1 && (
                 <button
@@ -1667,7 +1696,7 @@ function InspectionReportFormPage() {
                 className="p-1.5 hover:bg-white/20 rounded-lg cursor-pointer"
                 title="Fermer"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
           </div>
@@ -1693,7 +1722,7 @@ function InspectionReportFormPage() {
                 className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer"
                 title="Photo précédente"
               >
-                <span className="material-symbols-outlined text-2xl">chevron_left</span>
+                <Icon name="chevron_left" className="text-2xl" />
               </button>
             )}
 
@@ -1725,7 +1754,7 @@ function InspectionReportFormPage() {
                 className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer"
                 title="Photo suivante"
               >
-                <span className="material-symbols-outlined text-2xl">chevron_right</span>
+                <Icon name="chevron_right" className="text-2xl" />
               </button>
             )}
           </div>

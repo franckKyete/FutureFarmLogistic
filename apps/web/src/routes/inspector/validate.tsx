@@ -1,7 +1,11 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { usePendingHarvests } from '@/features/inspector/api/harvests.queries';
 import { useMyCenter, useMyCenters } from '@/features/admin/api/inspections.queries';
+import { getMyNotificationsQuery } from '@/features/notifications/api/notifications.queries';
+import { NotificationStatus } from '@futurefarm/types';
 import type { HarvestDto } from '@/features/inspector/types';
 
 type TabKey = 'all' | 'pending' | 'flagged' | 'approved' | 'rejected';
@@ -27,6 +31,17 @@ function ValidatePage() {
   const { data: myCenter } = useMyCenter();
   const { data: myCenters = [] } = useMyCenters();
 
+  const { data: paginatedNotifications } = useQuery({
+    ...getMyNotificationsQuery({ limit: 50 }),
+  });
+
+  const unreadCount = useMemo(() => {
+    if (!paginatedNotifications?.data) return 0;
+    return paginatedNotifications.data.filter(
+      (n) => n.status !== NotificationStatus.READ,
+    ).length;
+  }, [paginatedNotifications]);
+
   const effectiveCenterId =
     selectedCenterId || (myCenters.length === 1 ? myCenters[0]?.id : undefined);
   const effectiveCenter =
@@ -38,11 +53,9 @@ function ValidatePage() {
     isError,
     refetch,
   } = usePendingHarvests(currentTab.status, effectiveCenterId);
-  const { data: pendingHarvests } = usePendingHarvests(
-    'PENDING_APPROVAL',
-    effectiveCenterId,
-  );
-  const pendingCount = pendingHarvests?.length ?? 0;
+
+  const pendingCount =
+    harvests?.filter((h) => h.status === 'PENDING_APPROVAL').length || 0;
 
   const handleSelectHarvest = (harvest: HarvestDto) => {
     void navigate({
@@ -68,9 +81,24 @@ function ValidatePage() {
             )}
             <h1 className="text-lg font-bold text-[#0b1c30]">Inspections</h1>
           </div>
-          <span className="bg-[#1a5c35] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            {pendingCount} à valider
-          </span>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/notifications"
+              className="relative p-2 text-[#404941] hover:text-[#004322] hover:bg-emerald-50 rounded-full transition-colors cursor-pointer"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Icon name="notifications" className="text-[22px]" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 bg-[#1a5c35] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+            <span className="bg-[#1a5c35] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              {pendingCount} à valider
+            </span>
+          </div>
         </div>
       </header>
 
@@ -152,7 +180,7 @@ function ValidatePage() {
         className="fixed right-5 bottom-20 z-40 flex items-center gap-2 bg-[#1a5c35] text-white px-4 py-3.5 rounded-full shadow-lg hover:bg-[#144a2a] active:scale-95 transition-all cursor-pointer font-bold text-xs"
         aria-label="Nouvelle Inspection"
       >
-        <span className="material-symbols-outlined text-xl">add</span>
+        <Icon name="add" className="text-xl" />
         <span>Nouvelle Inspection</span>
       </button>
     </div>
@@ -177,7 +205,7 @@ function HarvestCard({
       case 'FLAGGED_PHYSICAL':
         return (
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs">pin_drop</span>
+            <Icon name="pin_drop" className="text-xs" />
             Visite requise
           </span>
         );
@@ -211,7 +239,7 @@ function HarvestCard({
         {harvest.images && harvest.images.length > 0 ? (
           <img src={harvest.images[0]} alt={harvest.productName} className="w-full h-full object-cover" />
         ) : (
-          <span className="material-symbols-outlined text-gray-400 text-2xl">eco</span>
+          <Icon name="eco" className="text-gray-400 text-2xl" />
         )}
       </div>
 
@@ -258,7 +286,7 @@ function LoadingSkeleton() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
-      <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+      <Icon name="error_outline" className="text-4xl text-rose-500" />
       <p className="text-sm font-bold text-gray-800">Erreur de chargement</p>
       <button
         onClick={onRetry}
@@ -273,7 +301,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-dashed border-gray-300 p-6 text-center">
-      <span className="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
+      <Icon name="check_circle" className="text-4xl text-emerald-500 mb-2" />
       <p className="text-sm font-bold text-gray-800">Aucune récolte dans cette section</p>
       <p className="text-xs text-gray-500 mt-1">Tous les lots ont été traités pour ces critères.</p>
     </div>

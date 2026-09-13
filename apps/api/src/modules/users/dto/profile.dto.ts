@@ -35,7 +35,14 @@ export class UpdateFarmerProfileDto {
   avatarUrl?: string;
 
   @IsOptional()
+  @IsString()
+  bannerUrl?: string;
+
+  @IsOptional()
   isCertified?: boolean;
+
+  @IsOptional()
+  addressDetails?: any;
 }
 
 export class UpdateBuyerProfileDto {
@@ -58,4 +65,10 @@ export class UpdateBuyerProfileDto {
   @IsNotEmpty()
   @IsString()
   shippingAddress: string;
+
+  @IsOptional()
+  shippingAddressDetails?: any;
+
+  @IsOptional()
+  billingAddressDetails?: any;
 }

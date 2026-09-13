@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { getMyBidsQuery } from '@/features/auctions/api/auctions.queries';
@@ -28,7 +29,7 @@ function MyBidsPage() {
           </div>
         ) : isError ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
-            <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+            <Icon name="error_outline" className="text-4xl text-rose-500" />
             <p className="text-sm font-bold text-gray-700">Impossible de charger vos offres</p>
             <button
               onClick={() => void refetch()}
@@ -39,7 +40,7 @@ function MyBidsPage() {
           </div>
         ) : bids.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300 p-6 space-y-3">
-            <span className="material-symbols-outlined text-4xl text-gray-400">gavel</span>
+            <Icon name="gavel" className="text-4xl text-gray-400" />
             <p className="text-sm font-bold text-gray-700">Aucune enchère placée</p>
             <p className="text-xs text-gray-500">Participez aux ventes aux enchères hollandaises en direct.</p>
             <Link
@@ -95,7 +96,7 @@ function MyBidsPage() {
                     className="text-xs font-bold text-[#004322] flex items-center gap-0.5 hover:underline"
                   >
                     Voir l'enchère
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                    <Icon name="chevron_right" className="text-sm" />
                   </Link>
                 </div>
               </div>

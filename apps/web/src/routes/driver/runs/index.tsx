@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -78,7 +79,7 @@ function DriverRunsListPage() {
           </div>
         ) : isError ? (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-200 p-6 space-y-3">
-            <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+            <Icon name="error_outline" className="text-4xl text-rose-500" />
             <p className="text-sm font-semibold text-gray-700">Impossible de charger vos tournées</p>
             <button
               onClick={() => void refetch()}
@@ -89,7 +90,7 @@ function DriverRunsListPage() {
           </div>
         ) : filteredRuns.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300 p-6 space-y-2">
-            <span className="material-symbols-outlined text-4xl text-gray-400">local_shipping</span>
+            <Icon name="local_shipping" className="text-4xl text-gray-400" />
             <p className="text-sm font-bold text-gray-700">Aucune tournée assignée</p>
             <p className="text-xs text-gray-500">Vos futures missions de livraison apparaîtront ici.</p>
           </div>
@@ -161,7 +162,7 @@ function RunCard({ run }: { run: DeliveryRunDto }) {
       {/* Route summary */}
       <div className="flex items-center gap-2 text-sm font-bold text-[#0b1c30] my-2">
         <span className="truncate">{startCity}</span>
-        <span className="material-symbols-outlined text-gray-400 text-sm">arrow_forward</span>
+        <Icon name="arrow_forward" className="text-gray-400 text-sm" />
         <span className="truncate">{endCity}</span>
       </div>
 
@@ -169,12 +170,12 @@ function RunCard({ run }: { run: DeliveryRunDto }) {
       <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100 text-xs text-gray-500">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm text-gray-400">pin_drop</span>
+            <Icon name="pin_drop" className="text-sm text-gray-400" />
             {stopsCount} arrêt{stopsCount > 1 ? 's' : ''} {isProgress && `(${pendingStops} restant${pendingStops > 1 ? 's' : ''})`}
           </span>
           {run.vehicle && (
             <span className="flex items-center gap-1 font-mono text-[11px]">
-              <span className="material-symbols-outlined text-sm text-gray-400">directions_car</span>
+              <Icon name="directions_car" className="text-sm text-gray-400" />
               {run.vehicle.registrationPlate}
             </span>
           )}
@@ -182,7 +183,7 @@ function RunCard({ run }: { run: DeliveryRunDto }) {
 
         <span className="text-[#004322] font-bold text-xs flex items-center gap-0.5">
           Ouvrir
-          <span className="material-symbols-outlined text-sm">chevron_right</span>
+          <Icon name="chevron_right" className="text-sm" />
         </span>
       </div>
     </Link>

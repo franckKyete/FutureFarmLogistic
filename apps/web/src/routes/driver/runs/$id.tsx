@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -183,7 +184,7 @@ function DriverRunDetailPage() {
   if (isError || !run) {
     return (
       <div className="text-center py-20 p-6 space-y-3">
-        <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+        <Icon name="error_outline" className="text-4xl text-rose-500" />
         <p className="text-sm font-bold text-gray-800">Tournée introuvable</p>
         <Link to="/driver/runs" className="text-xs bg-[#004322] text-white px-4 py-2 rounded-lg font-bold inline-block">
           Retour aux tournées
@@ -212,7 +213,7 @@ function DriverRunDetailPage() {
       <header className="bg-white px-4 py-3 border-b border-gray-200 sticky top-0 z-30 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-2">
           <Link to="/driver/runs" className="p-1 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100">
-            <span className="material-symbols-outlined text-xl">arrow_back</span>
+            <Icon name="arrow_back" className="text-xl" />
           </Link>
           <div>
             <h1 className="font-mono text-sm font-bold text-[#0b1c30]">
@@ -249,7 +250,7 @@ function DriverRunDetailPage() {
           <div className="bg-[#eff4ff] rounded-2xl p-4 border border-blue-200 shadow-sm space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#004322] text-white flex items-center justify-center shadow-xs">
-                <span className="material-symbols-outlined text-2xl">play_arrow</span>
+                <Icon name="play_arrow" className="text-2xl" />
               </div>
               <div>
                 <h3 className="font-bold text-sm text-[#004322]">Prêt à partir ?</h3>
@@ -262,7 +263,7 @@ function DriverRunDetailPage() {
               disabled={startRun.isPending}
               className="w-full py-3 bg-[#004322] text-white rounded-xl font-bold text-sm shadow-sm active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span className="material-symbols-outlined text-lg">local_shipping</span>
+              <Icon name="local_shipping" className="text-lg" />
               {startRun.isPending ? 'Démarrage...' : 'Démarrer la tournée'}
             </button>
           </div>
@@ -395,7 +396,7 @@ function DriverRunDetailPage() {
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-sm">location_on</span>
+                        <Icon name="location_on" className="text-sm" />
                         {arriveStop.isPending ? 'Validation...' : "Je suis arrivé"}
                       </button>
                     )}
@@ -407,7 +408,7 @@ function DriverRunDetailPage() {
                           disabled={uploadProof.isPending}
                           className="flex-1 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-600 active:scale-98 transition-all cursor-pointer shadow-xs"
                         >
-                          <span className="material-symbols-outlined text-sm">photo_camera</span>
+                          <Icon name="photo_camera" className="text-sm" />
                           {uploadProof.isPending ? 'Envoi...' : 'Photo preuve'}
                         </button>
 
@@ -416,7 +417,7 @@ function DriverRunDetailPage() {
                           disabled={completeStop.isPending}
                           className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-700 active:scale-98 transition-all cursor-pointer shadow-xs"
                         >
-                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          <Icon name="check_circle" className="text-sm" />
                           {completeStop.isPending ? 'Finalisation...' : 'Valider arrêt'}
                         </button>
                       </>

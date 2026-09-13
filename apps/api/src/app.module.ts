@@ -21,6 +21,10 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
+import { CurrenciesModule } from './modules/currencies/currencies.module';
+import { FeesModule } from './modules/fees/fees.module';
+import { AddressesModule } from './modules/addresses/addresses.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -62,6 +66,10 @@ import { LogisticsModule } from './modules/logistics/logistics.module';
     DisputesModule,
     AdminModule,
     LogisticsModule,
+    CurrenciesModule,
+    FeesModule,
+    AddressesModule,
+    StorageModule,
   ],
 })
 export class AppModule {}

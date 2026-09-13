@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMyCenter } from '@/features/admin/api/inspections.queries';
 import { DeliveryMap } from '@/features/shared/components/DeliveryMap';
@@ -30,7 +31,7 @@ function MyCenterPage() {
           </div>
         ) : isError ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
-            <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+            <Icon name="error_outline" className="text-4xl text-rose-500" />
             <p className="text-sm font-bold text-gray-800">Impossible de charger votre centre d'affectation</p>
             <button
               onClick={() => void refetch()}
@@ -42,7 +43,7 @@ function MyCenterPage() {
         ) : !center ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300 p-6 space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-3xl">corporate_fare</span>
+              <Icon name="corporate_fare" className="text-3xl" />
             </div>
             <h3 className="text-base font-bold text-gray-800">Aucun centre actuellement assigné</h3>
             <p className="text-xs text-gray-500 max-w-xs mx-auto">
@@ -60,7 +61,7 @@ function MyCenterPage() {
                   </span>
                   <h2 className="text-lg font-bold text-[#0b1c30] mt-2">{center.name}</h2>
                   <p className="text-xs font-semibold text-[#1a5c35] flex items-center gap-1 mt-0.5">
-                    <span className="material-symbols-outlined text-sm">location_on</span>
+                    <Icon name="location_on" className="text-sm" />
                     Région : {center.regionName}
                   </p>
                 </div>
@@ -72,12 +73,12 @@ function MyCenterPage() {
 
               <div className="pt-3 border-t border-gray-100 space-y-2 text-xs text-gray-600">
                 <p className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-base text-gray-400 shrink-0">place</span>
+                  <Icon name="place" className="text-base text-gray-400 shrink-0" />
                   <span>{center.address}</span>
                 </p>
                 {center.latitude != null && center.longitude != null && (
                   <p className="flex items-center gap-2 font-mono text-[11px] text-gray-400">
-                    <span className="material-symbols-outlined text-base text-gray-400 shrink-0">my_location</span>
+                    <Icon name="my_location" className="text-base text-gray-400 shrink-0" />
                     <span>{Number(center.latitude).toFixed(4)}° N, {Number(center.longitude).toFixed(4)}° W</span>
                   </p>
                 )}
@@ -107,7 +108,7 @@ function MyCenterPage() {
             {/* Center Missions Info */}
             <div className="bg-[#eff4ff] rounded-2xl p-4 border border-blue-200 text-xs text-blue-900 space-y-2">
               <h4 className="font-bold flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-base text-blue-600">assignment</span>
+                <Icon name="assignment" className="text-base text-blue-600" />
                 Zone de couverture & Missions
               </h4>
               <p className="text-[11px] leading-relaxed text-blue-800">
@@ -142,7 +143,7 @@ function MyCenterPage() {
             }}
             className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-sm">logout</span>
+            <Icon name="logout" className="text-sm" />
             Déconnexion
           </button>
         </div>

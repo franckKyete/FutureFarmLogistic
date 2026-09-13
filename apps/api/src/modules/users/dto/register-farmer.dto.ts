@@ -24,9 +24,9 @@ export class RegisterFarmerDto {
   @IsString()
   lastName: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'Le numéro de téléphone est obligatoire' })
   @IsString()
-  phoneNumber?: string;
+  phoneNumber: string;
 
   @IsNotEmpty()
   @IsString()

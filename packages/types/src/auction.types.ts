@@ -11,8 +11,10 @@ export enum AuctionStatus {
 }
 
 export enum BidStatus {
+  PENDING = 'PENDING',       // Auto-bid waiting for price to reach threshold
   ACCEPTED = 'ACCEPTED',     // Bid won
   CANCELLED = 'CANCELLED',   // Cancelled before close
+  OUTBID = 'OUTBID',         // Another buyer bought before auto-bid triggered
 }
 
 export enum AuctionEvent {
@@ -43,17 +45,25 @@ export interface UpdateAuctionDto {
 }
 
 export interface PlaceBidDto {
-  // Bid takes the whole lot, so no quantity/price fields are passed in the request body
+  autoBidMaxPrice?: number;
+  deliveryAddress?: any;
 }
+
+import type { HarvestDto } from './product.types';
+import type { FarmerProfileDto } from './user.types';
 
 export interface AuctionDto {
   id: string;
   harvestId: string;
+  harvest?: HarvestDto;
   farmerProfileId: string;
+  farmerProfile?: FarmerProfileDto;
   status: AuctionStatus;
   startingPrice: number;
   reservePrice: number;
   currentPrice: number;
+  currency?: string;
+  exchangeRate?: number;
   priceDecrementAmount: number;
   priceDecrementIntervalMinutes: number;
   nextDecrementAt: string;
@@ -72,7 +82,12 @@ export interface BidDto {
   auctionId: string;
   buyerId: string;
   priceAtBid: number;
+  autoBidMaxPrice?: number | null;
+  isAutoBid?: boolean;
+  currency?: string;
+  exchangeRate?: number;
   quantityWon: number;
+  deliveryAddress?: any;
   status: BidStatus;
   createdAt: string;
 }

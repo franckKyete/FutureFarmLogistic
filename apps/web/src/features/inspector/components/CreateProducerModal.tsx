@@ -1,8 +1,10 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateProducer } from '../api/accounts.queries';
 import { useMyCenters } from '@/features/admin/api/inspections.queries';
 import { addToast } from '@/features/shared/store/toast.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 interface CreateProducerModalProps {
   isOpen: boolean;
@@ -31,7 +33,13 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [farmName, setFarmName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [selectedRegion, setSelectedRegion] = useState('');
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -65,6 +73,16 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
     const password = Math.random().toString(36).slice(2, 10) + 'A1!';
     const effectiveRegion = selectedRegion || (availableRegions.length > 0 ? availableRegions[0] : undefined);
 
+    const formattedAddress = [
+      address.streetAddress,
+      address.streetAddress2,
+      address.city,
+      address.stateOrProvince,
+      address.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     const payload = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -72,7 +90,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
       password,
       farmName: farmName.trim(),
       companyName: farmName.trim(),
-      address: address.trim(),
+      ...(formattedAddress ? { address: formattedAddress } : {}),
       ...(effectiveRegion ? { regionName: effectiveRegion } : {}),
       ...(phone.trim() ? { phone: phone.trim() } : {}),
     };
@@ -95,7 +113,13 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
     setEmail('');
     setPhone('');
     setFarmName('');
-    setAddress('');
+    setAddress({
+      streetAddress: '',
+      streetAddress2: '',
+      city: '',
+      stateOrProvince: '',
+      country: 'COD',
+    });
     setSelectedRegion(availableRegions[0] || '');
     setParcels([]);
     setErrors({});
@@ -137,7 +161,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Fermer"
           >
-            <span className="material-symbols-outlined text-gray-500">close</span>
+            <Icon name="close" className="text-gray-500" />
           </button>
         </div>
 
@@ -161,7 +185,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             />
             {errors.firstName && (
               <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">error</span>
+                <Icon name="error" className="text-xs" />
                 {errors.firstName}
               </p>
             )}
@@ -186,7 +210,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             />
             {errors.lastName && (
               <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">error</span>
+                <Icon name="error" className="text-xs" />
                 {errors.lastName}
               </p>
             )}
@@ -211,7 +235,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             />
             {errors.email && (
               <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">error</span>
+                <Icon name="error" className="text-xs" />
                 {errors.email}
               </p>
             )}
@@ -248,21 +272,20 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             />
             {errors.farmName && (
               <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">error</span>
+                <Icon name="error" className="text-xs" />
                 {errors.farmName}
               </p>
             )}
           </div>
 
-          {/* Adresse */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-            <input
-              type="text"
+          {/* Adresse de l'exploitation */}
+          <div className="pt-2 border-t border-gray-100">
+            <AddressInputGroup
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a5c35]/20 focus:border-[#1a5c35] transition-all"
-              placeholder="12 rue des Champs, 75000 Paris"
+              onChange={setAddress}
+              title="Adresse de l'exploitation"
+              subtitle="Localisation géographique de la ferme"
+              required={false}
             />
           </div>
 
@@ -286,7 +309,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
             ) : availableRegions.length === 1 ? (
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#1a5c35] text-lg">location_on</span>
+                  <Icon name="location_on" className="text-[#1a5c35] text-lg" />
                   <span className="text-xs font-bold text-[#1a5c35]">{availableRegions[0]}</span>
                 </div>
                 <span className="text-[10px] font-semibold bg-white text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -313,7 +336,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
                 onClick={addParcel}
                 className="text-sm text-[#1a5c35] font-medium flex items-center gap-1 hover:text-[#145029] transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">add</span>
+                <Icon name="add" className="text-base" />
                 Ajouter une parcelle
               </button>
             </div>
@@ -337,7 +360,7 @@ export function CreateProducerModal({ isOpen, onClose }: CreateProducerModalProp
                     className="text-red-400 hover:text-red-600 transition-colors cursor-pointer"
                     aria-label={`Supprimer la parcelle ${index + 1}`}
                   >
-                    <span className="material-symbols-outlined text-lg">close</span>
+                    <Icon name="close" className="text-lg" />
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-2">

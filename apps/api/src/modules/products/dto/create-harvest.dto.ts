@@ -93,6 +93,11 @@ export class CreateHarvestDto {
   @Min(0)
   pricePerUnit: number;
 
+  @ApiPropertyOptional({ example: 'USD', description: 'Currency code (e.g. USD, CDF, XOF)' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
   @ApiProperty({ enum: HarvestUnit, example: HarvestUnit.KG })
   @IsNotEmpty()
   @IsEnum(HarvestUnit)

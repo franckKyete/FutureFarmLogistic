@@ -30,17 +30,25 @@ export class RegisterBuyerDto {
   @IsString()
   phoneNumber?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  companyName: string;
+  companyName?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  vatNumber: string;
+  vatNumber?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(BuyerBusinessType)
-  businessType: BuyerBusinessType;
+  businessType?: BuyerBusinessType;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  preferredCurrency?: string;
 
   @IsNotEmpty()
   @IsString()

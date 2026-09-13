@@ -14,6 +14,9 @@ import { AuctionEntity } from './entities/auction.entity';
 import { BidEntity } from './entities/bid.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+import { UserEntity } from '../users/entities/user.entity';
 import { AuctionsGateway } from './auctions.gateway';
 import { OrdersService } from '../orders/orders.service';
 
@@ -28,6 +31,12 @@ describe('AuctionsService', () => {
   const mockEntityManager = {
     findOne: jest.fn(),
     save: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({}),
+    })),
   };
 
   const mockDataSource = {
@@ -65,6 +74,14 @@ describe('AuctionsService', () => {
     emitCancelled: jest.fn(),
   };
 
+  const mockNotificationsService = {
+    send: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockStripePaymentGateway = {
+    chargeSavedCard: jest.fn().mockResolvedValue({ paymentIntentId: 'pi_123', status: 'succeeded' }),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -100,6 +117,14 @@ describe('AuctionsService', () => {
           useValue: {
             createFromBid: jest.fn(() => Promise.resolve({ id: 'order-123' })),
           },
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
+        {
+          provide: StripePaymentGateway,
+          useValue: mockStripePaymentGateway,
         },
       ],
     }).compile();
@@ -251,10 +276,21 @@ describe('AuctionsService', () => {
     });
 
     it('should fail if buyer is the farmer', async () => {
-      mockEntityManager.findOne.mockResolvedValue({
-        id: 'auction-1',
-        status: AuctionStatus.ACTIVE,
-        farmerProfile: { userId: 'farmer-1' },
+      mockEntityManager.findOne.mockImplementation((entityClass: any) => {
+        if (entityClass === AuctionEntity || entityClass.name === 'AuctionEntity') {
+          return Promise.resolve({
+            id: 'auction-1',
+            farmerProfileId: 'farmer-profile-1',
+            status: AuctionStatus.ACTIVE,
+          });
+        }
+        if (entityClass === FarmerProfileEntity || entityClass.name === 'FarmerProfileEntity') {
+          return Promise.resolve({
+            id: 'farmer-profile-1',
+            userId: 'farmer-1',
+          });
+        }
+        return Promise.resolve(null);
       });
 
       await expect(service.placeBid('farmer-1', 'auction-1')).rejects.toThrow(
@@ -268,13 +304,30 @@ describe('AuctionsService', () => {
         status: AuctionStatus.ACTIVE,
         currentPrice: 80,
         quantityOnOffer: 50,
+        currency: 'USD',
+        exchangeRate: 1.0,
         farmerProfile: { userId: 'farmer-1' },
         winnerId: null as any,
         soldAt: null as any,
         winningBidId: null as any,
       };
-      mockEntityManager.findOne.mockResolvedValue(mockAuction);
-      mockEntityManager.save.mockImplementation((x) => Promise.resolve(x));
+      mockEntityManager.findOne.mockImplementation((entityClass: any) => {
+        if (entityClass === AuctionEntity || entityClass.name === 'AuctionEntity') {
+          return Promise.resolve(mockAuction);
+        }
+        if (entityClass === UserEntity || entityClass.name === 'UserEntity') {
+          return Promise.resolve({
+            id: 'buyer-1',
+            stripeCustomerId: 'cus_123',
+            stripePaymentMethodId: 'pm_123',
+          });
+        }
+        return Promise.resolve(null);
+      });
+      mockEntityManager.save.mockImplementation((entityClassOrEntity: any, entity?: any) => {
+        const toSave = entity || entityClassOrEntity;
+        return Promise.resolve(toSave);
+      });
 
       const bid = await service.placeBid('buyer-1', 'auction-1');
 

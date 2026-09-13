@@ -140,6 +140,10 @@ export enum Permission {
   DISPUTE_CREATE                = 'dispute:create',
   DISPUTE_UPDATE                = 'dispute:update',
   DISPUTE_RESOLVE               = 'dispute:resolve',
+
+  // --- Currencies & Exchange Rates ---
+  CURRENCY_READ                 = 'currency:read',
+  CURRENCY_MANAGE               = 'currency:manage',
 }
 
 
@@ -159,7 +163,10 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  country?: string;
+  preferredCurrency?: string;
   phoneNumber?: string | null;
+  avatarUrl?: string | null;
   permissions: Permission[];
   roles: string[];
   mustChangePassword?: boolean;

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useMemo } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -82,7 +83,6 @@ function UsersListPage() {
 
   // Inline editing state for admin user details
   const [isEditingUser, setIsEditingUser] = useState(false);
-  const [customSpecInput, setCustomSpecInput] = useState('');
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
@@ -93,7 +93,6 @@ function UsersListPage() {
     licenseCategory: 'B',
     isAvailable: true,
     agencyName: '',
-    specializations: [] as string[],
     companyName: '',
     bio: '',
     vatNumber: '',
@@ -101,16 +100,6 @@ function UsersListPage() {
     isCertified: false,
     inspectionCenterIds: [] as string[],
   });
-
-  const AVAILABLE_SPECIALIZATIONS = [
-    'Cacao & Café',
-    'Tubercules (Manioc, Igname)',
-    'Oléagineux & Noix',
-    'Céréales (Maïs, Riz)',
-    'Fruits & Légumes',
-    'Élevage & Aviculture',
-    'Cultures maraîchères',
-  ];
 
   const startEditing = (u: AdminUserDto) => {
     const prof = (u.profile as any) || {};
@@ -121,13 +110,12 @@ function UsersListPage() {
       firstName: u.firstName || '',
       lastName: u.lastName || '',
       email: u.email || '',
-      phoneNumber: u.phone || '',
+      phoneNumber: u.phone || u.phoneNumber || '',
       address: prof.address || prof.shippingAddress || prof.billingAddress || '',
       licenseNumber: prof.licenseNumber || '',
       licenseCategory: prof.licenseCategory || 'B',
       isAvailable: prof.isAvailable !== false,
       agencyName: prof.agencyName || '',
-      specializations: Array.isArray(prof.specializations) ? [...prof.specializations] : [],
       companyName: prof.companyName || '',
       bio: prof.bio || '',
       vatNumber: prof.vatNumber || '',
@@ -135,32 +123,7 @@ function UsersListPage() {
       isCertified: !!prof.isCertified,
       inspectionCenterIds: assignedCenterIds,
     });
-    setCustomSpecInput('');
     setIsEditingUser(true);
-  };
-
-  const handleToggleSpecialization = (spec: string) => {
-    setEditFormData((prev) => {
-      const exists = prev.specializations.includes(spec);
-      return {
-        ...prev,
-        specializations: exists
-          ? prev.specializations.filter((s) => s !== spec)
-          : [...prev.specializations, spec],
-      };
-    });
-  };
-
-  const handleAddCustomSpecialization = () => {
-    const trimmed = customSpecInput.trim();
-    if (!trimmed) return;
-    if (!editFormData.specializations.includes(trimmed)) {
-      setEditFormData((prev) => ({
-        ...prev,
-        specializations: [...prev.specializations, trimmed],
-      }));
-    }
-    setCustomSpecInput('');
   };
 
   const handleSaveUserEdit = (userId: string) => {
@@ -182,7 +145,6 @@ function UsersListPage() {
         licenseCategory: editFormData.licenseCategory || undefined,
         isAvailable: editFormData.isAvailable,
         agencyName: editFormData.agencyName || undefined,
-        specializations: editFormData.specializations,
         companyName: editFormData.companyName || undefined,
         bio: editFormData.bio || undefined,
         vatNumber: editFormData.vatNumber || undefined,
@@ -346,7 +308,7 @@ function UsersListPage() {
       render: (u: AdminUserDto) => (
         <div>
           <p className="font-medium text-[var(--admin-on-surface)] text-xs">{u.email}</p>
-          <p className="text-[11px] text-[var(--admin-on-surface-variant)]">{u.phone ?? '—'}</p>
+          <p className="text-[11px] text-[var(--admin-on-surface-variant)]">{u.phone || u.phoneNumber || '—'}</p>
         </div>
       ),
     },
@@ -408,7 +370,7 @@ function UsersListPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" className="px-6 py-2.5 border border-[var(--admin-outline-variant)]/40 hover:bg-[var(--admin-surface-container-low)]">
-            <span className="material-symbols-outlined text-sm">file_download</span>
+            <Icon name="file_download" className="text-sm" />
             Exporter CSV
           </Button>
           <Link to="/admin/users/new">
@@ -416,7 +378,7 @@ function UsersListPage() {
               variant="primary"
               className="bg-[var(--admin-primary)] hover:brightness-110 text-white px-6 py-2.5 flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
-              <span className="material-symbols-outlined text-sm">person_add</span>
+              <Icon name="person_add" className="text-sm" />
               Nouvel agent terrain
             </Button>
           </Link>
@@ -536,9 +498,9 @@ function UsersListPage() {
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-[var(--admin-on-surface-variant)] font-medium">Documents fournis</span>
                     <div className="flex gap-1 text-[var(--admin-primary)]">
-                      <span className="material-symbols-outlined text-sm font-bold">verified</span>
-                      <span className="material-symbols-outlined text-sm font-bold">verified</span>
-                      <span className="material-symbols-outlined text-sm text-[var(--admin-outline-variant)]">verified</span>
+                      <Icon name="verified" className="text-sm font-bold" />
+                      <Icon name="verified" className="text-sm font-bold" />
+                      <Icon name="verified" className="text-sm text-[var(--admin-outline-variant)]" />
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-xs">
@@ -591,9 +553,7 @@ function UsersListPage() {
                 }}
                 className="px-3 py-1.5 rounded-xl border border-[var(--admin-outline-variant)] hover:bg-[var(--admin-surface-container-low)] text-xs font-bold text-[var(--admin-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm">
-                  {isEditingUser ? 'close' : 'edit'}
-                </span>
+                <Icon name={isEditingUser ? 'close' : 'edit'} className="text-sm" />
                 {isEditingUser ? 'Annuler' : 'Modifier'}
               </button>
             </div>
@@ -634,7 +594,7 @@ function UsersListPage() {
               <div className="space-y-5">
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">edit_note</span>
+                    <Icon name="edit_note" className="text-base text-[var(--admin-primary)]" />
                     Informations générales
                   </h4>
                   <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
@@ -707,7 +667,7 @@ function UsersListPage() {
                     return (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">local_shipping</span>
+                          <Icon name="local_shipping" className="text-base text-[var(--admin-primary)]" />
                           Données Chauffeur
                         </h4>
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
@@ -758,84 +718,11 @@ function UsersListPage() {
                     return (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">verified_user</span>
-                          Données Inspecteur
+                          <Icon name="verified_user" className="text-base text-[var(--admin-primary)]" />
+                          Affectation Inspecteur
                         </h4>
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
-                              Agence / Entreprise
-                            </label>
-                            <input
-                              type="text"
-                              value={editFormData.agencyName}
-                              onChange={(e) => setEditFormData({ ...editFormData, agencyName: e.target.value })}
-                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1">
-                              Numéro d'agrément
-                            </label>
-                            <input
-                              type="text"
-                              value={editFormData.licenseNumber}
-                              onChange={(e) => setEditFormData({ ...editFormData, licenseNumber: e.target.value })}
-                              className="w-full px-3 py-2 border border-[var(--admin-outline-variant)] rounded-lg text-xs font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)] mb-1.5">
-                              Spécialisations agricoles
-                            </label>
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                              {AVAILABLE_SPECIALIZATIONS.map((spec) => {
-                                const isSelected = editFormData.specializations.includes(spec);
-                                return (
-                                  <button
-                                    key={spec}
-                                    type="button"
-                                    onClick={() => handleToggleSpecialization(spec)}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                                      isSelected
-                                        ? 'bg-[var(--admin-primary)] text-white shadow-xs'
-                                        : 'bg-[var(--admin-surface-container-low)] text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-outline-variant)]/40'
-                                    }`}
-                                  >
-                                    <span className="material-symbols-outlined text-[14px]">
-                                      {isSelected ? 'check' : 'add'}
-                                    </span>
-                                    {spec}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={customSpecInput}
-                                onChange={(e) => setCustomSpecInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddCustomSpecialization();
-                                  }
-                                }}
-                                placeholder="Ajouter une autre spécialité..."
-                                className="flex-1 px-3 py-1.5 border border-[var(--admin-outline-variant)] rounded-lg text-xs"
-                              />
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={handleAddCustomSpecialization}
-                                className="py-1.5 px-3 text-xs"
-                              >
-                                Ajouter
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="pt-2 border-t border-[var(--admin-outline-variant)]/20 space-y-2">
+                          <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <label className="block text-[10px] font-bold uppercase text-[var(--admin-on-surface-variant)]">
                                 Centres d'inspection assignés *
@@ -900,7 +787,7 @@ function UsersListPage() {
                                         }`}
                                       >
                                         {isSelected && (
-                                          <span className="material-symbols-outlined text-xs">check</span>
+                                          <Icon name="check" className="text-xs" />
                                         )}
                                       </span>
                                     </div>
@@ -921,7 +808,7 @@ function UsersListPage() {
                     return (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">agriculture</span>
+                          <Icon name="agriculture" className="text-base text-[var(--admin-primary)]" />
                           Données Exploitation Agricole
                         </h4>
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
@@ -977,7 +864,7 @@ function UsersListPage() {
                     return (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">storefront</span>
+                          <Icon name="storefront" className="text-base text-[var(--admin-primary)]" />
                           Données Entreprise & Facturation
                         </h4>
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-3 text-xs">
@@ -1048,7 +935,7 @@ function UsersListPage() {
                 {/* General Contact Info */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">contact_mail</span>
+                    <Icon name="contact_mail" className="text-base text-[var(--admin-primary)]" />
                     Coordonnées & Informations générales
                   </h4>
                   <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 grid grid-cols-2 gap-3 text-xs">
@@ -1061,7 +948,7 @@ function UsersListPage() {
                     <div>
                       <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Téléphone</p>
                       <p className="font-medium text-[var(--admin-on-surface)] mt-0.5">
-                        {selectedUser.phone || 'Non renseigné'}
+                        {selectedUser.phone || selectedUser.phoneNumber || 'Non renseigné'}
                       </p>
                     </div>
                     <div>
@@ -1085,7 +972,7 @@ function UsersListPage() {
                 {/* Role-Specific Profile Information */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-[var(--admin-on-surface-variant)] uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-base text-[var(--admin-primary)]">badge</span>
+                    <Icon name="badge" className="text-base text-[var(--admin-primary)]" />
                     Données professionnelles ({getFrenchRole(selectedUser.roles[0]?.name || 'Utilisateur')})
                   </h4>
 
@@ -1099,7 +986,7 @@ function UsersListPage() {
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
-                              <span className="material-symbols-outlined text-base">local_shipping</span>
+                              <Icon name="local_shipping" className="text-base" />
                               Permis & Flotte de transport
                             </div>
                             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -1147,49 +1034,19 @@ function UsersListPage() {
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
-                              <span className="material-symbols-outlined text-base">verified_user</span>
-                              Agrément & Spécialités d'Inspection
+                              <Icon name="verified_user" className="text-base" />
+                              Statut d'Inspection
                             </div>
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
                               {inspectorProfile?.isActiveInspector !== false ? 'Inspecteur Actif' : 'Inactif'}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
-                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Agence / Entreprise</p>
-                              <p className="font-bold text-[var(--admin-on-surface)] mt-0.5">
-                                {inspectorProfile?.agencyName || 'Non renseignée'}
-                              </p>
-                            </div>
-                            <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl">
-                              <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold">Numéro d'agrément</p>
-                              <p className="font-mono font-bold text-[var(--admin-on-surface)] mt-0.5">
-                                {inspectorProfile?.licenseNumber || 'Non renseigné'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs">
-                            <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold mb-1.5">Spécialisations agricoles</p>
-                            {inspectorProfile?.specializations && inspectorProfile.specializations.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {inspectorProfile.specializations.map((spec: string) => (
-                                  <span key={spec} className="px-2 py-0.5 rounded-md bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] text-[11px] font-semibold">
-                                    {spec}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-gray-500 italic text-[11px]">Aucune spécialisation enregistrée</p>
-                            )}
-                          </div>
-
                           {/* Assigned Centers & Regions */}
                           <div className="p-2.5 bg-[var(--admin-surface-container-low)]/40 rounded-xl text-xs space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="text-[10px] text-[var(--admin-on-surface-variant)] uppercase font-semibold flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs text-[var(--admin-primary)]">corporate_fare</span>
+                                <Icon name="corporate_fare" className="text-xs text-[var(--admin-primary)]" />
                                 Centres d'Inspection & Régions Assignés
                               </p>
                               <span className="text-[10px] font-bold text-gray-500">
@@ -1235,7 +1092,7 @@ function UsersListPage() {
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
-                              <span className="material-symbols-outlined text-base">agriculture</span>
+                              <Icon name="agriculture" className="text-base" />
                               Exploitation Agricole
                             </div>
                             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -1285,7 +1142,7 @@ function UsersListPage() {
                         <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)]">
-                              <span className="material-symbols-outlined text-base">storefront</span>
+                              <Icon name="storefront" className="text-base" />
                               Entreprise & Facturation
                             </div>
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 uppercase">
@@ -1321,7 +1178,7 @@ function UsersListPage() {
                     return (
                       <div className="bg-white border border-[var(--admin-outline-variant)]/30 rounded-2xl p-4 text-xs">
                         <div className="flex items-center gap-2 text-xs font-bold text-[var(--admin-primary)] mb-1">
-                          <span className="material-symbols-outlined text-base">shield_person</span>
+                          <Icon name="shield_person" className="text-base" />
                           Privilèges Administrateur
                         </div>
                         <p className="text-gray-600">Accès complet à la supervision du réseau Future Farm, gestion des utilisateurs et validation.</p>
@@ -1350,7 +1207,7 @@ function UsersListPage() {
                     title="Renvoyer l'email d'activation avec de nouveaux identifiants"
                     className="w-full py-2.5 px-4 bg-[var(--admin-primary)]/10 hover:bg-[var(--admin-primary)]/20 text-[var(--admin-primary)] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-base">forward_to_inbox</span>
+                    <Icon name="forward_to_inbox" className="text-base" />
                     Renvoyer les accès
                   </button>
                 </div>
@@ -1372,7 +1229,7 @@ function UsersListPage() {
                       disabled={updateStatus.isPending}
                       className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                     >
-                      <span className="material-symbols-outlined text-base">pause_circle</span>
+                      <Icon name="pause_circle" className="text-base" />
                       Suspendre le compte
                     </button>
                   ) : (
@@ -1391,7 +1248,7 @@ function UsersListPage() {
                       disabled={updateStatus.isPending}
                       className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                     >
-                      <span className="material-symbols-outlined text-base">check_circle</span>
+                      <Icon name="check_circle" className="text-base" />
                       Réactiver le compte
                     </button>
                   )}
@@ -1417,20 +1274,20 @@ function UsersListPage() {
                 <span>PIÈCE D'IDENTITÉ</span>
                 <div className="flex gap-2">
                   <button className="p-2 bg-white rounded-lg shadow-sm hover:bg-slate-50">
-                    <span className="material-symbols-outlined text-base">zoom_in</span>
+                    <Icon name="zoom_in" className="text-base" />
                   </button>
                   <button className="p-2 bg-white rounded-lg shadow-sm hover:bg-slate-50">
-                    <span className="material-symbols-outlined text-base">rotate_right</span>
+                    <Icon name="rotate_right" className="text-base" />
                   </button>
                 </div>
               </div>
               <div className="w-full aspect-[1.6/1] bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 overflow-hidden shadow-inner flex items-center justify-center p-8">
-                <span className="material-symbols-outlined text-6xl text-[var(--admin-outline-variant)]">card_membership</span>
+                <Icon name="card_membership" className="text-6xl text-[var(--admin-outline-variant)]" />
               </div>
 
               <div className="mt-8 space-y-4">
                 <div className="p-4 border-2 border-[var(--admin-primary)] bg-[var(--admin-primary)]/5 rounded-xl flex items-center gap-4">
-                  <span className="material-symbols-outlined text-[var(--admin-primary)] text-2xl">verified</span>
+                  <Icon name="verified" className="text-[var(--admin-primary)] text-2xl" />
                   <div>
                     <p className="text-xs font-bold text-[var(--admin-primary)]">Vérification Automatique OK</p>
                     <p className="text-[11px] text-[var(--admin-on-surface-variant)]">Nom et photo correspondent au profil soumis.</p>
@@ -1519,9 +1376,7 @@ function UsersListPage() {
                   : 'bg-emerald-100 text-emerald-800'
               }`}
             >
-              <span className="material-symbols-outlined text-2xl">
-                {confirmAction.confirmVariant === 'danger' ? 'warning' : 'check_circle'}
-              </span>
+              <Icon name={confirmAction.confirmVariant === 'danger' ? 'warning' : 'check_circle'} className="text-2xl" />
             </div>
 
             <div className="text-center space-y-2">
@@ -1566,9 +1421,7 @@ function UsersListPage() {
                 : 'bg-red-800 text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">
-              {toast.type === 'success' ? 'check_circle' : 'error'}
-            </span>
+            <Icon name={toast.type === 'success' ? 'check_circle' : 'error'} className="text-sm" />
             <span>{toast.message}</span>
           </div>
         ))}

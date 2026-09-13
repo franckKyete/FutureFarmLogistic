@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { DeliveryStopType, DeliveryStopStatus, StopAddress } from '@futurefarm/types';
+import { DeliveryStopType, DeliveryStopStatus, type StopAddress } from '@futurefarm/types';
 import { DeliveryRunEntity } from './delivery-run.entity';
 import { OrderLineEntity } from '../../orders/entities/order-line.entity';
 import { InspectionReportEntity } from '../../inspections/entities/inspection-report.entity';

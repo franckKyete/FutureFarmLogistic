@@ -1,8 +1,9 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
-import { getAuctionsQuery } from '@/features/auctions/api/auctions.queries';
+import { getFarmerAuctionsQuery } from '@/features/auctions/api/auctions.queries';
 import { AuctionStatus } from '@futurefarm/types';
 
 export const Route = createFileRoute('/farmer/auctions/')({
@@ -14,8 +15,8 @@ type TabStatus = 'Live' | 'Upcoming' | 'Finished' | 'Drafts';
 function MyAuctionsPage() {
   const [activeTab, setActiveTab] = useState<TabStatus>('Live');
 
-  // Load all auctions
-  const { data: paginatedData } = useQuery(getAuctionsQuery());
+  // Load only caller farmer auctions
+  const { data: paginatedData } = useQuery(getFarmerAuctionsQuery());
   const auctions = paginatedData?.data || [];
 
   // Live WebSocket state overrides
@@ -155,7 +156,7 @@ function MyAuctionsPage() {
         <div className="flex flex-col gap-4">
           {filtered.length === 0 ? (
             <div className="bg-white border border-[#c0c9be] rounded-xl p-8 text-center text-[#404941]">
-              <span className="material-symbols-outlined text-[48px] text-[#707970] mb-2 block">gavel</span>
+              <Icon name="gavel" className="text-[48px] text-[#707970] mb-2 block" />
               Aucune enchère disponible dans cette catégorie.
             </div>
           ) : (
@@ -165,13 +166,27 @@ function MyAuctionsPage() {
               const isLive = getStatusText(auc.status, auc.id) === AuctionStatus.ACTIVE;
 
               if (isLive) {
+                const productName = auc.harvest?.product?.name || `Lot #${auc.id.slice(0, 4)}`;
+                const photoUrl = auc.harvest?.photoUrls?.[0];
                 return (
                   <div
                     key={auc.id}
                     className="bg-white border border-[#c0c9be] rounded-xl overflow-hidden flex flex-col transition-all active:scale-[0.98]"
                   >
                     {/* Visual */}
-                    <div className="relative h-48 w-full bg-slate-200">
+                    <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={productName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-[#707970] bg-[#eff4ff]">
+                          <Icon name="eco" className="text-4xl" />
+                          <span className="text-xs mt-1 font-medium">{productName}</span>
+                        </div>
+                      )}
                       <div className="absolute top-3 left-3 bg-[#885200] px-3 py-1 rounded-full flex items-center gap-1 animate-pulse">
                         <span className="w-2 h-2 rounded-full bg-white"></span>
                         <span className="text-white font-semibold text-[12px] tracking-wider uppercase">LIVE</span>
@@ -181,8 +196,8 @@ function MyAuctionsPage() {
                     <div className="p-4 flex flex-col gap-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="text-[18px] font-semibold text-[#0b1c30]">Lot #{auc.id.slice(0, 4)}</h3>
-                          <p className="text-[#404941] text-[14px]">{auc.quantityOnOffer} kg mis en offre</p>
+                          <h3 className="text-[18px] font-semibold text-[#0b1c30]">{productName}</h3>
+                          <p className="text-[#404941] text-[14px]">{auc.quantityOnOffer} {auc.harvest?.unit || 'kg'} mis en offre</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[#404941] text-[12px] font-semibold">Prix actuel</p>
@@ -194,7 +209,7 @@ function MyAuctionsPage() {
                       {/* Timer Bar */}
                       <div className="bg-[#e5eeff] rounded-lg p-3 flex items-center justify-between border border-[#c0c9be]/30">
                         <div className="flex items-center gap-2 text-[#885200]">
-                          <span className="material-symbols-outlined text-[20px]">timer</span>
+                          <Icon name="timer" className="text-[20px]" />
                           <span className="text-[18px] font-semibold">
                             {formatSeconds(secondsLeft)}
                           </span>
@@ -207,22 +222,31 @@ function MyAuctionsPage() {
                         className="w-full py-3 bg-[#004322] text-white rounded-lg text-[12px] font-bold uppercase tracking-widest transition-colors hover:bg-[#004322]/90 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                       >
                         Détails & Offres
-                        <span className="material-symbols-outlined text-[18px]">visibility</span>
+                        <Icon name="visibility" className="text-[18px]" />
                       </Link>
                     </div>
                   </div>
                 );
               } else {
+                const productName = auc.harvest?.product?.name || `Lot #${auc.id.slice(0, 4)}`;
+                const photoUrl = auc.harvest?.photoUrls?.[0];
                 return (
                   <div
                     key={auc.id}
                     className="bg-[#eff4ff] border border-[#c0c9be] rounded-xl p-4 flex gap-4 items-center border-dashed opacity-90"
                   >
+                    {photoUrl && (
+                      <img
+                        src={photoUrl}
+                        alt={productName}
+                        className="w-14 h-14 object-cover rounded-lg shrink-0 border border-[#c0c9be]"
+                      />
+                    )}
                     <div className="flex-grow">
                       <span className="text-[#404941] text-[11px] font-bold uppercase">
                         {auc.status}
                       </span>
-                      <h4 className="text-[18px] font-semibold text-[#0b1c30]">Lot #{auc.id.slice(0, 4)}</h4>
+                      <h4 className="text-[18px] font-semibold text-[#0b1c30]">{productName}</h4>
                       <p className="text-xs text-[#404941]">
                         Départ : {auc.startingPrice.toLocaleString()} CDF — Réserve : {auc.reservePrice.toLocaleString()} CDF
                       </p>
@@ -230,9 +254,9 @@ function MyAuctionsPage() {
                     <Link
                       to="/farmer/auctions/$id/bidders"
                       params={{ id: auc.id }}
-                      className="material-symbols-outlined text-[#004322] p-2 bg-white rounded-full border border-[#c0c9be] active:scale-90 transition-transform cursor-pointer"
+                      className="text-[#004322] p-2 bg-white rounded-full border border-[#c0c9be] active:scale-90 transition-transform cursor-pointer flex items-center justify-center"
                     >
-                      chevron_right
+                      <Icon name="chevron_right" size={20} />
                     </Link>
                   </div>
                 );

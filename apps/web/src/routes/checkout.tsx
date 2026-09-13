@@ -1,13 +1,29 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
   getBasketQuery,
   checkoutMutation,
 } from '@/features/basket/api/basket.queries';
+import { confirmPaymentMutation } from '@/features/orders/api/orders.queries';
 import { addToast } from '@/features/shared/store/toast.store';
-import type { DeliveryAddress, BasketLineDto } from '@futurefarm/types';
+import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
+import {
+  useCurrencyStore,
+  convertFromUSD,
+  formatPriceDirect,
+} from '@/features/currency/store/currency.store';
+import { fetchActiveFees } from '@/features/fees/api/fees.api';
+import {
+  FeeCalculationType,
+  type DeliveryAddress,
+  type BasketLineDto,
+  type OrderDto,
+  type AddressDto,
+} from '@futurefarm/types';
+import { AddressSelector } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/checkout')({
   beforeLoad: () => {
@@ -16,232 +32,632 @@ export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
 });
 
-// API returns harvest + product relations even though the base DTO doesn't declare them
-interface EnrichedLine extends BasketLineDto {
-  harvest?: {
-    id: string;
-    pricePerUnit: number;
-    unit: string;
-    product?: {
-      id: string;
-      name: string;
-    };
-    photoUrls?: string[];
-  };
+type DeliverySlot = 'Matin (08:00 - 12:00)' | 'Après-midi' | 'Soir';
+
+function getTomorrowDate(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0] ?? '';
 }
 
-function CheckoutPage() {
-  const navigate = useNavigate();
-  const { data: basket } = useQuery(getBasketQuery());
+export function CheckoutPage() {
+  const { data: basket, refetch: refetchBasket } = useQuery(getBasketQuery());
 
-  const [address, setAddress] = useState<DeliveryAddress>({
-    street: '',
-    city: '',
-    postalCode: '',
-    country: 'Tunisie',
+  // Checkout Steps: 1 = Livraison, 2 = Paiement, 3 = Confirmation
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // Form State
+  const [selectedAddress, setSelectedAddress] = useState<AddressDto | null>(null);
+  const [deliveryDate, setDeliveryDate] = useState(getTomorrowDate());
+  const [selectedSlot, setSelectedSlot] = useState<DeliverySlot>('Matin (08:00 - 12:00)');
+  const [specialInstructions, setSpecialInstructions] = useState('');
+
+  // Payment Method Selection (Step 2)
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'mobile_money'>('stripe');
+
+  // Placed Order Result State (Step 3)
+  const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
+
+  const selectedCountry = useCurrencyStore((s) => s.selectedCountry);
+  const selectedCurrency = useCurrencyStore((s) => s.selectedCurrency);
+  const currencies = useCurrencyStore((s) => s.currencies);
+
+  const { data: activeFees = [] } = useQuery({
+    queryKey: ['platform-fees-active'],
+    queryFn: fetchActiveFees,
+    staleTime: 60000,
   });
-  const [notes, setNotes] = useState('');
+
+  const lines: BasketLineDto[] = basket?.lines || [];
+  const totalPrice = useMemo(() => {
+    const subtotal = lines.reduce((sum, line) => {
+      const price = Number(line.harvest?.pricePerUnit ?? 0);
+      const sourceCurrency = line.harvest?.currency || 'CDF';
+      const lineTotal = price * Number(line.quantity);
+      if (sourceCurrency === selectedCurrency) {
+        return sum + lineTotal;
+      }
+      const sourceRate = currencies.find((c) => c.code === sourceCurrency)?.rateAgainstBase ?? 1.0;
+      const targetRate = currencies.find((c) => c.code === selectedCurrency)?.rateAgainstBase ?? 1.0;
+      return sum + (lineTotal / sourceRate) * targetRate;
+    }, 0);
+
+    if (subtotal === 0) return 0;
+
+    let totalFees = 0;
+    if (activeFees.length > 0) {
+      for (const fee of activeFees) {
+        if (fee.calculationType === FeeCalculationType.FIXED) {
+          totalFees += convertFromUSD(Number(fee.value), selectedCurrency);
+        } else if (fee.calculationType === FeeCalculationType.PERCENTAGE) {
+          totalFees += Number(((subtotal * Number(fee.value)) / 100).toFixed(2));
+        }
+      }
+    } else {
+      // Fallback
+      totalFees = convertFromUSD(2.90, selectedCurrency) + convertFromUSD(0.50, selectedCurrency);
+    }
+
+    return subtotal + totalFees;
+  }, [lines, selectedCurrency, currencies, activeFees]);
+
+  const formattedTotal = formatPriceDirect(totalPrice, selectedCurrency);
+
+  const confirmPayment = useMutation({
+    ...confirmPaymentMutation(),
+  });
 
   const checkout = useMutation({
     ...checkoutMutation(),
-    onSuccess: (data) => {
-      addToast('Commande confirmée !', 'success');
+    onSuccess: async (data) => {
+      // If payment gateway provides a redirect URL (e.g. Stripe Checkout or PawaPay), redirect immediately
       if (data?.paymentUrl) {
         window.location.href = data.paymentUrl;
-      } else {
-        navigate({ to: '/orders' });
+        return;
       }
+
+      if (data?.order) {
+        setPlacedOrder(data.order as unknown as OrderDto);
+        void refetchBasket();
+        setCurrentStep(3);
+        addToast('Commande enregistrée. En attente de paiement.', 'info');
+        return;
+      }
+
+      addToast('Erreur : URL de paiement non reçue du serveur', 'error');
     },
-    onError: () => {
-      addToast('Erreur lors de la confirmation de la commande', 'error');
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Erreur lors de la confirmation de la commande';
+      addToast(message, 'error');
     },
   });
 
-  const lines: EnrichedLine[] = (basket?.lines as EnrichedLine[]) || [];
-  const totalPrice = lines.reduce((sum, line) => {
-    return sum + (line.harvest?.pricePerUnit ?? 0) * line.quantity;
-  }, 0);
-  const totalItems = lines.reduce((sum, line) => sum + line.quantity, 0);
-
-  const isAddressValid =
-    address.street.trim().length > 0 &&
-    address.city.trim().length > 0 &&
-    address.postalCode.trim().length > 0 &&
-    address.country.trim().length > 0;
-
-  const handleAddressChange = (
-    field: keyof DeliveryAddress,
-    value: string,
-  ) => {
-    setAddress((prev) => ({ ...prev, [field]: value }));
+  const handleStep1Submit = (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault?.();
+    if (!selectedAddress) {
+      addToast('Veuillez sélectionner ou ajouter une adresse de livraison', 'error');
+      return;
+    }
+    setCurrentStep(2);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAddressValid) return;
+  const handleExecutePayment = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault?.();
+    if (lines.length === 0) {
+      addToast('Votre panier est vide', 'error');
+      return;
+    }
+    if (!selectedAddress) {
+      addToast('Veuillez sélectionner une adresse de livraison', 'error');
+      return;
+    }
+
+    const deliveryAddressPayload: DeliveryAddress = {
+      id: selectedAddress.id,
+      recipientName: selectedAddress.recipientName ?? undefined,
+      phoneNumber: selectedAddress.phoneNumber ?? undefined,
+      street: selectedAddress.streetAddress,
+      streetAddress: selectedAddress.streetAddress,
+      city: selectedAddress.city,
+      country: selectedAddress.country || selectedCountry,
+      postalCode: selectedAddress.postalCode ?? '10000',
+    };
+    if (selectedAddress.streetAddress2) {
+      deliveryAddressPayload.streetAddress2 = selectedAddress.streetAddress2;
+    }
+    if (selectedAddress.stateOrProvince) {
+      deliveryAddressPayload.stateOrProvince = selectedAddress.stateOrProvince;
+    }
+    if (selectedAddress.label) {
+      deliveryAddressPayload.label = selectedAddress.label;
+    }
+    if (selectedAddress.latitude !== null && selectedAddress.latitude !== undefined) {
+      deliveryAddressPayload.latitude = Number(selectedAddress.latitude);
+    }
+    if (selectedAddress.longitude !== null && selectedAddress.longitude !== undefined) {
+      deliveryAddressPayload.longitude = Number(selectedAddress.longitude);
+    }
+
+    const combinedNotes = `Date: ${deliveryDate} | Créneau: ${selectedSlot}${specialInstructions.trim() ? ` | Instructions: ${specialInstructions.trim()}` : ''}`;
+
     checkout.mutate({
-      deliveryAddress: address,
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
+      deliveryAddress: deliveryAddressPayload,
+      notes: combinedNotes,
+      paymentMethod,
+      currency: selectedCurrency,
     });
   };
 
   return (
-    <div className="bg-[#f8f9ff] text-[#0b1c30] min-h-screen pb-24 font-sans">
-      {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 bg-[#f8f9ff] border-b border-[#c0c9be] h-16 flex items-center px-4 max-w-[480px] mx-auto left-0 right-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/cart"
-            className="material-symbols-outlined text-[#004322] cursor-pointer"
-          >
-            arrow_back
-          </Link>
-          <h1 className="text-[18px] font-bold text-[#004322]">
-            Validation
-          </h1>
-        </div>
-      </header>
+    <div className="bg-[#f8f9fc] text-[#0b1c30] min-h-screen pb-32 font-sans">
+      <BuyerHeader
+        title={
+          currentStep === 1
+            ? 'Finaliser la commande'
+            : currentStep === 2
+              ? 'Paiement sécurisé'
+              : 'Confirmation'
+        }
+        showBack
+        backTo={currentStep === 1 ? '/cart' : undefined}
+        hideCart
+      />
 
-      <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-4">
-        {/* Order Summary */}
-        <section className="bg-white border border-[#c0c9be] rounded-xl p-4">
-          <h2 className="text-[15px] font-bold text-[#0b1c30] mb-3">
-            Récapitulatif
-          </h2>
-          {lines.length === 0 ? (
-            <p className="text-[#707970] text-[13px]">Aucun article dans le panier.</p>
-          ) : (
-            <div className="space-y-3">
-              {lines.map((line) => {
-                const unitPrice = line.harvest?.pricePerUnit ?? 0;
-                const productName = line.harvest?.product?.name || `Produit #${line.harvestId.slice(0, 8)}`;
-                const subtotal = unitPrice * line.quantity;
-                return (
-                  <div
-                    key={line.id}
-                    className="flex items-center justify-between text-[13px]"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[#0b1c30] font-semibold truncate">
-                        {productName}
-                      </p>
-                      <p className="text-[#707970] text-[12px]">
-                        {line.quantity} x {unitPrice.toLocaleString()} CDF
+      <main className="pt-20 px-4 max-w-[480px] mx-auto space-y-5">
+        {/* ── 3-Step Progress Stepper ── */}
+        <div className="flex items-center justify-between px-2 py-3 bg-white rounded-2xl border border-[#e2e8f0] shadow-sm">
+          {/* Step 1: Livraison */}
+          <div
+            onClick={() => currentStep > 1 && setCurrentStep(1)}
+            className={`flex flex-col items-center gap-1.5 flex-1 ${
+              currentStep >= 1 ? 'cursor-pointer' : ''
+            }`}
+          >
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                currentStep === 1
+                  ? 'bg-[#004322] text-white shadow-sm'
+                  : currentStep > 1
+                    ? 'bg-[#e6f4ea] text-[#004322]'
+                    : 'bg-gray-100 text-[#707970]'
+              }`}
+            >
+              <Icon name={currentStep > 1 ? 'check' : 'local_shipping'} className="text-[20px]" />
+            </div>
+            <span
+              className={`text-[11px] font-bold ${
+                currentStep === 1
+                  ? 'text-[#004322]'
+                  : currentStep > 1
+                    ? 'text-[#004322]'
+                    : 'text-[#707970]'
+              }`}
+            >
+              Livraison
+            </span>
+          </div>
+
+          {/* Divider 1-2 */}
+          <div
+            className={`h-[2px] flex-1 -mt-4 transition-colors ${
+              currentStep >= 2 ? 'bg-[#004322]' : 'bg-[#e2e8f0]'
+            }`}
+          />
+
+          {/* Step 2: Paiement */}
+          <div
+            onClick={() => currentStep === 3 && setCurrentStep(2)}
+            className={`flex flex-col items-center gap-1.5 flex-1 ${
+              currentStep === 3 ? 'cursor-pointer' : ''
+            }`}
+          >
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                currentStep === 2
+                  ? 'bg-[#004322] text-white shadow-sm'
+                  : currentStep > 2
+                    ? 'bg-[#e6f4ea] text-[#004322]'
+                    : 'bg-gray-100 text-[#707970]'
+              }`}
+            >
+              <Icon name={currentStep > 2 ? 'check' : 'payments'} className="text-[20px]" />
+            </div>
+            <span
+              className={`text-[11px] font-bold ${
+                currentStep === 2
+                  ? 'text-[#004322]'
+                  : currentStep > 2
+                    ? 'text-[#004322]'
+                    : 'text-[#707970]'
+              }`}
+            >
+              Paiement
+            </span>
+          </div>
+
+          {/* Divider 2-3 */}
+          <div
+            className={`h-[2px] flex-1 -mt-4 transition-colors ${
+              currentStep === 3 ? 'bg-[#004322]' : 'bg-[#e2e8f0]'
+            }`}
+          />
+
+          {/* Step 3: Confirmation */}
+          <div className="flex flex-col items-center gap-1.5 flex-1">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                currentStep === 3
+                  ? 'bg-[#004322] text-white shadow-sm'
+                  : 'bg-gray-100 text-[#707970]'
+              }`}
+            >
+              <Icon name="verified" className="text-[20px]" />
+            </div>
+            <span
+              className={`text-[11px] font-bold ${
+                currentStep === 3 ? 'text-[#004322]' : 'text-[#707970]'
+              }`}
+            >
+              Confirmation
+            </span>
+          </div>
+        </div>
+
+        {/* ── STEP 1: FORMULAIRE DE LIVRAISON ── */}
+        {currentStep === 1 && (
+          <div className="space-y-4">
+            <div className="bg-white border border-[#c0c9be] rounded-2xl p-5 space-y-4 shadow-sm">
+              {/* Adresse de livraison avec AddressSelector */}
+              <AddressSelector
+                selectedAddressId={selectedAddress?.id}
+                onSelectAddress={setSelectedAddress}
+                title="Adresse de livraison"
+                showActions
+              />
+
+              {/* Date de livraison */}
+              <div className="pt-2 border-t border-gray-100">
+                <label className="text-xs font-bold text-[#004322] block mb-1.5">
+                  Date de livraison
+                </label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="w-full h-12 px-4 bg-white border border-[#c0c9be] rounded-xl text-sm font-medium text-[#0b1c30] focus:outline-none focus:border-[#004322] focus:ring-1 focus:ring-[#004322] transition-all"
+                  required
+                />
+              </div>
+
+              {/* Créneau de livraison */}
+              <div>
+                <label className="text-xs font-bold text-[#004322] block mb-1.5">
+                  Créneau de livraison
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(['Matin (08:00 - 12:00)', 'Après-midi', 'Soir'] as DeliverySlot[]).map((slot) => {
+                    const isSelected = selectedSlot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`py-2.5 px-4 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#004322] text-white shadow-sm'
+                            : 'bg-white border border-[#c0c9be] text-[#0b1c30] hover:border-[#004322]'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Instructions spéciales */}
+              <div>
+                <label className="text-xs font-bold text-[#004322] block mb-1.5">
+                  Instructions spéciales
+                </label>
+                <textarea
+                  value={specialInstructions}
+                  onChange={(e) => setSpecialInstructions(e.target.value)}
+                  placeholder="Ex: Code porte, étage, point de repère..."
+                  rows={3}
+                  className="w-full p-3.5 bg-white border border-[#c0c9be] rounded-xl text-xs text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#004322] focus:ring-1 focus:ring-[#004322] transition-all resize-none"
+                />
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
+                <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
+                  <Icon name="schedule" className="text-[15px]" />
+                  <span>Livré sous 24h</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1 font-semibold text-[#004322]">
+                  <Icon name="lock" className="text-[15px]" />
+                  <span>Paiement sécurisé</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 2: PAGE DE PAIEMENT AUTO-HÉBERGÉE (SELF-HOSTED) ── */}
+        {currentStep === 2 && (
+          <div className="space-y-4">
+            {/* Delivery Recap Card */}
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                <span className="text-xs font-bold text-[#707970] uppercase">Récapitulatif livraison</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="text-xs font-bold text-[#1a5c35] hover:underline cursor-pointer"
+                >
+                  Modifier
+                </button>
+              </div>
+              <div className="text-xs text-[#404941] space-y-1">
+                <p className="font-semibold text-[#0b1c30]">
+                  📍 {selectedAddress?.recipientName} — {selectedAddress?.streetAddress}
+                  {selectedAddress?.streetAddress2 ? `, ${selectedAddress.streetAddress2}` : ''},{' '}
+                  {selectedAddress?.city} ({selectedAddress?.phoneNumber})
+                </p>
+                <p>🕒 {deliveryDate} — {selectedSlot}</p>
+                {specialInstructions.trim() && (
+                  <p className="text-[#707970] italic">Note : {specialInstructions}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="bg-white border border-[#c0c9be] rounded-2xl p-5 space-y-4 shadow-sm">
+              <h3 className="text-sm font-bold text-[#004322]">
+                Choisir le mode de paiement
+              </h3>
+
+              <div className="space-y-2.5">
+                {/* Stripe Card Option */}
+                <div
+                  onClick={() => setPaymentMethod('stripe')}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    paymentMethod === 'stripe'
+                      ? 'border-[#004322] bg-[#f2f9f5] ring-1 ring-[#004322]'
+                      : 'border-[#e2e8f0] bg-white hover:border-[#c0c9be]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-[#004322]">
+                      {paymentMethod === 'stripe' && (
+                        <div className="w-2.5 h-2.5 bg-[#004322] rounded-full" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#0b1c30]">Carte bancaire (Stripe)</p>
+                      <p className="text-[11px] text-[#707970]">Visa, Mastercard, Cartes Internationales</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#707970]">
+                    <Icon name="credit_card" className="text-[20px]" />
+                  </div>
+                </div>
+
+                {/* Mobile Money Option */}
+                <div
+                  onClick={() => setPaymentMethod('mobile_money')}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    paymentMethod === 'mobile_money'
+                      ? 'border-[#004322] bg-[#f2f9f5] ring-1 ring-[#004322]'
+                      : 'border-[#e2e8f0] bg-white hover:border-[#c0c9be]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-[#004322]">
+                      {paymentMethod === 'mobile_money' && (
+                        <div className="w-2.5 h-2.5 bg-[#004322] rounded-full" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#0b1c30]">Mobile Money</p>
+                      <p className="text-[11px] text-[#707970]">Wave, Orange Money, Free Money</p>
+                    </div>
+                  </div>
+                  <Icon name="phone_android" className="text-[#707970] text-[20px]" />
+                </div>
+              </div>
+
+              {/* Informative Banner for Stripe Redirection */}
+              {paymentMethod === 'stripe' && (
+                <div className="pt-3 border-t border-gray-100">
+                  <div className="p-3.5 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-start gap-2.5 text-xs text-[#004322]">
+                    <Icon name="open_in_new" className="text-[20px] text-[#004322] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Redirection vers Stripe</p>
+                      <p className="text-[11px] text-[#404941] mt-0.5 leading-relaxed">
+                        Vous serez redirigé vers la page sécurisée de Stripe pour saisir vos coordonnées bancaires en toute sécurité et finaliser votre règlement.
                       </p>
                     </div>
-                    <span className="text-[#0b1c30] font-bold ml-4">
-                      {subtotal.toLocaleString()} CDF
-                    </span>
                   </div>
-                );
-              })}
-              <div className="border-t border-[#c0c9be] pt-3 flex justify-between items-center">
-                <span className="text-[14px] font-semibold text-[#0b1c30]">
-                  Total ({totalItems} articles)
+                </div>
+              )}
+
+              {/* Informative Banner for PawaPay Redirection & Whole-Number Rounding */}
+              {paymentMethod === 'mobile_money' && (
+                <div className="pt-3 border-t border-gray-100 space-y-2.5">
+                  <div className="p-3.5 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-start gap-2.5 text-xs text-[#004322]">
+                    <Icon name="open_in_new" className="text-[20px] text-[#004322] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Paiement Mobile Money via PawaPay</p>
+                      <p className="text-[11px] text-[#404941] mt-0.5 leading-relaxed">
+                        Vous serez redirigé vers la page sécurisée PawaPay pour sélectionner votre opérateur (Wave, Orange Money, Free Money), renseigner votre numéro et valider.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Whole-number rounding notice if amount has decimals */}
+                  {totalPrice % 1 !== 0 && (
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
+                      <Icon name="info" className="text-[18px] text-amber-700 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-bold">Ajustement du montant Mobile Money</p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          Les opérateurs Mobile Money requièrent des montants entiers stricts. Votre règlement sera arrondi au supérieur à{' '}
+                          <strong className="font-extrabold text-[#004322]">
+                            {formatPriceDirect(Math.ceil(totalPrice), selectedCurrency)}
+                          </strong>{' '}
+                          lors du prélèvement.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Trust Indicators */}
+              <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
+                <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
+                  <Icon name="schedule" className="text-[15px]" />
+                  <span>Livré sous 24h</span>
                 </span>
-                <span className="text-[16px] font-bold text-[#004322]">
-                  {totalPrice.toLocaleString()} CDF
+                <span>•</span>
+                <span className="flex items-center gap-1 font-semibold text-[#004322]">
+                  <Icon name="lock" className="text-[15px]" />
+                  <span>
+                    {paymentMethod === 'mobile_money'
+                      ? 'Paiement sécurisé par PawaPay (Mobile Money)'
+                      : 'Paiement sécurisé et crypté (Stripe)'}
+                  </span>
                 </span>
               </div>
             </div>
-          )}
-        </section>
+          </div>
+        )}
 
-        {/* Delivery Address Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <section className="bg-white border border-[#c0c9be] rounded-xl p-4 space-y-3">
-            <h2 className="text-[15px] font-bold text-[#0b1c30]">
-              Adresse de livraison
-            </h2>
+        {/* ── STEP 3: CONFIRMATION ÉCRAN ── */}
+        {currentStep === 3 && (
+          <div className="bg-white border border-[#c0c9be] rounded-2xl p-6 text-center shadow-sm space-y-5">
+            <div className="w-16 h-16 rounded-full bg-[#e6f4ea] text-[#004322] flex items-center justify-center mx-auto shadow-inner">
+              <Icon name="check_circle" className="text-[36px]" />
+            </div>
+
             <div>
-              <label className="text-[12px] font-semibold text-[#404941] block mb-1">
-                Rue
-              </label>
-              <input
-                type="text"
-                value={address.street}
-                onChange={(e) => handleAddressChange('street', e.target.value)}
-                placeholder="Numéro et nom de rue"
-                className="w-full h-11 px-4 bg-[#f8f9ff] border border-[#c0c9be] rounded-xl text-[13px] text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#1a5c35] focus:ring-1 focus:ring-[#1a5c35] transition-all"
-                required
-              />
+              <h2 className="text-lg font-black text-[#0b1c30]">Commande confirmée !</h2>
+              <p className="text-xs text-[#707970] mt-1">
+                Merci pour votre confiance. Votre commande est transmise aux producteurs partenaires.
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[12px] font-semibold text-[#404941] block mb-1">
-                  Ville
-                </label>
-                <input
-                  type="text"
-                  value={address.city}
-                  onChange={(e) => handleAddressChange('city', e.target.value)}
-                  placeholder="Ville"
-                  className="w-full h-11 px-4 bg-[#f8f9ff] border border-[#c0c9be] rounded-xl text-[13px] text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#1a5c35] focus:ring-1 focus:ring-[#1a5c35] transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-[12px] font-semibold text-[#404941] block mb-1">
-                  Code postal
-                </label>
-                <input
-                  type="text"
-                  value={address.postalCode}
-                  onChange={(e) =>
-                    handleAddressChange('postalCode', e.target.value)
-                  }
-                  placeholder="Code postal"
-                  className="w-full h-11 px-4 bg-[#f8f9ff] border border-[#c0c9be] rounded-xl text-[13px] text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#1a5c35] focus:ring-1 focus:ring-[#1a5c35] transition-all"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-[12px] font-semibold text-[#404941] block mb-1">
-                Pays
-              </label>
-              <input
-                type="text"
-                value={address.country}
-                onChange={(e) => handleAddressChange('country', e.target.value)}
-                placeholder="Pays"
-                className="w-full h-11 px-4 bg-[#f8f9ff] border border-[#c0c9be] rounded-xl text-[13px] text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#1a5c35] focus:ring-1 focus:ring-[#1a5c35] transition-all"
-                required
-              />
-            </div>
-          </section>
 
-          {/* Notes */}
-          <section className="bg-white border border-[#c0c9be] rounded-xl p-4 space-y-2">
-            <h2 className="text-[15px] font-bold text-[#0b1c30]">
-              Note (optionnelle)
-            </h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Instructions particulières pour le vendeur..."
-              rows={3}
-              className="w-full px-4 py-3 bg-[#f8f9ff] border border-[#c0c9be] rounded-xl text-[13px] text-[#0b1c30] placeholder:text-[#707970] focus:outline-none focus:border-[#1a5c35] focus:ring-1 focus:ring-[#1a5c35] transition-all resize-none"
-            />
-          </section>
-
-          {/* Confirm Button */}
-          <button
-            type="submit"
-            disabled={!isAddressValid || checkout.isPending || lines.length === 0}
-            className="w-full py-4 bg-[#004322] text-white rounded-xl text-[15px] font-bold hover:bg-[#1a5c35] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            {checkout.isPending ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Confirmation...
-              </>
-            ) : (
-              'Confirmer la commande'
+            {placedOrder && (
+              <div className="bg-[#f8f9fc] border border-[#e2e8f0] rounded-xl p-4 text-left text-xs space-y-2">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="text-[#707970] font-semibold">Référence</span>
+                  <span className="font-bold text-[#0b1c30]">#{placedOrder.id.slice(0, 8)}</span>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="text-[#707970] font-semibold">Montant payé</span>
+                  <span className="font-extrabold text-[#004322]">{formatPriceDirect(placedOrder.totalAmount, placedOrder.currency)}</span>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="text-[#707970] font-semibold">Date prévue</span>
+                  <span className="font-bold text-[#0b1c30]">{deliveryDate} ({selectedSlot})</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[#707970] font-semibold">Livraison</span>
+                  <span className="font-bold text-[#0b1c30] truncate max-w-[200px]">
+                    {selectedAddress?.streetAddress || placedOrder?.deliveryAddress?.street || 'Adresse enregistrée'}
+                  </span>
+                </div>
+              </div>
             )}
-          </button>
-        </form>
+
+            <div className="space-y-2 pt-2">
+              {placedOrder ? (
+                <Link
+                  to="/orders/$id"
+                  params={{ id: placedOrder.id }}
+                  className="w-full py-3.5 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm transition-all shadow-sm block text-center cursor-pointer"
+                >
+                  Suivre ma commande
+                </Link>
+              ) : (
+                <Link
+                  to="/orders"
+                  className="w-full py-3.5 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm transition-all shadow-sm block text-center cursor-pointer"
+                >
+                  Suivre ma commande
+                </Link>
+              )}
+              <Link
+                to="/marketplace"
+                className="w-full py-3 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#0b1c30] font-bold rounded-xl text-sm transition-all block text-center cursor-pointer"
+              >
+                Retour au marché
+              </Link>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* ── Fixed Bottom Summary Bar with Pay / Continue Action ── */}
+      {currentStep < 3 && (
+        <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#c0c9be] shadow-lg">
+          <div className="max-w-[480px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <div className="shrink-0">
+              <span className="text-[10px] font-bold text-[#707970] uppercase block">
+                TOTAL À PAYER
+              </span>
+              <span className="text-xl font-black text-[#004322] leading-tight block">
+                {formattedTotal}
+              </span>
+            </div>
+
+            {currentStep === 1 && (
+              <button
+                type="button"
+                data-testid="continue-button"
+                disabled={lines.length === 0}
+                onClick={handleStep1Submit}
+                className="flex-1 py-3.5 px-4 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
+                <span>Continuer vers le paiement</span>
+                <Icon name="arrow_forward" className="text-[18px]" />
+              </button>
+            )}
+
+            {currentStep === 2 && (
+              <button
+                type="button"
+                data-testid="pay-button"
+                disabled={checkout.isPending || confirmPayment.isPending}
+                onClick={handleExecutePayment}
+                className="flex-1 py-3.5 px-4 bg-[#004322] hover:bg-[#1a5c35] text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
+                {checkout.isPending || confirmPayment.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Traitement...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="lock" className="text-[18px]" />
+                    <span>
+                      {paymentMethod === 'stripe'
+                        ? `Payer avec Stripe (${formattedTotal})`
+                        : `Payer avec Mobile Money (${formatPriceDirect(Math.ceil(totalPrice), selectedCurrency)})`}
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

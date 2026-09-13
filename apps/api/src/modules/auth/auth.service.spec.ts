@@ -392,6 +392,141 @@ describe('AuthService', () => {
     });
   });
 
+  describe('rememberMe option', () => {
+    it('should set 30 days expiry on session when rememberMe is true', async () => {
+      const mockUser = {
+        id: 'user-id',
+        email: 'test@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        validatePassword: jest.fn().mockResolvedValue(true),
+        isActive: true,
+        status: UserStatus.APPROVED,
+        isTwoFactorEnabled: false,
+        roles: [],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+      jwtService.signAsync.mockResolvedValueOnce('access-token');
+      jwtService.signAsync.mockResolvedValueOnce('refresh-token-30d');
+      configService.get.mockImplementation((_: string, def: unknown) => def);
+      sessionRepository.save.mockImplementation(async (session: any) => session);
+
+      const result = await service.login(
+        { email: 'test@example.com', password: 'password123', rememberMe: true },
+        'user-agent',
+        '127.0.0.1',
+      );
+
+      expect(result.require2fa).toBe(false);
+      expect(sessionRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-id',
+          expiresAt: expect.any(Date),
+        }),
+      );
+      const savedSession = sessionRepository.save.mock.calls[0][0];
+      const diffDays = Math.round(
+        (savedSession.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+      );
+      expect(diffDays).toBeGreaterThanOrEqual(29);
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should throw UnauthorizedException if jwt verification fails', async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+      await expect(service.refreshToken('invalid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException if session is not found or expired', async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: 'user-id' });
+      sessionRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.refreshToken('valid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException if session has expired', async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: 'user-id' });
+      const expiredSession = {
+        id: 'session-id',
+        userId: 'user-id',
+        expiresAt: new Date(Date.now() - 10000),
+        isRevoked: false,
+      };
+      sessionRepository.findOne.mockResolvedValue(expiredSession);
+      sessionRepository.save.mockResolvedValue({});
+
+      await expect(service.refreshToken('valid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(expiredSession.isRevoked).toBe(true);
+    });
+
+    it('should rotate tokens and update session successfully', async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: 'user-id' });
+      const activeSession = {
+        id: 'session-id',
+        userId: 'user-id',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        isRevoked: false,
+        refreshTokenHash: 'old-hash',
+      };
+      sessionRepository.findOne.mockResolvedValue(activeSession);
+
+      const mockUser = {
+        id: 'user-id',
+        email: 'test@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        isActive: true,
+        status: UserStatus.APPROVED,
+        roles: [{ name: 'Buyer', permissions: ['order:create'] }],
+      };
+      usersRepository.findOne.mockResolvedValue(mockUser);
+
+      jwtService.signAsync.mockResolvedValueOnce('new-access-token');
+      jwtService.signAsync.mockResolvedValueOnce('new-refresh-token');
+      configService.get.mockImplementation((_: string, def: unknown) => def);
+      sessionRepository.save.mockResolvedValue(activeSession);
+
+      const result = await service.refreshToken('valid-token', 'new-agent', '1.2.3.4');
+
+      expect(result.tokens).toEqual({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+      expect(result.user.email).toBe('test@example.com');
+      expect(sessionRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'session-id',
+          userAgent: 'new-agent',
+          ipAddress: '1.2.3.4',
+        }),
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('should mark session as revoked when refresh token is provided', async () => {
+      const mockSession = {
+        id: 'session-id',
+        isRevoked: false,
+      };
+      sessionRepository.findOne.mockResolvedValue(mockSession);
+      sessionRepository.save.mockResolvedValue({});
+
+      await service.logout('my-refresh-token');
+
+      expect(mockSession.isRevoked).toBe(true);
+      expect(sessionRepository.save).toHaveBeenCalledWith(mockSession);
+    });
+  });
+
   describe('sessions', () => {
     it('should list sessions', async () => {
       sessionRepository.find.mockResolvedValue([]);

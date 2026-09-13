@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -12,18 +13,28 @@ import {
   BidStatus,
   CreateAuctionDto,
   UpdateAuctionDto,
+  NotificationChannel,
+  NotificationPriority,
   PaginatedResult,
 } from '@futurefarm/types';
 import { AuctionEntity } from './entities/auction.entity';
 import { BidEntity } from './entities/bid.entity';
 import { HarvestEntity } from '../products/entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { HarvestStatus } from '@futurefarm/types';
 import { AuctionsGateway } from './auctions.gateway';
 import { OrdersService } from '../orders/orders.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
+import { StorageService } from '../storage/storage.service';
+import { PlaceBidDto } from './dto/place-bid.dto';
+import { Optional } from '@nestjs/common';
 
 @Injectable()
 export class AuctionsService {
+  private readonly logger = new Logger(AuctionsService.name);
+
   constructor(
     @InjectRepository(AuctionEntity)
     private readonly auctionRepository: Repository<AuctionEntity>,
@@ -36,7 +47,48 @@ export class AuctionsService {
     private readonly dataSource: DataSource,
     private readonly auctionsGateway: AuctionsGateway,
     private readonly ordersService: OrdersService,
+    private readonly notificationsService: NotificationsService,
+    private readonly stripePaymentGateway: StripePaymentGateway,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
+
+  /**
+   * Hydrates auction harvest photo URLs and farmer avatars with valid signed URLs
+   */
+  private async hydrateAuction(auction: AuctionEntity): Promise<AuctionEntity> {
+    if (!auction || !this.storageService) return auction;
+    if (
+      auction.harvest?.photoUrls &&
+      Array.isArray(auction.harvest.photoUrls) &&
+      auction.harvest.photoUrls.length > 0
+    ) {
+      auction.harvest.photoUrls = await Promise.all(
+        auction.harvest.photoUrls.map((p) => this.storageService!.getSignedUrl(p)),
+      );
+    }
+    if (auction.farmerProfile?.avatarUrl) {
+      auction.farmerProfile.avatarUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.avatarUrl,
+      );
+    }
+    if (auction.farmerProfile?.bannerUrl) {
+      auction.farmerProfile.bannerUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.bannerUrl,
+      );
+    }
+    if (auction.farmerProfile?.user?.avatarUrl) {
+      auction.farmerProfile.user.avatarUrl = await this.storageService.getSignedUrl(
+        auction.farmerProfile.user.avatarUrl,
+      );
+    }
+    return auction;
+  }
+
+  private async hydrateAuctions(auctions: AuctionEntity[]): Promise<AuctionEntity[]> {
+    if (!auctions || !this.storageService) return auctions;
+    return Promise.all(auctions.map((a) => this.hydrateAuction(a)));
+  }
 
   async createAuction(
     userId: string,
@@ -129,6 +181,8 @@ export class AuctionsService {
     auction.priceDecrementAmount = dto.priceDecrementAmount;
     auction.priceDecrementIntervalMinutes = dto.priceDecrementIntervalMinutes;
     auction.quantityOnOffer = dto.quantityOnOffer;
+    auction.currency = harvest.currency || 'CDF';
+    auction.exchangeRate = harvest.exchangeRate || 2300.0;
     auction.startAt = start;
     auction.endAt = end;
     // Set first tick time
@@ -136,10 +190,15 @@ export class AuctionsService {
       start.getTime() + dto.priceDecrementIntervalMinutes * 60000,
     );
 
-    return this.auctionRepository.save(auction);
+    const saved = await this.auctionRepository.save(auction);
+    return this.hydrateAuction(saved);
   }
 
-  async placeBid(userId: string, auctionId: string): Promise<BidEntity> {
+  async placeBid(
+    userId: string,
+    auctionId: string,
+    dto?: PlaceBidDto,
+  ): Promise<BidEntity> {
     // Run in a serializable transaction to prevent race conditions on bids
     return this.dataSource.transaction(
       'SERIALIZABLE',
@@ -149,7 +208,6 @@ export class AuctionsService {
           {
             where: { id: auctionId },
             lock: { mode: 'pessimistic_write' },
-            relations: ['farmerProfile'],
           },
         );
 
@@ -161,41 +219,174 @@ export class AuctionsService {
           throw new ConflictException('Auction is not active');
         }
 
-        if (auction.farmerProfile.userId === userId) {
+        const farmerProfile = await transactionalEntityManager.findOne(
+          FarmerProfileEntity,
+          {
+            where: { id: auction.farmerProfileId },
+          },
+        );
+
+        if (farmerProfile && farmerProfile.userId === userId) {
           throw new ConflictException(
             'You cannot place a bid on your own auction',
           );
         }
 
+        // Verify user has a saved payment method
+        const buyer = await transactionalEntityManager.findOne(UserEntity, {
+          where: { id: userId },
+        });
+        if (!buyer || !buyer.stripePaymentMethodId || !buyer.stripeCustomerId) {
+          throw new BadRequestException(
+            'Un moyen de paiement enregistré (carte bancaire) est requis pour participer aux enchères.',
+          );
+        }
+
         const now = new Date();
 
-        // Create the bid
+        // 1. AUTO-BID CASE: User set a target price lower than current price
+        if (
+          dto?.autoBidMaxPrice !== undefined &&
+          Number(dto.autoBidMaxPrice) < Number(auction.currentPrice)
+        ) {
+          const autoBidPrice = Number(dto.autoBidMaxPrice);
+          if (autoBidPrice < Number(auction.reservePrice)) {
+            throw new BadRequestException(
+              `Le prix d'offre automatique (${autoBidPrice}) ne peut pas être inférieur au prix de réserve (${auction.reservePrice}).`,
+            );
+          }
+
+          // Check if buyer already has a pending auto-bid for this auction
+          let existingBid = await transactionalEntityManager.findOne(BidEntity, {
+            where: {
+              auctionId: auction.id,
+              buyerId: userId,
+              status: BidStatus.PENDING,
+            },
+          });
+
+          if (existingBid) {
+            existingBid.autoBidMaxPrice = autoBidPrice;
+            existingBid.priceAtBid = autoBidPrice;
+            if (dto?.deliveryAddress) {
+              existingBid.deliveryAddress = dto.deliveryAddress;
+            }
+            return transactionalEntityManager.save(BidEntity, existingBid);
+          }
+
+          const autoBid = new BidEntity();
+          autoBid.auctionId = auction.id;
+          autoBid.buyerId = userId;
+          autoBid.priceAtBid = autoBidPrice;
+          autoBid.autoBidMaxPrice = autoBidPrice;
+          autoBid.isAutoBid = true;
+          autoBid.quantityWon = auction.quantityOnOffer;
+          autoBid.currency = auction.currency || 'CDF';
+          autoBid.exchangeRate = auction.exchangeRate || 2300.0;
+          autoBid.deliveryAddress = dto?.deliveryAddress || null;
+          autoBid.status = BidStatus.PENDING;
+
+          return transactionalEntityManager.save(BidEntity, autoBid);
+        }
+
+        // 2. IMMEDIATE BUY CASE: Buy at current price
+        const currency = auction.currency || buyer?.preferredCurrency || 'CDF';
+        const exchangeRate = Number(auction.exchangeRate) || 1.0;
+        const totalAmount = Number(auction.currentPrice) * Number(auction.quantityOnOffer);
+
+        // Attempt to charge the saved card off-session in the buyer's defined currency
+        let paymentIntent: any = null;
+        try {
+          paymentIntent = await this.stripePaymentGateway.chargeSavedCard({
+            customerId: buyer.stripeCustomerId,
+            paymentMethodId: buyer.stripePaymentMethodId,
+            amount: totalAmount,
+            currency: currency,
+            description: `Future Farm - Enchère remportée #${auction.id.slice(0, 8)}`,
+            metadata: {
+              auctionId: auction.id,
+              buyerId: userId,
+            },
+          });
+        } catch (error: any) {
+          this.logger.error(
+            `Payment failed for auction ${auction.id} by buyer ${userId}: ${error.message}`,
+          );
+          throw new BadRequestException(
+            `Échec du prélèvement de la carte enregistrée : ${error.message}`,
+          );
+        }
+
+        // Create the winning bid
         const bid = new BidEntity();
         bid.auctionId = auction.id;
         bid.buyerId = userId;
         bid.priceAtBid = auction.currentPrice;
         bid.quantityWon = auction.quantityOnOffer;
+        bid.currency = currency;
+        bid.exchangeRate = exchangeRate;
+        bid.deliveryAddress = dto?.deliveryAddress || null;
         bid.status = BidStatus.ACCEPTED;
-        const savedBid = await transactionalEntityManager.save(bid);
+        bid.isAutoBid = dto?.autoBidMaxPrice !== undefined;
+        bid.autoBidMaxPrice = dto?.autoBidMaxPrice ?? null;
+        const savedBid = await transactionalEntityManager.save(BidEntity, bid);
 
-        // Generate Order from won auction bid
+        // Generate Order from won auction bid in PENDING_PAYMENT status
         const order = await this.ordersService.createFromBid(
           savedBid,
           auction,
           transactionalEntityManager,
+          {
+            paymentIntentId: paymentIntent?.id,
+            deliveryAddress: dto?.deliveryAddress,
+          },
         );
         savedBid.orderId = order.id;
-        await transactionalEntityManager.save(savedBid);
+        await transactionalEntityManager.save(BidEntity, savedBid);
+
+        // Mark any other pending auto-bids on this auction as OUTBID
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .update(BidEntity)
+          .set({ status: BidStatus.OUTBID })
+          .where('auction_id = :auctionId AND status = :status AND id != :bidId', {
+            auctionId: auction.id,
+            status: BidStatus.PENDING,
+            bidId: savedBid.id,
+          })
+          .execute();
 
         // Update auction status
         auction.status = AuctionStatus.SOLD;
         auction.soldAt = now;
         auction.winnerId = userId;
         auction.winningBidId = savedBid.id;
-        await transactionalEntityManager.save(auction);
+        await transactionalEntityManager.save(AuctionEntity, auction);
 
         // Notify client subscribers via WS
         this.auctionsGateway.emitSold(auction.id, userId, bid.priceAtBid, now);
+
+        // Send multi-channel notification (in-app DB + Email)
+        try {
+          await this.notificationsService.send({
+            recipientIds: [userId],
+            title: 'Félicitations ! Enchère remportée',
+            body: `Vous avez remporté le lot d'enchère #${auction.id.slice(0, 8)} (${auction.quantityOnOffer} kg) pour un montant de ${totalAmount} ${currency}. Votre carte bancaire a été débitée avec succès.`,
+            channels: [NotificationChannel.DATABASE, NotificationChannel.EMAIL],
+            priority: NotificationPriority.HIGH,
+            metadata: {
+              auctionId: auction.id,
+              orderId: order.id,
+              actionUrl: `/orders/${order.id}`,
+              actionText: 'Voir ma commande',
+            },
+          });
+        } catch (notifErr) {
+          this.logger.error(
+            `Failed to send win notification to user ${userId}:`,
+            notifErr,
+          );
+        }
 
         return savedBid;
       },
@@ -325,7 +516,8 @@ export class AuctionsService {
       auction.endAt = end;
     }
 
-    return this.auctionRepository.save(auction);
+    const saved = await this.auctionRepository.save(auction);
+    return this.hydrateAuction(saved);
   }
 
   async getAuction(auctionId: string): Promise<AuctionEntity> {
@@ -335,6 +527,7 @@ export class AuctionsService {
         'harvest',
         'harvest.product',
         'farmerProfile',
+        'farmerProfile.user',
         'winner',
         'winningBid',
       ],
@@ -342,12 +535,13 @@ export class AuctionsService {
     if (!auction) {
       throw new NotFoundException('Auction not found');
     }
-    return auction;
+    return this.hydrateAuction(auction);
   }
 
   async listAuctions(options: {
     status?: AuctionStatus | undefined;
     harvestId?: string | undefined;
+    farmerProfileId?: string | undefined;
     page?: number | undefined;
     limit?: number | undefined;
   }): Promise<PaginatedResult<AuctionEntity>> {
@@ -358,7 +552,8 @@ export class AuctionsService {
     const qb = this.auctionRepository.createQueryBuilder('auction');
     qb.leftJoinAndSelect('auction.harvest', 'harvest')
       .leftJoinAndSelect('harvest.product', 'product')
-      .leftJoinAndSelect('auction.farmerProfile', 'farmerProfile');
+      .leftJoinAndSelect('auction.farmerProfile', 'farmerProfile')
+      .leftJoinAndSelect('farmerProfile.user', 'farmerUser');
 
     if (options.status) {
       qb.andWhere('auction.status = :status', { status: options.status });
@@ -368,13 +563,19 @@ export class AuctionsService {
         harvestId: options.harvestId,
       });
     }
+    if (options.farmerProfileId) {
+      qb.andWhere('auction.farmer_profile_id = :farmerProfileId', {
+        farmerProfileId: options.farmerProfileId,
+      });
+    }
 
     qb.orderBy('auction.createdAt', 'DESC').skip(skip).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    const hydratedData = await this.hydrateAuctions(data);
 
     return {
-      data,
+      data: hydratedData,
       meta: {
         total,
         page,
@@ -384,6 +585,36 @@ export class AuctionsService {
         hasPreviousPage: page > 1,
       },
     };
+  }
+
+  async listFarmerAuctions(
+    userId: string,
+    options: {
+      status?: AuctionStatus | undefined;
+      page?: number | undefined;
+      limit?: number | undefined;
+    },
+  ): Promise<PaginatedResult<AuctionEntity>> {
+    const profile = await this.farmerProfileRepository.findOne({
+      where: { userId },
+    });
+    if (!profile) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page: options.page || 1,
+          limit: options.limit || 20,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+    }
+    return this.listAuctions({
+      ...options,
+      farmerProfileId: profile.id,
+    });
   }
 
   async listMyBids(userId: string): Promise<BidEntity[]> {

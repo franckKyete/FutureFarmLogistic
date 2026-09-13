@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -35,7 +36,6 @@ function InspectionCentersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [assigningCenterId, setAssigningCenterId] = useState<string | null>(null);
   const [selectedInspectorId, setSelectedInspectorId] = useState('');
-
   const filteredCenters = centers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -89,7 +89,7 @@ function InspectionCentersPage() {
   if (isError) {
     return (
       <div className="text-center py-20 bg-white rounded-xl border p-8 space-y-3">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)]">error_outline</span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)]" />
         <p className="text-lg font-bold text-[var(--admin-on-surface)]">Erreur de chargement</p>
         <Button onClick={() => void refetch()} variant="primary">
           Réessayer
@@ -113,7 +113,7 @@ function InspectionCentersPage() {
 
         <Link to="/admin/inspection-centers/new">
           <Button variant="primary" className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">add</span>
+            <Icon name="add" className="text-sm" />
             Nouveau Centre
           </Button>
         </Link>
@@ -169,7 +169,7 @@ function InspectionCentersPage() {
 
                 <div className="space-y-1 text-xs text-[var(--admin-on-surface-variant)] pt-1">
                   <p className="flex items-center gap-1.5 font-semibold text-gray-800">
-                    <span className="material-symbols-outlined text-sm text-emerald-700">location_on</span>
+                    <Icon name="location_on" className="text-sm text-emerald-700" />
                     {center.regionName}
                   </p>
                   <p className="text-gray-500 line-clamp-2">{center.address}</p>

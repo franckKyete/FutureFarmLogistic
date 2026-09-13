@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -56,7 +57,7 @@ function AutoBidPage() {
       {/* Header */}
       <header className="bg-white px-4 py-3 border-b border-gray-200 sticky top-0 z-30 flex items-center gap-2">
         <Link to="/auctions/$id" params={{ id }} className="p-1 text-gray-600 hover:text-gray-900 rounded-lg">
-          <span className="material-symbols-outlined text-xl">arrow_back</span>
+          <Icon name="arrow_back" className="text-xl" />
         </Link>
         <div>
           <h1 className="text-sm font-bold text-[#0b1c30]">Configuration Enchère Auto</h1>
@@ -69,7 +70,7 @@ function AutoBidPage() {
         {/* Auction Price Summary */}
         <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs space-y-3">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl text-[#004322]">smart_toy</span>
+            <Icon name="smart_toy" className="text-xl text-[#004322]" />
             <h2 className="text-sm font-bold text-[#0b1c30]">Détails du lot</h2>
           </div>
 
@@ -116,7 +117,7 @@ function AutoBidPage() {
 
           <div className="bg-[#eff4ff] p-3.5 rounded-xl text-xs text-blue-900 space-y-1">
             <p className="font-bold flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm text-blue-600">info</span>
+              <Icon name="info" className="text-sm text-blue-600" />
               Fonctionnement
             </p>
             <p className="text-[11px] leading-relaxed text-blue-800">

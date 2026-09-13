@@ -25,6 +25,7 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 import { AuctionsService } from './auctions.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 import { UpdateAuctionDto } from './dto/update-auction.dto';
+import { PlaceBidDto } from './dto/place-bid.dto';
 
 @ApiTags('Auctions & Bidding')
 @Controller('auctions')
@@ -45,6 +46,25 @@ export class AuctionsController {
     return this.auctionsService.listMyBids(user.id);
   }
 
+  @Get('farmer')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.HARVEST_READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get caller farmer's own auctions" })
+  @ApiOkResponse({ description: 'Paginated list of farmer auctions' })
+  async findFarmerAuctions(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: AuctionStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.auctionsService.listFarmerAuctions(user.id, {
+      status,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   // =============================================================================
   // Public Browse Endpoints (No Auth Required)
   // =============================================================================
@@ -55,12 +75,14 @@ export class AuctionsController {
   async findAll(
     @Query('status') status?: AuctionStatus,
     @Query('harvestId') harvestId?: string,
+    @Query('farmerProfileId') farmerProfileId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
     return this.auctionsService.listAuctions({
       status,
       harvestId,
+      farmerProfileId,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
@@ -172,11 +194,15 @@ export class AuctionsController {
   @RequirePermissions(Permission.BID_CREATE)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Place a bid to buy the entire lot at current price (Buyer)',
+    summary: 'Place a bid or auto-bid on the auction lot (Buyer)',
   })
-  @ApiCreatedResponse({ description: 'Bid placed and won successfully' })
-  async placeBid(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.auctionsService.placeBid(user.id, id);
+  @ApiCreatedResponse({ description: 'Bid placed or auto-bid scheduled successfully' })
+  async placeBid(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: PlaceBidDto,
+  ) {
+    return this.auctionsService.placeBid(user.id, id, dto);
   }
 
   @Post(':id/cancel-bid')

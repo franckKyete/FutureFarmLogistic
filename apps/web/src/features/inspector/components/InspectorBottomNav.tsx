@@ -1,4 +1,5 @@
 import { useLocation, Link } from '@tanstack/react-router';
+import { Icon } from '@/features/shared/components/Icon';
 
 type Tab = {
   label: string;
@@ -10,7 +11,8 @@ const TABS: Tab[] = [
   { label: 'Accueil', path: '/inspector/dashboard', icon: 'dashboard' },
   { label: 'Inspections', path: '/inspector/validate', icon: 'fact_check' },
   { label: 'Planning', path: '/inspector/planning', icon: 'calendar_month' },
-  { label: 'Producteurs', path: '/inspector/accounts', icon: 'groups' },
+  { label: 'Producteurs', path: '/inspector/accounts', icon: 'people' },
+  { label: 'Profil', path: '/inspector/profile', icon: 'person' },
 ];
 
 export function InspectorBottomNav() {
@@ -29,12 +31,11 @@ export function InspectorBottomNav() {
                 isActive ? 'text-[#1a5c35] font-bold' : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              <span
-                className="material-symbols-outlined text-2xl"
-                style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {tab.icon}
-              </span>
+              <Icon
+                name={tab.icon}
+                size={22}
+                className={isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}
+              />
               <span className="text-[11px] mt-0.5">{tab.label}</span>
             </Link>
           );

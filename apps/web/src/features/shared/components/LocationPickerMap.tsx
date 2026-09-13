@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   MapContainer,
@@ -24,7 +25,7 @@ function createPinIcon() {
       <div class="relative flex items-center justify-center">
         <div class="absolute -top-7 flex flex-col items-center">
           <div class="w-8 h-8 rounded-full bg-[#1a5c35] text-white flex items-center justify-center shadow-lg border-2 border-white ring-2 ring-[#1a5c35]/30">
-            <span class="material-symbols-outlined text-lg">storefront</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
           </div>
           <div class="w-2 h-2 bg-[#1a5c35] rotate-45 -mt-1 shadow-sm"></div>
         </div>
@@ -185,9 +186,7 @@ export function LocationPickerMap({
       {/* Search Bar & Geolocation Control */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400 material-symbols-outlined text-sm">
-            search
-          </span>
+          <Icon name="search" className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400  text-sm" />
           <input
             type="text"
             value={searchQuery}
@@ -209,7 +208,7 @@ export function LocationPickerMap({
           className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 transition-colors disabled:opacity-50 cursor-pointer shrink-0 flex items-center gap-1"
         >
           {isSearching ? (
-            <span className="animate-spin material-symbols-outlined text-sm">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin  text-sm" />
           ) : (
             'Chercher'
           )}
@@ -220,7 +219,7 @@ export function LocationPickerMap({
           title="Utiliser ma position actuelle"
           className="px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors cursor-pointer shrink-0 flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-base">my_location</span>
+          <Icon name="my_location" className="text-base" />
           <span className="hidden sm:inline text-xs">Ma position</span>
         </button>
       </div>
@@ -263,7 +262,7 @@ export function LocationPickerMap({
 
         {/* Map Overlay Instruction Badge */}
         <div className="absolute bottom-2 left-2 right-2 sm:right-auto z-[400] bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-lg shadow-md border border-gray-200 text-[11px] text-gray-700 flex items-center gap-1.5 pointer-events-none">
-          <span className="material-symbols-outlined text-sm text-[#1a5c35]">touch_app</span>
+          <Icon name="touch_app" className="text-sm text-[#1a5c35]" />
           <span>
             {hasCoords
               ? 'Marqueur positionné. Déplacez-le ou cliquez ailleurs pour ajuster.'

@@ -35,6 +35,8 @@ export interface PriceDecayConfig {
   decaySteps: PriceDecayStep[];
 }
 
+import type { FarmerProfileDto, ParcelDto } from './user.types';
+
 export interface ProductDto {
   id: string;
   name: string;
@@ -55,12 +57,17 @@ export interface HarvestDto {
   productId: string;
   product?: ProductDto;
   farmerProfileId: string;
+  farmerProfile?: FarmerProfileDto;
   parcelId?: string | null;
+  parcel?: ParcelDto | null;
   harvestDate: string;
   expirationDate: string;
   quantityInStock: number;
   stockMarge: number;
   pricePerUnit: number;
+  currency?: string;
+  exchangeRate?: number;
+  pricePerUnitUSD?: number;
   unit: HarvestUnit;
   farmingMethods: string;
   photoUrls: string[];
@@ -82,6 +89,7 @@ export interface CreateHarvestDto {
   quantityInStock: number;
   stockMarge: number;
   pricePerUnit: number;
+  currency?: string;
   unit: HarvestUnit;
   farmingMethods: string;
   photoUrls: string[];
@@ -95,6 +103,7 @@ export interface UpdateHarvestDto {
   quantityInStock?: number;
   stockMarge?: number;
   pricePerUnit?: number;
+  currency?: string;
   unit?: HarvestUnit;
   farmingMethods?: string;
   photoUrls?: string[];

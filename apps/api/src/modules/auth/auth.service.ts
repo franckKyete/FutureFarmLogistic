@@ -64,6 +64,9 @@ export class AuthService {
         'email',
         'firstName',
         'lastName',
+        'country',
+        'preferredCurrency',
+        'phoneNumber',
         'password',
         'isActive',
         'status',
@@ -120,13 +123,20 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      country: user.country || 'COD',
+      preferredCurrency: user.preferredCurrency || 'CDF',
       phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
       mustChangePassword: user.mustChangePassword,
     };
 
-    const tokens = await this.generateTokens(authUser, userAgent, ipAddress);
+    const tokens = await this.generateTokens(
+      authUser,
+      userAgent,
+      ipAddress,
+      dto.rememberMe,
+    );
     return { require2fa: false, user: authUser, tokens };
   }
 
@@ -136,10 +146,15 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
-    const payload = await this.jwtService.verifyAsync<{ sub: string }>(
-      tempToken,
-      { secret: this.config.get<string>('JWT_SECRET') || 'dev-secret' },
-    );
+    let payload: { sub: string };
+    try {
+      payload = await this.jwtService.verifyAsync<{ sub: string }>(
+        tempToken,
+        { secret: this.config.get<string>('JWT_SECRET') || 'dev-secret' },
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid 2FA session');
+    }
 
     const user = await this.usersRepository.findOne({
       where: { id: payload.sub },
@@ -148,6 +163,8 @@ export class AuthService {
         'email',
         'firstName',
         'lastName',
+        'country',
+        'preferredCurrency',
         'phoneNumber',
         'isActive',
         'isTwoFactorEnabled',
@@ -178,6 +195,8 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      country: user.country || 'COD',
+      preferredCurrency: user.preferredCurrency || 'CDF',
       phoneNumber: user.phoneNumber ?? null,
       permissions,
       roles: user.roles.map((r) => r.name),
@@ -368,10 +387,139 @@ export class AuthService {
     await this.sessionRepository.save(session);
   }
 
+  async refreshToken(
+    refreshToken: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+    let payload: { sub: string };
+    try {
+      payload = await this.jwtService.verifyAsync<{ sub: string }>(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Jeton de rafraîchissement expiré ou invalide');
+    }
+
+    if (!payload?.sub) {
+      throw new UnauthorizedException('Jeton de rafraîchissement invalide');
+    }
+
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    const session = await this.sessionRepository.findOne({
+      where: {
+        userId: payload.sub,
+        refreshTokenHash: hash,
+        isRevoked: false,
+      },
+    });
+
+    if (!session || session.expiresAt.getTime() < Date.now()) {
+      if (session) {
+        session.isRevoked = true;
+        await this.sessionRepository.save(session);
+      }
+      throw new UnauthorizedException('Session expirée ou révoquée. Veuillez vous reconnecter.');
+    }
+
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.sub, isActive: true },
+      relations: ['roles'],
+      select: [
+        'id',
+        'email',
+        'firstName',
+        'lastName',
+        'isActive',
+        'status',
+        'mustChangePassword',
+      ],
+    });
+
+    if (!user || user.status !== UserStatus.APPROVED) {
+      session.isRevoked = true;
+      await this.sessionRepository.save(session);
+      throw new UnauthorizedException('Compte utilisateur inactif ou suspendu.');
+    }
+
+    const permissions: Permission[] = [
+      ...new Set(user.roles.flatMap((role) => role.permissions)),
+    ];
+
+    const authUser: AuthUser = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      permissions,
+      roles: user.roles.map((r) => r.name),
+      mustChangePassword: user.mustChangePassword,
+    };
+
+    // Retain extended rememberMe lifetime if previous session was > 7 days
+    const remainingDays = Math.round(
+      (session.expiresAt.getTime() - session.createdAt.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    const isRememberMe = remainingDays >= 14;
+
+    const accessPayload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      permissions: authUser.permissions,
+    };
+
+    const newAccessToken = await this.jwtService.signAsync(accessPayload, {
+      expiresIn: this.config.get<string>(
+        'JWT_ACCESS_TOKEN_EXPIRY',
+        '15m',
+      ) as never,
+    });
+
+    const refreshExpiry = isRememberMe
+      ? '30d'
+      : (this.config.get<string>('JWT_REFRESH_TOKEN_EXPIRY', '7d'));
+
+    const newRefreshToken = await this.jwtService.signAsync(
+      { sub: user.id },
+      { expiresIn: refreshExpiry as never },
+    );
+
+    const newHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+
+    // Update existing session with rotated hash and updated expiration
+    const newExpiresAt = new Date();
+    newExpiresAt.setDate(newExpiresAt.getDate() + (isRememberMe ? 30 : 7));
+
+    session.refreshTokenHash = newHash;
+    session.expiresAt = newExpiresAt;
+    if (userAgent) session.userAgent = userAgent;
+    if (ipAddress) session.ipAddress = ipAddress;
+
+    await this.sessionRepository.save(session);
+
+    return {
+      user: authUser,
+      tokens: { accessToken: newAccessToken, refreshToken: newRefreshToken },
+    };
+  }
+
+  async logout(refreshToken?: string): Promise<void> {
+    if (refreshToken) {
+      const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const session = await this.sessionRepository.findOne({
+        where: { refreshTokenHash: hash },
+      });
+      if (session) {
+        session.isRevoked = true;
+        await this.sessionRepository.save(session);
+      }
+    }
+  }
+
   private async generateTokens(
     user: AuthUser,
     userAgent?: string,
     ipAddress?: string,
+    rememberMe = false,
   ): Promise<AuthTokens> {
     const payload: JwtPayload = {
       sub: user.id,
@@ -386,14 +534,13 @@ export class AuthService {
       ) as never,
     });
 
+    const refreshExpiry = rememberMe
+      ? '30d'
+      : (this.config.get<string>('JWT_REFRESH_TOKEN_EXPIRY', '7d'));
+
     const refreshToken = await this.jwtService.signAsync(
       { sub: user.id },
-      {
-        expiresIn: this.config.get<string>(
-          'JWT_REFRESH_TOKEN_EXPIRY',
-          '7d',
-        ) as never,
-      },
+      { expiresIn: refreshExpiry as never },
     );
 
     // Hash the refresh token to store in the sessions table
@@ -401,7 +548,7 @@ export class AuthService {
 
     // Create a new session record
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Default to 7 days matching JWT expiry
+    expiresAt.setDate(expiresAt.getDate() + (rememberMe ? 30 : 7));
 
     const session = new UserSessionEntity();
     session.userId = user.id;

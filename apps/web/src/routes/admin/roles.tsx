@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { Permission } from '@futurefarm/types';
@@ -22,9 +23,7 @@ const ROLE_ICONS: Record<string, string> = {
 function RoleIcon({ roleName }: { roleName: string }) {
   const icon = ROLE_ICONS[roleName] ?? 'badge';
   return (
-    <span className="material-symbols-outlined text-2xl text-[var(--admin-primary)]">
-      {icon}
-    </span>
+    <Icon name={icon} className="text-2xl text-[var(--admin-primary)]" />
   );
 }
 
@@ -140,9 +139,7 @@ function ErrorState() {
         </p>
       </div>
       <div className="flex flex-col items-center justify-center py-24 bg-[var(--admin-surface-container-lowest)] rounded-xl">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
-          error_outline
-        </span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)] mb-4" />
         <p className="text-[var(--admin-on-surface)] text-lg font-medium mb-1">
           Erreur de chargement
         </p>
@@ -157,9 +154,7 @@ function ErrorState() {
 function EmptyState() {
   return (
     <div className="bg-[var(--admin-surface-container-lowest)] rounded-xl p-12 text-center">
-      <span className="material-symbols-outlined text-5xl text-[var(--admin-on-surface-variant)] mb-4 block">
-        badge
-      </span>
+      <Icon name="badge" className="text-5xl text-[var(--admin-on-surface-variant)] mb-4 block" />
       <p className="text-[var(--admin-on-surface-variant)] text-sm">
         Aucun rôle trouvé.
       </p>

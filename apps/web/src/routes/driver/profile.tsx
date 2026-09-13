@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyDriverProfileQuery, updateDriverAvailabilityMutation } from '@/features/tracking/api/tracking.queries';
@@ -137,7 +138,7 @@ function DriverProfilePage() {
             }}
             className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-sm">logout</span>
+            <Icon name="logout" className="text-sm" />
             Déconnexion
           </button>
         </div>

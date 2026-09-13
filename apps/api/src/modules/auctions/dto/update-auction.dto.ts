@@ -1,6 +1,6 @@
 import { IsDateString, IsNumber, IsOptional, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { UpdateAuctionDto as IUpdateAuctionDto } from '@futurefarm/types';
+import type { UpdateAuctionDto as IUpdateAuctionDto } from '@futurefarm/types';
 
 export class UpdateAuctionDto implements IUpdateAuctionDto {
   @ApiPropertyOptional({ example: 120.0 })

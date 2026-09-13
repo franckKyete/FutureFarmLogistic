@@ -22,11 +22,14 @@ export enum ParcelStatus {
 }
 
 export interface FarmerProfileDto {
+  id?: string;
+  userId?: string;
   companyName: string;
   address: string;
   regionName?: string | null;
   bio?: string;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
   isCertified: boolean;
 }
 
@@ -36,6 +39,8 @@ export interface BuyerProfileDto {
   businessType: BuyerBusinessType;
   billingAddress: string;
   shippingAddress: string;
+  country: string;
+  preferredCurrency?: string;
 }
 
 export interface ParcelDto {

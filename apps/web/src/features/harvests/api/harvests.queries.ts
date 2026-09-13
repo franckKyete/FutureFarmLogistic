@@ -36,12 +36,46 @@ export const getFarmerHarvestsQuery = () => ({
   },
 });
 
+export const getMarketplaceHarvestsQuery = (
+  category?: ProductCategory | null,
+  farmerProfileId?: string,
+) => ({
+  queryKey: ['marketplace-harvests', category, farmerProfileId],
+  queryFn: async (): Promise<HarvestDto[]> => {
+    const params: Record<string, any> = {};
+    if (category) params.category = category;
+    if (farmerProfileId) params.farmerProfileId = farmerProfileId;
+    const { data } = await apiClient.get<{ data: HarvestDto[] | { data: HarvestDto[] } }>('/harvests', {
+      params,
+    });
+    const res = data.data;
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray((res as any).data)) return (res as any).data;
+    return [];
+  },
+});
+
 export const getHarvestDetailsQuery = (id: string) => ({
   queryKey: ['harvests', id],
   queryFn: async (): Promise<HarvestDto> => {
     const { data } = await apiClient.get<{ data: HarvestDto }>(`/harvests/${id}`);
     return data.data;
   },
+});
+
+export const getHarvestsByProductQuery = (productId?: string) => ({
+  queryKey: ['harvests', 'by-product', productId],
+  queryFn: async (): Promise<HarvestDto[]> => {
+    if (!productId) return [];
+    const { data } = await apiClient.get<{ data: HarvestDto[] | { data: HarvestDto[] } }>('/harvests', {
+      params: { productId },
+    });
+    const res = data.data;
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray((res as any).data)) return (res as any).data;
+    return [];
+  },
+  enabled: !!productId,
 });
 
 export const getDecayedPriceQuery = (id: string) => ({

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -423,7 +424,7 @@ function ProductDetailPage() {
               onClick={handleOpenAuctionSelector}
               className="w-full py-3.5 bg-[#1a5c35] hover:bg-[#144a2a] text-white font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 transition-all"
             >
-              <span className="material-symbols-outlined text-xl">gavel</span>
+              <Icon name="gavel" className="text-xl" />
               <span>Mettre en enchère</span>
             </button>
           </div>
@@ -440,14 +441,14 @@ function ProductDetailPage() {
 
           {monthlyGroups.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center space-y-3 shadow-2xs">
-              <span className="material-symbols-outlined text-gray-400 text-3xl">inventory_2</span>
+              <Icon name="inventory_2" className="text-gray-400 text-3xl" />
               <p className="text-xs text-gray-500">Aucune récolte enregistrée pour ce produit.</p>
               <Link
                 to="/farmer/harvests/analyze"
                 search={{ productId: product?.id || id }}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a5c35] text-white font-bold text-xs rounded-xl shadow-xs hover:bg-[#144a2a] transition-colors"
               >
-                <span className="material-symbols-outlined text-sm">add</span>
+                <Icon name="add" className="text-sm" />
                 Ajouter une première récolte
               </Link>
             </div>
@@ -601,7 +602,7 @@ function ProductDetailPage() {
                           aria-label="Modifier le lot"
                           className="p-2 rounded-xl text-gray-400 hover:text-[#1a5c35] hover:bg-white border border-transparent hover:border-gray-200 cursor-pointer transition-all shrink-0"
                         >
-                          <span className="material-symbols-outlined text-lg">edit</span>
+                          <Icon name="edit" className="text-lg" />
                         </button>
                       </div>
                     ) : (
@@ -614,9 +615,7 @@ function ProductDetailPage() {
                           {group.totalAdded} {unit} ajoutés
                           {group.avgQuality !== null ? ` • Qualité ${group.avgQuality}%` : ''}
                         </span>
-                        <span className="material-symbols-outlined text-base text-gray-400">
-                          chevron_right
-                        </span>
+                        <Icon name="chevron_right" className="text-base text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -639,7 +638,7 @@ function ProductDetailPage() {
             aria-label="Actions rapides"
             className="w-14 h-14 bg-[#1a5c35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 focus:outline-none focus:ring-4 focus:ring-[#1a5c35]/30"
           >
-            <span className="material-symbols-outlined text-3xl">add</span>
+            <Icon name="add" className="text-3xl" />
           </button>
         </div>
       )}
@@ -669,7 +668,7 @@ function ProductDetailPage() {
                     onClick={() => setIsSheetOpen(false)}
                     className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <Icon name="close" className="text-xl" />
                   </button>
                 </div>
 
@@ -687,15 +686,13 @@ function ProductDetailPage() {
                     className="w-full p-4 rounded-2xl border border-gray-200 hover:border-[#1a5c35] hover:bg-emerald-50/50 flex items-center gap-3.5 text-left transition-all cursor-pointer group"
                   >
                     <div className="w-11 h-11 rounded-xl bg-emerald-100 text-[#1a5c35] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <span className="material-symbols-outlined text-2xl">add_circle</span>
+                      <Icon name="add_circle" className="text-2xl" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900">Ajouter une nouvelle récolte</p>
                       <p className="text-xs text-gray-500 truncate">Scanner et analyser un lot pour ce produit</p>
                     </div>
-                    <span className="material-symbols-outlined text-gray-400 text-xl group-hover:text-[#1a5c35]">
-                      chevron_right
-                    </span>
+                    <Icon name="chevron_right" className="text-gray-400 text-xl group-hover:text-[#1a5c35]" />
                   </button>
 
                   {/* Action 2: Create Auction */}
@@ -711,15 +708,13 @@ function ProductDetailPage() {
                     className="w-full p-4 rounded-2xl border border-gray-200 hover:border-amber-600 hover:bg-amber-50/50 flex items-center gap-3.5 text-left transition-all cursor-pointer group"
                   >
                     <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <span className="material-symbols-outlined text-2xl">gavel</span>
+                      <Icon name="gavel" className="text-2xl" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900">Créer une enchère</p>
                       <p className="text-xs text-gray-500 truncate">Choisir un lot et lancer la vente aux enchères</p>
                     </div>
-                    <span className="material-symbols-outlined text-gray-400 text-xl group-hover:text-amber-800">
-                      chevron_right
-                    </span>
+                    <Icon name="chevron_right" className="text-gray-400 text-xl group-hover:text-amber-800" />
                   </button>
                 </div>
               </div>
@@ -733,7 +728,7 @@ function ProductDetailPage() {
                       onClick={() => setSheetView('actions')}
                       className="p-1 rounded-full text-gray-600 hover:bg-gray-100 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-xl">arrow_back</span>
+                      <Icon name="arrow_back" className="text-xl" />
                     </button>
                     <div>
                       <h3 className="text-base font-bold text-gray-900">Sélectionner le lot</h3>
@@ -745,7 +740,7 @@ function ProductDetailPage() {
                     onClick={() => setIsSheetOpen(false)}
                     className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <Icon name="close" className="text-xl" />
                   </button>
                 </div>
 
@@ -786,7 +781,7 @@ function ProductDetailPage() {
                               }`}
                             >
                               {isSelected && (
-                                <span className="material-symbols-outlined text-xs">check</span>
+                                <Icon name="check" className="text-xs" />
                               )}
                             </div>
 
@@ -839,7 +834,7 @@ function ProductDetailPage() {
                     className="w-full py-3.5 bg-[#1a5c35] hover:bg-[#144a2a] disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 transition-all text-sm"
                   >
                     <span>Lancer l'enchère</span>
-                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                    <Icon name="arrow_forward" className="text-lg" />
                   </button>
                 </div>
               </div>
@@ -859,7 +854,7 @@ function ProductDetailPage() {
                 onClick={() => setEditingHarvest(null)}
                 className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
 

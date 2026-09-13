@@ -15,7 +15,10 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Res,
+  Req,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -25,9 +28,6 @@ import {
   ApiCreatedResponse,
   ApiConsumes,
 } from '@nestjs/swagger';
-import * as path from 'path';
-import * as fs from 'fs';
-
 import {
   Permission,
   AuthUser,
@@ -51,8 +51,9 @@ import { CreateHarvestProxyDto } from './dto/create-harvest-proxy.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { VerifyHarvestDto } from './dto/verify-harvest.dto';
 import { AiSuggestHarvestDto } from './dto/ai-suggest.dto';
+import { StorageService } from '../storage/storage.service';
 
-interface UploadedFileDto {
+export interface UploadedFileDto {
   fieldname: string;
   originalname: string;
   encoding: string;
@@ -64,14 +65,17 @@ interface UploadedFileDto {
 @ApiTags('Products & Harvests')
 @Controller()
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Post('media/upload')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload any media file (image/pdf/etc)' })
+  @ApiOperation({ summary: 'Upload any media file (image/pdf/etc) to S3' })
   @HttpCode(HttpStatus.OK)
   async uploadMedia(
     @UploadedFile(
@@ -79,7 +83,7 @@ export class ProductsController {
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10 MB
           new FileTypeValidator({
-            fileType: /(jpg|jpeg|png|webp|gif|heic|heif)/,
+            fileType: /(jpg|jpeg|png|webp|gif|heic|heif|pdf)/,
             fallbackToMimetype: true,
           }),
         ],
@@ -87,17 +91,40 @@ export class ProductsController {
     )
     file: UploadedFileDto,
   ) {
-    const uploadDir = path.resolve(process.cwd(), 'uploads', 'media');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    const dest = path.join(uploadDir, uniqueName);
-    await fs.promises.writeFile(dest, file.buffer);
+    const result = await this.storageService.uploadFile(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      'media',
+    );
+    return { url: result.signedUrl || result.url, key: result.key };
+  }
 
-    const url = `/uploads/media/${uniqueName}`;
-    return { url };
+  @Get('media/signed-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate a fresh secured signed URL for a media file' })
+  async getMediaSignedUrl(@Query('key') key: string) {
+    const signedUrl = await this.storageService.getSignedUrl(key);
+    return { url: signedUrl, signedUrl };
+  }
+
+  @Get('media/file/*')
+  @ApiOperation({ summary: 'Stream media file directly through API' })
+  async getMediaFile(
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const rawParam = (req.params as any)?.[0] || '';
+    try {
+      const { stream, contentType, contentLength } = await this.storageService.getFileStream(rawParam);
+      res.setHeader('Content-Type', contentType);
+      if (contentLength) res.setHeader('Content-Length', contentLength.toString());
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      (stream as any).pipe(res);
+    } catch {
+      res.status(HttpStatus.NOT_FOUND).json({ statusCode: 404, message: 'File not found' });
+    }
   }
 
   // =============================================================================

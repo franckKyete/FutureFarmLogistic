@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth } from '@/features/auth/store/auth.store';
 import { useLocation, Link, useNavigate } from '@tanstack/react-router';
@@ -19,6 +20,8 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
   { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
   { label: 'Transactions', path: '/admin/transactions', icon: 'receipt_long', permission: Permission.ORDER_READ_ALL },
+  { label: 'Devises & Taux', path: '/admin/currencies', icon: 'currency_exchange', permission: Permission.DASHBOARD_READ },
+  { label: 'Frais de plateforme', path: '/admin/fees', icon: 'payments', permission: Permission.DASHBOARD_READ },
   { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
 ];
 
@@ -40,7 +43,7 @@ function NavLinkItem({ link }: { link: NavLink }) {
           : 'text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-primary)]'
       }`}
     >
-      <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
+      <Icon name={link.icon} className="text-[20px]" />
       <span className="text-sm">{link.label}</span>
     </Link>
   );
@@ -70,7 +73,7 @@ export function AdminSidebar() {
         {user && (
           <div className="flex items-center gap-3 px-2">
             <div className="w-10 h-10 rounded-full bg-[var(--admin-primary-container)]/20 flex items-center justify-center border border-[var(--admin-primary)]/10 overflow-hidden shrink-0">
-              <span className="material-symbols-outlined text-[20px] text-[var(--admin-primary)]">person</span>
+              <Icon name="person" className="text-[20px] text-[var(--admin-primary)]" />
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-bold truncate text-[var(--admin-on-surface)]">
@@ -89,7 +92,7 @@ export function AdminSidebar() {
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-[var(--admin-on-surface-variant)] hover:bg-[var(--admin-surface-container-high)] hover:text-[var(--admin-error)] transition-colors rounded-xl text-sm font-medium cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[20px]">logout</span>
+          <Icon name="logout" className="text-[20px]" />
           <span>Déconnexion</span>
         </button>
       </div>

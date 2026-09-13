@@ -36,6 +36,7 @@ export function useFarmerLayout(options?: FarmerLayoutOptions) {
     options?.subtitle,
     options?.showBack,
     options?.backTo,
+    options?.rightAction,
   ]);
 
   return useStore(farmerLayoutStore);

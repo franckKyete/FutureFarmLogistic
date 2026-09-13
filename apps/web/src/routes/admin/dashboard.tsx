@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import { Permission } from '@futurefarm/types';
@@ -95,9 +96,7 @@ function LoadingState() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-24">
-      <span className="material-symbols-outlined text-5xl text-red-400 mb-4">
-        error_outline
-      </span>
+      <Icon name="error_outline" className="text-5xl text-red-400 mb-4" />
       <p className="text-gray-600 text-lg font-medium mb-1">
         Erreur de chargement
       </p>
@@ -117,9 +116,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24">
-      <span className="material-symbols-outlined text-5xl text-gray-300 mb-4">
-        dashboard
-      </span>
+      <Icon name="dashboard" className="text-5xl text-gray-300 mb-4" />
       <p className="text-gray-500 text-lg font-medium mb-1">
         Aucune donnée disponible
       </p>
@@ -193,9 +190,7 @@ function StatsGrid({ stats }: { stats: { totalUsers: number; pendingValidations:
           <div
             className={`w-10 h-10 ${card.bgColor} rounded-lg flex items-center justify-center mb-3`}
           >
-            <span className={`material-symbols-outlined text-2xl ${card.iconColor}`}>
-              {card.icon}
-            </span>
+            <Icon name={card.icon} className="text-2xl ${card.iconColor}" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{card.value}</p>
           <p className="text-sm text-gray-500 mt-0.5">{card.label}</p>
@@ -217,9 +212,7 @@ function RecentOrdersSection({ orders }: { orders: RecentOrder[] }) {
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Commandes récentes</h2>
         <div className="flex flex-col items-center justify-center py-12 bg-white rounded-xl border border-gray-100 shadow-sm">
-          <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">
-            receipt_long
-          </span>
+          <Icon name="receipt_long" className="text-4xl text-gray-300 mb-2" />
           <p className="text-gray-500 text-sm">
             Aucune commande récente
           </p>

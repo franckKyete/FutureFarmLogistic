@@ -25,19 +25,20 @@ export class BuyerProfileEntity {
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @Column({ name: 'company_name', length: 255 })
-  companyName: string;
+  @Column({ name: 'company_name', type: 'varchar', length: 255, nullable: true })
+  companyName: string | null;
 
-  @Column({ name: 'vat_number', length: 50 })
-  vatNumber: string;
+  @Column({ name: 'vat_number', type: 'varchar', length: 50, nullable: true })
+  vatNumber: string | null;
 
   @Column({
     name: 'business_type',
     type: 'enum',
     enum: BuyerBusinessType,
     default: BuyerBusinessType.RESTAURATEUR,
+    nullable: true,
   })
-  businessType: BuyerBusinessType;
+  businessType: BuyerBusinessType | null;
 
   @Column({ name: 'billing_address', type: 'text' })
   billingAddress: string;

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -108,7 +109,7 @@ function DashboardPage() {
       status: 'Commande',
       statusColor: 'text-[#1a5c35]',
       time: new Date(o.createdAt).toLocaleDateString(),
-      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100',
+      image: o.harvest?.photoUrls?.[0] || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=100',
     })),
   ]
     .sort((a, b) => b.id.localeCompare(a.id))
@@ -119,17 +120,15 @@ function DashboardPage() {
       {/* Alert Banner */}
       {alertOpen && harvests?.some((h) => h.status === 'REJECTED') && (
         <div className="bg-secondary-container text-on-secondary-container px-4 py-3 flex items-center gap-3 animate-pulse shadow-sm max-w-[480px] mx-auto rounded-xl mt-2 mb-2">
-          <span className="material-symbols-outlined shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-            warning
-          </span>
+          <Icon name="warning" className="shrink-0" />
           <p className="text-xs font-semibold">
             Attention : Un de vos lots récoltés a été rejeté par l'inspecteur qualité.
           </p>
           <button
             onClick={() => setAlertOpen(false)}
-            className="ml-auto material-symbols-outlined text-sm hover:opacity-80 cursor-pointer"
+            className="ml-auto text-sm hover:opacity-80 cursor-pointer p-1"
           >
-            close
+            <Icon name="close" size={16} />
           </button>
         </div>
       )}
@@ -141,9 +140,7 @@ function DashboardPage() {
           <section className="bg-[#eff4ff] border-2 border-[#004322] p-4 rounded-xl shadow-md flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  auto_awesome
-                </span>
+                <Icon name="auto_awesome" className="text-[#004322] text-xl" />
                 <span className="text-xs font-bold text-[#004322]">
                   {readyForReviewCount} récolte{readyForReviewCount > 1 ? 's' : ''} analysée{readyForReviewCount > 1 ? 's' : ''} prête{readyForReviewCount > 1 ? 's' : ''} à réviser
                 </span>
@@ -187,9 +184,7 @@ function DashboardPage() {
         {/* Drafts Pending AI Analysis Banner */}
         {pendingAnalysisCount > 0 && (
           <section className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl shadow-sm flex items-start gap-3">
-            <span className="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">
-              cloud_sync
-            </span>
+            <Icon name="cloud_sync" className="text-amber-600 text-xl shrink-0 mt-0.5" />
             <div className="text-xs text-amber-900 leading-relaxed">
               <p className="font-bold">
                 {pendingAnalysisCount} récolte{pendingAnalysisCount > 1 ? 's' : ''} en attente d'analyse IA
@@ -206,9 +201,7 @@ function DashboardPage() {
           <section className="bg-[#e8f5e9] border border-[#aef2be] p-4 rounded-xl shadow-sm flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                  sync
-                </span>
+                <Icon name="sync" className="text-[#1a5c35] ${isSyncing ? 'animate-spin' : ''}" />
                 <span className="text-xs font-bold text-[#1a5c35]">
                   {pendingCount} récolte{pendingCount > 1 ? 's' : ''} en attente de synchronisation
                 </span>
@@ -232,9 +225,7 @@ function DashboardPage() {
                 disabled={isSyncing}
                 className="bg-[#004322] text-white py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
               >
-                <span className={`material-symbols-outlined text-sm ${isSyncing ? 'animate-spin' : ''}`}>
-                  sync
-                </span>
+                <Icon name="sync" className="text-sm ${isSyncing ? 'animate-spin' : ''}" />
                 {isSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
               </button>
             )}
@@ -243,9 +234,7 @@ function DashboardPage() {
 
         {!isOnline && pendingCount === 0 && (
           <section className="bg-[#fff8e1] border border-[#ffe082] p-3 rounded-xl shadow-sm flex items-center gap-3">
-            <span className="material-symbols-outlined text-amber-700" style={{ fontVariationSettings: "'FILL' 1" }}>
-              cloud_off
-            </span>
+            <Icon name="cloud_off" className="text-amber-700" />
             <div className="text-xs">
               <p className="font-bold text-amber-800">Mode hors-ligne actif</p>
               <p className="text-amber-900/80 text-[10px] mt-0.5">
@@ -259,7 +248,7 @@ function DashboardPage() {
         <section className="grid grid-cols-2 gap-4">
           {/* Revenue Card */}
           <div className="bg-white border border-[#E5E7EB] p-4 rounded-xl flex flex-col justify-between aspect-square shadow-sm">
-            <span className="material-symbols-outlined text-[#885200] self-start">payments</span>
+            <Icon name="payments" className="text-[#885200] self-start" />
             <div>
               <p className="text-xs text-[#6B7280]">Revenu total</p>
               <p className="text-lg font-bold text-[#1C1C1C] tracking-tight">
@@ -303,7 +292,7 @@ function DashboardPage() {
                     <circle cx="40" cy="40" fill="transparent" r="34" stroke="#E5E7EB" strokeWidth="6" strokeDasharray="4 4" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                    <span className="material-symbols-outlined text-xl">psychology_alt</span>
+                    <Icon name="psychology_alt" className="text-xl" />
                     <span className="text-xs font-bold text-gray-400 leading-none mt-0.5">--</span>
                   </div>
                 </div>
@@ -340,7 +329,7 @@ function DashboardPage() {
           <section className="space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-700 text-lg">event_available</span>
+                <Icon name="event_available" className="text-amber-700 text-lg" />
                 <h2 className="text-base font-bold text-on-surface">Inspections terrain à venir</h2>
               </div>
               <span className="bg-amber-100 text-amber-800 text-[11px] font-bold px-2 py-0.5 rounded-full">
@@ -366,7 +355,7 @@ function DashboardPage() {
                         <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                           Visite programmée {visit.plannedDate ? `le ${visit.plannedDate}` : ''}
                           {visit.harvestId && (
-                            <span className="material-symbols-outlined text-xs text-amber-800">chevron_right</span>
+                            <Icon name="chevron_right" className="text-xs text-amber-800" />
                           )}
                         </p>
                         {visit.plannedTime && (
@@ -382,7 +371,7 @@ function DashboardPage() {
 
                     {visit.inspectorName && (
                       <p className="text-[11px] text-gray-600 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">badge</span>
+                        <Icon name="badge" className="text-xs" />
                         Inspecteur : <span className="font-semibold text-gray-800">{visit.inspectorName}</span>
                       </p>
                     )}
@@ -407,7 +396,7 @@ function DashboardPage() {
                       <div>
                         <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                           {harvest.product?.name || 'Lot agricole'} #{harvest.id.slice(0, 4)}
-                          <span className="material-symbols-outlined text-xs text-amber-800">chevron_right</span>
+                          <Icon name="chevron_right" className="text-xs text-amber-800" />
                         </p>
                         <p className="text-[11px] text-amber-800">
                           En attente de planification par l'inspecteur
@@ -480,7 +469,7 @@ function DashboardPage() {
         aria-label="Actions rapides"
         className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-[#1A5C35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
       >
-        <span className="material-symbols-outlined text-2xl">add</span>
+        <Icon name="add" className="text-2xl" />
       </button>
 
       {/* Action Bottom Sheet */}
@@ -507,7 +496,7 @@ function DashboardPage() {
                 onClick={() => setShowBottomSheet(false)}
                 className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
 
@@ -521,7 +510,7 @@ function DashboardPage() {
                 className="w-full flex items-center gap-3.5 p-3.5 bg-emerald-50/60 hover:bg-emerald-100/60 border border-emerald-200 rounded-2xl text-left transition-colors cursor-pointer group"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#1A5C35] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <span className="material-symbols-outlined text-xl">add_photo_alternate</span>
+                  <Icon name="add_photo_alternate" className="text-xl" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1A5C35]">
@@ -531,7 +520,7 @@ function DashboardPage() {
                     Scanner et analyser un lot récolté par IA
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
               </button>
 
               <button
@@ -543,7 +532,7 @@ function DashboardPage() {
                 className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl text-left transition-colors cursor-pointer group shadow-2xs"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#ffa93d]/20 text-[#885200] border border-[#ffa93d]/30 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-xl">gavel</span>
+                  <Icon name="gavel" className="text-xl" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#885200]">
@@ -553,7 +542,7 @@ function DashboardPage() {
                     Mettre un lot aux enchères en direct
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
               </button>
             </div>
           </div>

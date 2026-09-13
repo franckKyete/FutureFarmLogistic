@@ -111,4 +111,21 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bannerUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  addressDetails?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  shippingAddressDetails?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  billingAddressDetails?: any;
 }

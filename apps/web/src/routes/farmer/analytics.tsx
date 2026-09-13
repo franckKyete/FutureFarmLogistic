@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -75,35 +76,35 @@ function FarmerAnalyticsPage() {
               to="/farmer/dashboard"
               className="p-3 flex items-center gap-3 text-[#404941] hover:bg-[#d3e4fe] rounded-lg transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined">dashboard</span>
+              <Icon name="dashboard" />
               <span className="text-[12px] font-semibold">Dashboard</span>
             </Link>
             <Link
               to="/farmer/stock"
               className="p-3 flex items-center gap-3 text-[#404941] hover:bg-[#d3e4fe] rounded-lg transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined">inventory_2</span>
+              <Icon name="inventory_2" />
               <span className="text-[12px] font-semibold">Inventory</span>
             </Link>
             <Link
               to="/farmer/analytics"
               className="p-3 flex items-center gap-3 bg-[#1a5c35] text-white rounded-lg font-bold cursor-pointer"
             >
-              <span className="material-symbols-outlined">analytics</span>
+              <Icon name="analytics" />
               <span className="text-[12px] font-semibold">Logistics</span>
             </Link>
             <Link
               to="/farmer/auctions"
               className="p-3 flex items-center gap-3 text-[#404941] hover:bg-[#d3e4fe] rounded-lg transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined">gavel</span>
+              <Icon name="gavel" />
               <span className="text-[12px] font-semibold">Auctions</span>
             </Link>
             <Link
               to="/farmer/profile"
               className="p-3 flex items-center gap-3 text-[#404941] hover:bg-[#d3e4fe] rounded-lg transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined">settings</span>
+              <Icon name="settings" />
               <span className="text-[12px] font-semibold">Settings</span>
             </Link>
           </nav>
@@ -161,12 +162,7 @@ function FarmerAnalyticsPage() {
             <div className="bg-white p-5 rounded-xl border border-[#c0c9be] shadow-sm transition-transform active:scale-95">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[#404941] text-[12px] font-semibold">Produit top</span>
-                <span
-                  className="material-symbols-outlined text-[#ffa93d] text-sm"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  star
-                </span>
+                <Icon name="star" className="text-[#ffa93d] text-sm" />
               </div>
               <div className="text-lg font-bold text-[#1a5c35] truncate">{activeStats.topProduct}</div>
               <div className="text-[11px] text-[#404941] mt-1">{activeStats.topProductQty}</div>

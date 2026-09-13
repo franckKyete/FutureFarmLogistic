@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -18,15 +19,6 @@ export const Route = createFileRoute('/admin/users/new')({
 });
 
 type AgentRole = 'inspector' | 'driver';
-
-const SPECIALIZATION_OPTIONS = [
-  'Céréales & Grains',
-  'Fruits & Légumes',
-  'Cacao & Café',
-  'Tubercules (Manioc, Igname)',
-  'Oléagineux & Noix',
-  'Produits Vivriers Frais',
-];
 
 const LICENSE_CATEGORIES = [
   { value: 'B', label: 'Permis B', desc: 'Véhicules légers & camionnettes (< 3.5t)' },
@@ -50,10 +42,6 @@ function CreateFieldAgentPage() {
   const [phone, setPhone] = useState('');
 
   // Inspector specific fields
-  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([
-    'Céréales & Grains',
-    'Fruits & Légumes',
-  ]);
   const [selectedCenterIds, setSelectedCenterIds] = useState<string[]>([]);
 
   // Driver specific fields
@@ -67,12 +55,6 @@ function CreateFieldAgentPage() {
     email: string;
     role: string;
   } | null>(null);
-
-  const toggleSpecialization = (spec: string) => {
-    setSelectedSpecializations((prev) =>
-      prev.includes(spec) ? prev.filter((s) => s !== spec) : [...prev, spec]
-    );
-  };
 
   const toggleCenter = (centerId: string) => {
     setSelectedCenterIds((prev) =>
@@ -99,7 +81,6 @@ function CreateFieldAgentPage() {
         lastName,
         email,
         phoneNumber: phone.trim(),
-        specializations: selectedSpecializations,
         inspectionCenterIds: selectedCenterIds,
       };
 
@@ -177,7 +158,7 @@ function CreateFieldAgentPage() {
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-on-surface-variant)] mb-2">
           <Link to="/admin/users" className="hover:text-[var(--admin-primary)] flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            <Icon name="arrow_back" className="text-sm" />
             Gestion des utilisateurs
           </Link>
           <span>/</span>
@@ -209,7 +190,7 @@ function CreateFieldAgentPage() {
                 : 'bg-gray-100 text-gray-600'
             }`}
           >
-            <span className="material-symbols-outlined">verified</span>
+            <Icon name="verified" />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between">
@@ -245,7 +226,7 @@ function CreateFieldAgentPage() {
                 : 'bg-gray-100 text-gray-600'
             }`}
           >
-            <span className="material-symbols-outlined">local_shipping</span>
+            <Icon name="local_shipping" />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between">
@@ -274,7 +255,7 @@ function CreateFieldAgentPage() {
           {/* Identity & Contact Card */}
           <AdminCard className="p-6 space-y-5">
             <div className="flex items-center gap-2 border-b border-[var(--admin-outline-variant)]/20 pb-3">
-              <span className="material-symbols-outlined text-[var(--admin-primary)]">badge</span>
+              <Icon name="badge" className="text-[var(--admin-primary)]" />
               <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
                 1. Identité & Coordonnées de Contact
               </h2>
@@ -341,127 +322,91 @@ function CreateFieldAgentPage() {
             </div>
 
             <div className="bg-[#eff4ff] p-3.5 rounded-xl border border-blue-100 flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-blue-600 text-lg shrink-0 mt-0.5">mail</span>
+              <Icon name="mail" className="text-blue-600 text-lg shrink-0 mt-0.5" />
               <p className="text-xs text-blue-900 leading-relaxed">
                 Le mot de passe initial sera <strong>généré automatiquement de manière sécurisée</strong> par le serveur et <strong>envoyé directement par email</strong> à l'adresse renseignée dès la validation.
               </p>
             </div>
           </AdminCard>
 
-          {/* Professional Credentials Card (Dynamic per role) */}
-          <AdminCard className="p-6 space-y-5">
-            <div className="flex items-center gap-2 border-b border-[var(--admin-outline-variant)]/20 pb-3">
-              <span className="material-symbols-outlined text-[var(--admin-primary)]">
-                {agentRole === 'inspector' ? 'workspace_premium' : 'commute'}
-              </span>
-              <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
-                {agentRole === 'inspector'
-                  ? '2. Domaines d’Expertise Agricole'
-                  : '2. Permis de Conduire & Affectation Logistique'}
-              </h2>
-            </div>
+          {/* Professional Credentials Card for Drivers */}
+          {agentRole === 'driver' && (
+            <AdminCard className="p-6 space-y-5">
+              <div className="flex items-center gap-2 border-b border-[var(--admin-outline-variant)]/20 pb-3">
+                <Icon name="commute" className="text-[var(--admin-primary)]" />
+                <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
+                  2. Permis de Conduire & Affectation Logistique
+                </h2>
+              </div>
 
-            {agentRole === 'inspector' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Numéro de permis de conduire <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={driverLicenseNumber}
+                    onChange={(e) => setDriverLicenseNumber(e.target.value.toUpperCase())}
+                    placeholder="DRV-CI-84920"
+                    className="w-full text-sm font-mono font-bold border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Date d'expiration du permis
+                  </label>
+                  <input
+                    type="date"
+                    value={licenseExpiresAt}
+                    onChange={(e) => setLicenseExpiresAt(e.target.value)}
+                    className="w-full text-sm border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-2">
-                  Sélectionnez les filières et catégories de produits auditées
+                  Catégorie de permis validée
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {SPECIALIZATION_OPTIONS.map((spec) => {
-                    const isSelected = selectedSpecializations.includes(spec);
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {LICENSE_CATEGORIES.map((cat) => {
+                    const isSelected = licenseCategory === cat.value;
                     return (
-                      <button
-                        key={spec}
-                        type="button"
-                        onClick={() => toggleSpecialization(spec)}
-                        className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      <div
+                        key={cat.value}
+                        onClick={() => setLicenseCategory(cat.value)}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-[var(--admin-primary)] text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'border-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 ring-1 ring-[var(--admin-primary)]'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-sm">
-                          {isSelected ? 'check' : 'add'}
-                        </span>
-                        {spec}
-                      </button>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-[var(--admin-on-surface)]">{cat.label}</span>
+                          {isSelected && (
+                            <Icon name="check_circle" className="text-sm text-[var(--admin-primary)] font-bold" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{cat.desc}</p>
+                      </div>
                     );
                   })}
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Numéro de permis de conduire <span className="text-rose-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={driverLicenseNumber}
-                      onChange={(e) => setDriverLicenseNumber(e.target.value.toUpperCase())}
-                      placeholder="DRV-CI-84920"
-                      className="w-full text-sm font-mono font-bold border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
-                    />
-                  </div>
+            </AdminCard>
+          )}
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Date d'expiration du permis
-                    </label>
-                    <input
-                      type="date"
-                      value={licenseExpiresAt}
-                      onChange={(e) => setLicenseExpiresAt(e.target.value)}
-                      className="w-full text-sm border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-2">
-                    Catégorie de permis validée
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {LICENSE_CATEGORIES.map((cat) => {
-                      const isSelected = licenseCategory === cat.value;
-                      return (
-                        <div
-                          key={cat.value}
-                          onClick={() => setLicenseCategory(cat.value)}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 ring-1 ring-[var(--admin-primary)]'
-                              : 'border-gray-200 bg-white hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-sm text-[var(--admin-on-surface)]">{cat.label}</span>
-                            {isSelected && (
-                              <span className="material-symbols-outlined text-sm text-[var(--admin-primary)] font-bold">
-                                check_circle
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-gray-500 mt-0.5">{cat.desc}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-          </AdminCard>
-
-          {/* Section 3: Centers for Inspectors */}
+          {/* Section 2: Centers for Inspectors */}
           {agentRole === 'inspector' && (
             <AdminCard className="p-6 space-y-5">
               <div className="flex items-center justify-between border-b border-[var(--admin-outline-variant)]/20 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[var(--admin-primary)]">corporate_fare</span>
+                  <Icon name="corporate_fare" className="text-[var(--admin-primary)]" />
                   <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
-                    3. Affectation aux Centres d'Inspection Régionaux <span className="text-rose-600">*</span>
+                    2. Affectation aux Centres d'Inspection Régionaux <span className="text-rose-600">*</span>
                   </h2>
                 </div>
                 <span className="text-xs font-semibold text-gray-500">
@@ -504,7 +449,7 @@ function CreateFieldAgentPage() {
                                   : 'border-gray-300'
                               }`}
                             >
-                              {isSelected && <span className="material-symbols-outlined text-xs">check</span>}
+                              {isSelected && <Icon name="check" className="text-xs" />}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -565,9 +510,7 @@ function CreateFieldAgentPage() {
                   <p className="text-xs font-extrabold text-white">OFFICIAL ACCREDITATION</p>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-lg text-white">
-                    {agentRole === 'inspector' ? 'verified_user' : 'local_shipping'}
-                  </span>
+                  <Icon name={agentRole === 'inspector' ? 'verified_user' : 'local_shipping'} className="text-lg text-white" />
                 </div>
               </div>
 
@@ -608,7 +551,7 @@ function CreateFieldAgentPage() {
 
             <div className="bg-[#eff4ff] p-3.5 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-1.5">
               <p className="font-bold flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm text-blue-600">mark_email_read</span>
+                <Icon name="mark_email_read" className="text-sm text-blue-600" />
                 Envoi automatique
               </p>
               <p className="text-[11px] leading-relaxed text-blue-800">
@@ -624,7 +567,7 @@ function CreateFieldAgentPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl animate-slide-in">
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-[#004322] flex items-center justify-center mx-auto shadow-xs">
-              <span className="material-symbols-outlined text-3xl">mark_email_read</span>
+              <Icon name="mark_email_read" className="text-3xl" />
             </div>
 
             <div className="text-center space-y-1">
@@ -647,7 +590,7 @@ function CreateFieldAgentPage() {
 
               <div className="pt-2 border-t border-gray-200">
                 <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mb-1">
-                  <span className="material-symbols-outlined text-sm">mark_email_read</span>
+                  <Icon name="mark_email_read" className="text-sm" />
                   Notification envoyée
                 </div>
                 <p className="text-[11px] text-gray-600 leading-relaxed">

@@ -51,6 +51,21 @@ All environment variables are defined in `.env.example` at the monorepo root.
 | `WHATSAPP_ENABLED` | `false` | Enable Twilio WhatsApp channel |
 | `PUSH_ENABLED` | `false` | Enable Web Push channel |
 
+## Payment Gateway Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PAYMENT_PROVIDER` | `mock` | Default fallback provider (`stripe`, `pawapay`, `mock`) |
+| `STRIPE_SECRET_KEY` | | Stripe secret key for card checkout |
+| `STRIPE_CURRENCY` | `usd` | Stripe processing currency |
+| `PAWAPAY_API_TOKEN` | | PawaPay Merchant API bearer token |
+| `PAWAPAY_BASE_URL` | `https://api.sandbox.pawapay.io` | PawaPay API endpoint (sandbox or production) |
+| `PAWAPAY_COUNTRY` | `SEN` | PawaPay default ISO3 country code |
+| `PAWAPAY_CURRENCY` | `XOF` | PawaPay default currency code |
+| `PAWAPAY_RETURN_URL` | `http://localhost:3001/orders` | Buyer redirect destination after Mobile Money payment |
+| `PAWAPAY_PRIVATE_KEY` | | Optional EC private key (PEM format) for RFC-9421 request signing |
+| `PAWAPAY_KEY_ID` | `1` | Key identifier registered in PawaPay Dashboard for RFC-9421 signing |
+
 > [!CAUTION]
 > Never prefix secret values with `VITE_` — Vite bundles all `VITE_*` variables into the client JS and they will be publicly visible.
 

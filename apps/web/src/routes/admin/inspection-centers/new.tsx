@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -9,6 +10,7 @@ import {
 import { AdminCard, Button } from '@/features/admin/components';
 import { LocationPickerMap } from '@/features/shared/components/LocationPickerMap';
 import { addToast } from '@/features/shared/store/toast.store';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/admin/inspection-centers/new')({
   beforeLoad: () => {
@@ -26,7 +28,13 @@ function CreateInspectionCenterPage() {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [regionName, setRegionName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [latitude, setLatitude] = useState<number | ''>('');
   const [longitude, setLongitude] = useState<number | ''>('');
   const [selectedInspectorIds, setSelectedInspectorIds] = useState<string[]>([]);
@@ -62,6 +70,16 @@ function CreateInspectionCenterPage() {
     }
 
     try {
+      const formattedAddress = [
+        address.streetAddress,
+        address.streetAddress2,
+        address.city,
+        address.stateOrProvince,
+        address.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
       const payload: {
         name: string;
         code: string;
@@ -74,7 +92,7 @@ function CreateInspectionCenterPage() {
         name: name.trim(),
         code: code.trim().toUpperCase(),
         regionName: regionName.trim(),
-        address: address.trim(),
+        address: formattedAddress,
       };
 
       if (latitude !== '') payload.latitude = Number(latitude);
@@ -106,7 +124,7 @@ function CreateInspectionCenterPage() {
           to="/admin/inspection-centers"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined text-sm">arrow_back</span>
+          <Icon name="arrow_back" className="text-sm" />
           Retour aux centres d'inspection
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -125,7 +143,7 @@ function CreateInspectionCenterPage() {
         {/* 1. General Info */}
         <AdminCard className="space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-            <span className="material-symbols-outlined text-emerald-700">domain</span>
+            <Icon name="domain" className="text-emerald-700" />
             <h2 className="text-sm font-bold text-gray-900">1. Informations générales</h2>
           </div>
 
@@ -171,7 +189,7 @@ function CreateInspectionCenterPage() {
               className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35] focus:outline-none"
             />
             <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs leading-relaxed flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-base text-emerald-700 shrink-0 mt-0.5">info</span>
+              <Icon name="info" className="text-base text-emerald-700 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold text-emerald-800">Indication pour l'administrateur : </span>
                 La région est obligatoire. Choisissez un nom représentatif et facilement identifiable par les producteurs locaux. Ce nom sera directement proposé aux agriculteurs pour choisir leur région d'activité lors de leur inscription.
@@ -179,16 +197,13 @@ function CreateInspectionCenterPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              Adresse physique
-            </label>
-            <textarea
-              rows={2}
+          <div className="pt-2 border-t border-gray-100">
+            <AddressInputGroup
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ex: Quartier Industriel, Route Principale, Kipushi"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[#1a5c35] focus:outline-none resize-none"
+              onChange={setAddress}
+              title="Adresse physique du centre"
+              subtitle="Coordonnées physiques et localisation du centre"
+              required={false}
             />
           </div>
         </AdminCard>
@@ -197,7 +212,7 @@ function CreateInspectionCenterPage() {
         <AdminCard className="space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-700">map</span>
+              <Icon name="map" className="text-emerald-700" />
               <h2 className="text-sm font-bold text-gray-900">2. Emplacement sur la carte</h2>
             </div>
             <span className="text-xs text-gray-500">Sélection interactive</span>
@@ -245,7 +260,7 @@ function CreateInspectionCenterPage() {
         <AdminCard className="space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-700">badge</span>
+              <Icon name="badge" className="text-emerald-700" />
               <h2 className="text-sm font-bold text-gray-900">3. Affecter des inspecteurs certifiés (Optionnel)</h2>
             </div>
             {selectedInspectorIds.length > 0 && (
@@ -261,9 +276,7 @@ function CreateInspectionCenterPage() {
 
           {inspectors.length > 4 && (
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400 material-symbols-outlined text-sm">
-                search
-              </span>
+              <Icon name="search" className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400  text-sm" />
               <input
                 type="text"
                 value={inspectorSearch}
@@ -338,12 +351,12 @@ function CreateInspectionCenterPage() {
           >
             {createCenterMutation.isPending ? (
               <>
-                <span className="animate-spin material-symbols-outlined text-sm">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin  text-sm" />
                 Création en cours...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">add_circle</span>
+                <Icon name="add_circle" className="text-sm" />
                 Créer le centre
               </>
             )}

@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { Icon } from '@/features/shared/components/Icon';
+import { useState, useMemo } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { useDashboardStats } from '@/features/inspector/api/dashboard.queries';
 import { usePendingHarvests } from '@/features/inspector/api/harvests.queries';
 import { useMyCenter } from '@/features/admin/api/inspections.queries';
+import { getMyNotificationsQuery } from '@/features/notifications/api/notifications.queries';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { DashboardStats, VisitDto, HarvestDto } from '@/features/inspector/types';
-import { VisitReason } from '@futurefarm/types';
+import { VisitReason, NotificationStatus } from '@futurefarm/types';
 import { useOfflineSyncState } from '@/features/harvests/offline/offline-sync.store';
 
 export const Route = createFileRoute('/inspector/dashboard')({
@@ -53,12 +56,7 @@ function DashboardPage() {
         {proxyDraftsReady.length > 0 && (
           <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3 animate-slide-in">
             <div className="flex items-center gap-3 min-w-0">
-              <span
-                className="material-symbols-outlined text-emerald-700 text-2xl flex-shrink-0"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                auto_awesome
-              </span>
+              <Icon name="auto_awesome" className="text-emerald-700 text-2xl flex-shrink-0" />
               <div className="min-w-0">
                 <div className="text-xs font-bold text-emerald-950">
                   {proxyDraftsReady.length} récolte{proxyDraftsReady.length > 1 ? 's' : ''} par procuration analysée{proxyDraftsReady.length > 1 ? 's' : ''} prête{proxyDraftsReady.length > 1 ? 's' : ''} à réviser
@@ -89,9 +87,7 @@ function DashboardPage() {
         {/* Offline Proxy Pending Banner */}
         {proxyDraftsPending.length > 0 && (
           <div className="mb-4 bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-sm flex items-center gap-3 animate-slide-in">
-            <span className="material-symbols-outlined text-amber-700 text-2xl animate-spin flex-shrink-0">
-              sync
-            </span>
+            <Icon name="sync" className="text-amber-700 text-2xl animate-spin flex-shrink-0" />
             <div>
               <div className="text-xs font-bold text-amber-950">
                 {proxyDraftsPending.length} récolte{proxyDraftsPending.length > 1 ? 's' : ''} par procuration en attente d'analyse IA
@@ -149,7 +145,7 @@ function DashboardPage() {
         aria-label="Actions rapides"
         className="fixed bottom-20 right-5 z-40 w-14 h-14 bg-[#1a5c35] hover:bg-[#144a2a] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
       >
-        <span className="material-symbols-outlined text-2xl">add</span>
+        <Icon name="add" className="text-2xl" />
       </button>
 
       {/* Action Bottom Sheet */}
@@ -176,7 +172,7 @@ function DashboardPage() {
                 onClick={() => setShowBottomSheet(false)}
                 className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
 
@@ -190,7 +186,7 @@ function DashboardPage() {
                 className="w-full flex items-center gap-3.5 p-3.5 bg-emerald-50/60 hover:bg-emerald-100/60 border border-emerald-200 rounded-2xl text-left transition-colors cursor-pointer group"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#1a5c35] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <span className="material-symbols-outlined text-xl">add_circle</span>
+                  <Icon name="add_circle" className="text-xl" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1a5c35]">
@@ -200,7 +196,7 @@ function DashboardPage() {
                     Enregistrer et certifier une récolte par procuration
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
               </button>
 
               <button
@@ -212,7 +208,7 @@ function DashboardPage() {
                 className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl text-left transition-colors cursor-pointer group shadow-2xs"
               >
                 <div className="w-10 h-10 rounded-xl bg-gray-100 text-[#1a5c35] border border-gray-200 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-xl">person_add</span>
+                  <Icon name="person_add" className="text-xl" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#1a5c35]">
@@ -222,7 +218,7 @@ function DashboardPage() {
                     Créer ou valider le compte d'un agriculteur local
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-gray-400 text-lg">chevron_right</span>
+                <Icon name="chevron_right" className="text-gray-400 text-lg" />
               </button>
             </div>
           </div>
@@ -260,6 +256,17 @@ function formatVisitScheduleBadge(
 }
 
 function Header({ user, center }: { user: any; center: any }) {
+  const { data: paginatedNotifications } = useQuery({
+    ...getMyNotificationsQuery({ limit: 50 }),
+  });
+
+  const unreadCount = useMemo(() => {
+    if (!paginatedNotifications?.data) return 0;
+    return paginatedNotifications.data.filter(
+      (n) => n.status !== NotificationStatus.READ,
+    ).length;
+  }, [paginatedNotifications]);
+
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30 shadow-2xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -267,7 +274,7 @@ function Header({ user, center }: { user: any; center: any }) {
           <div className="flex items-center gap-2">
             {center ? (
               <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-[#1a5c35] bg-[#1a5c35]/10 px-2 py-0.5 rounded-full">
-                <span className="material-symbols-outlined text-xs">location_on</span>
+                <Icon name="location_on" className="text-xs" />
                 {center.code} • {center.regionName}
               </span>
             ) : (
@@ -281,14 +288,30 @@ function Header({ user, center }: { user: any; center: any }) {
           </h1>
         </div>
 
-        <Link
-          to="/profile"
-          className="w-10 h-10 rounded-full bg-[#1a5c35] text-white font-bold flex items-center justify-center text-sm shadow-xs hover:opacity-90 transition-opacity"
-          title="Mon Profil"
-        >
-          {user?.firstName?.charAt(0) || 'I'}
-          {user?.lastName?.charAt(0) || ''}
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            to="/notifications"
+            className="relative p-2 text-[#404941] hover:text-[#004322] hover:bg-emerald-50 rounded-full transition-colors cursor-pointer"
+            title="Notifications"
+            aria-label="Notifications"
+          >
+            <Icon name="notifications" className="text-[24px]" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 bg-[#1a5c35] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/inspector/profile"
+            className="w-10 h-10 rounded-full bg-[#1a5c35] text-white font-bold flex items-center justify-center text-sm shadow-xs hover:opacity-90 transition-opacity"
+            title="Mon Profil"
+          >
+            {user?.firstName?.charAt(0) || 'I'}
+            {user?.lastName?.charAt(0) || ''}
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -350,9 +373,7 @@ function MetricsSection({ stats }: { stats: DashboardStats }) {
         >
           <div className="flex items-center justify-between mb-3">
             <div className={`w-10 h-10 ${card.bgColor} rounded-xl flex items-center justify-center`}>
-              <span className={`material-symbols-outlined text-xl ${card.iconColor}`}>
-                {card.icon}
-              </span>
+              <Icon name={card.icon} className="text-xl ${card.iconColor}" />
             </div>
           </div>
           <div>
@@ -385,7 +406,7 @@ function PendingHarvestsQueue({
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
             <h2 className="text-sm font-bold text-[#0b1c30] flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#1a5c35] text-lg">hourglass_top</span>
+              <Icon name="hourglass_top" className="text-[#1a5c35] text-lg" />
               File des Récoltes (FIFO)
             </h2>
             <p className="text-[11px] text-gray-500">Lots non vérifiés — triés par ancienneté</p>
@@ -403,7 +424,7 @@ function PendingHarvestsQueue({
             </div>
           ) : topHarvests.length === 0 ? (
             <div className="text-center py-8 text-gray-400 space-y-1">
-              <span className="material-symbols-outlined text-3xl">task_alt</span>
+              <Icon name="task_alt" className="text-3xl" />
               <p className="text-xs font-medium text-gray-500">Tous les lots ont été vérifiés !</p>
             </div>
           ) : (
@@ -432,7 +453,7 @@ function PendingHarvestsQueue({
 
                 <span className="text-xs font-bold text-[#1a5c35] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform shrink-0">
                   Traiter
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  <Icon name="arrow_forward" className="text-sm" />
                 </span>
               </div>
             ))
@@ -467,7 +488,7 @@ function ScheduledInspectionsQueue({
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
             <h2 className="text-sm font-bold text-[#0b1c30] flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#1a5c35] text-lg">event_available</span>
+              <Icon name="event_available" className="text-[#1a5c35] text-lg" />
               Visites Planifiées
             </h2>
             <p className="text-[11px] text-gray-500">Prochaines visites terrain programmées</p>
@@ -480,7 +501,7 @@ function ScheduledInspectionsQueue({
         <div className="space-y-3 pt-3">
           {displayVisits.length === 0 ? (
             <div className="text-center py-8 text-gray-400 space-y-1">
-              <span className="material-symbols-outlined text-3xl">event_busy</span>
+              <Icon name="event_busy" className="text-3xl" />
               <p className="text-xs font-medium text-gray-500">Aucune visite programmée à venir</p>
             </div>
           ) : (
@@ -552,7 +573,7 @@ function LoadingState() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
-      <span className="material-symbols-outlined text-4xl text-rose-500">error_outline</span>
+      <Icon name="error_outline" className="text-4xl text-rose-500" />
       <p className="text-sm font-bold text-gray-800">Impossible de charger le tableau de bord</p>
       <button
         onClick={onRetry}

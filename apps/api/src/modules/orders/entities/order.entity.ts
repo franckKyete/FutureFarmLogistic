@@ -9,7 +9,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { OrderStatus, PaymentStatus, DeliveryAddress } from '@futurefarm/types';
+import { OrderStatus, PaymentStatus, type DeliveryAddress } from '@futurefarm/types';
 import { UserEntity } from '../../users/entities/user.entity';
 import { OrderLineEntity } from './order-line.entity';
 import { BidEntity } from '../../auctions/entities/bid.entity';
@@ -58,6 +58,29 @@ export class OrderEntity {
   })
   totalAmount: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'USD' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 1.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
+  @Column({
+    name: 'total_amount_usd',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  totalAmountUSD: number | null;
+
   @Column({
     name: 'cancellation_fee',
     type: 'decimal',
@@ -86,6 +109,9 @@ export class OrderEntity {
   @ManyToOne(() => BidEntity, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'auction_bid_id' })
   auctionBid: BidEntity | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'" })
+  fees: any[];
 
   @OneToMany(() => OrderLineEntity, (line) => line.order, { cascade: true })
   lines: OrderLineEntity[];

@@ -1,58 +1,54 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Icon } from '@/features/shared/components/Icon';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { useState, useEffect, useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth, updateAuthUser } from '@/features/auth/store/auth.store';
 import { changePasswordMutation } from '@/features/auth/api/auth.queries';
 import { useUser, useUpdateUser } from '@/features/admin/api/users.queries';
-import { useMyCenter, useMyCenters } from '@/features/admin/api/inspections.queries';
+import { uploadMediaFile } from '@/features/profile/api/profile.queries';
 import { addToast } from '@/features/shared/store/toast.store';
 import { Button } from '@/features/admin/components';
+import { BuyerHeader } from '@/features/buyer/components/BuyerHeader';
+import { AddressSelector } from '@/features/addresses/components';
 
 export const Route = createFileRoute('/profile')({
-  component: UnifiedProfilePage,
+  component: BuyerProfilePage,
 });
 
-const ROLE_FRENCH: Record<string, string> = {
-  Farmer: 'Producteur',
-  Buyer: 'Acheteur',
-  Inspector: 'Inspecteur',
-  Admin: 'Administrateur',
-  Driver: 'Chauffeur',
-};
-
-function getFrenchRole(roleName: string): string {
-  return ROLE_FRENCH[roleName] ?? roleName;
-}
-
-function UnifiedProfilePage() {
+export function BuyerProfilePage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Redirect role-specific users to their dedicated profile URLs
+  useEffect(() => {
+    if (!user) return;
+    if (user.roles?.includes('Inspector')) {
+      void navigate({ to: '/inspector/profile' });
+    } else if (user.roles?.includes('Driver')) {
+      void navigate({ to: '/driver/profile' });
+    } else if (user.roles?.includes('Farmer') && !user.roles?.includes('Buyer')) {
+      void navigate({ to: '/farmer/profile' });
+    }
+  }, [user, navigate]);
 
   const { data: userDetails, refetch: refetchUser } = useUser(user?.id || '');
-  const { data: myCenter } = useMyCenter();
-  const { data: myCenters = [] } = useMyCenters();
   const updateUser = useUpdateUser();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Form states
-  const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'addresses' | 'security'>('info');
 
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phoneNumber: '',
-    licenseNumber: '',
-    licenseCategory: 'B',
-    agencyName: '',
     companyName: '',
-    regionName: '',
-    address: '',
-    bio: '',
     vatNumber: '',
-    billingAddress: '',
     shippingAddress: '',
+    billingAddress: '',
   });
 
   // Password state
@@ -63,70 +59,55 @@ function UnifiedProfilePage() {
   const changePassword = useMutation({
     ...changePasswordMutation(),
     onSuccess: (data) => {
-      addToast(data.message || 'Mot de passe modifié avec succès.', 'success');
+      addToast(data.message || 'Mot de passe modifié avec succès !', 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       updateAuthUser({ mustChangePassword: false });
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'users', user.id] });
-      }
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || 'Erreur lors du changement de mot de passe.';
-      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+      addToast(err?.response?.data?.message || 'Erreur lors du changement de mot de passe', 'error');
     },
   });
 
+  // Populate formData on fetch
   useEffect(() => {
-    if (!isAuthenticated) {
-      void navigate({ to: '/auth/login' });
-      return;
-    }
-
-    const current = userDetails || user;
-    if (current) {
-      const prof = (current as any).profile || {};
+    if (userDetails) {
+      const prof = (userDetails as any).profile || (userDetails as any).buyerProfile || {};
       setFormData({
-        firstName: current.firstName || '',
-        lastName: current.lastName || '',
-        email: current.email || '',
-        phoneNumber: (current as any).phone || (current as any).phoneNumber || '',
-        licenseNumber: prof.licenseNumber || '',
-        licenseCategory: prof.licenseCategory || 'B',
-        agencyName: prof.agencyName || '',
+        firstName: userDetails.firstName || '',
+        lastName: userDetails.lastName || '',
+        email: userDetails.email || '',
+        phoneNumber: userDetails.phoneNumber || (userDetails as any).phone || '',
         companyName: prof.companyName || '',
-        regionName: prof.regionName || '',
-        address: prof.address || '',
-        bio: prof.bio || '',
         vatNumber: prof.vatNumber || '',
-        billingAddress: prof.billingAddress || '',
         shippingAddress: prof.shippingAddress || '',
+        billingAddress: prof.billingAddress || '',
       });
+    } else if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+      }));
     }
-  }, [userDetails, user, isAuthenticated, navigate]);
+  }, [userDetails, user]);
 
   const handleSaveInfo = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user) return;
 
     updateUser.mutate(
       {
         id: user.id,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
         phoneNumber: formData.phoneNumber,
-        licenseNumber: formData.licenseNumber || undefined,
-        licenseCategory: formData.licenseCategory || undefined,
-        agencyName: formData.agencyName || undefined,
         companyName: formData.companyName || undefined,
-        regionName: formData.regionName || undefined,
-        address: formData.address || undefined,
-        bio: formData.bio || undefined,
         vatNumber: formData.vatNumber || undefined,
-        billingAddress: formData.billingAddress || undefined,
         shippingAddress: formData.shippingAddress || undefined,
+        billingAddress: formData.billingAddress || undefined,
       },
       {
         onSuccess: () => {
@@ -167,20 +148,60 @@ function UnifiedProfilePage() {
     });
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Veuillez sélectionner un fichier image valide (JPG, PNG, WEBP)', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const uploadedUrl = await uploadMediaFile(file);
+      if (user?.id) {
+        await updateUser.mutateAsync({
+          id: user.id,
+          avatarUrl: uploadedUrl,
+        });
+        addToast('Photo de profil mise à jour avec succès !', 'success');
+        updateAuthUser({ avatarUrl: uploadedUrl } as any);
+        void refetchUser();
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Erreur lors du téléchargement de l'image";
+      addToast(msg, 'error');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleLogout = () => {
     clearAuth();
     void navigate({ to: '/auth/login' });
   };
 
-  const primaryRole = user?.roles?.[0] || 'Utilisateur';
+  const currentAvatarUrl = (userDetails as any)?.avatarUrl || (userDetails as any)?.profile?.avatarUrl || user?.avatarUrl;
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8f9ff] pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+      <BuyerHeader title="Mon Profil" showBack backTo="/marketplace" />
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Hidden File Input for Avatar */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleAvatarFileChange}
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+        />
+
         {/* Temporary Password Warning Banner */}
         {user?.mustChangePassword && (
           <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-center gap-3 text-amber-900 shadow-sm animate-slide-in">
-            <span className="material-symbols-outlined text-2xl text-amber-600 shrink-0">warning</span>
+            <Icon name="warning" className="text-2xl text-amber-600 shrink-0" />
             <div className="flex-1 text-xs sm:text-sm">
               <p className="font-bold">Mot de passe temporaire actif</p>
               <p className="text-amber-800">
@@ -199,9 +220,30 @@ function UnifiedProfilePage() {
         {/* Profile Header Card */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-full bg-[#004322] text-white flex items-center justify-center font-bold text-2xl shadow-sm uppercase shrink-0">
-              {user?.firstName?.charAt(0) || 'U'}
-              {user?.lastName?.charAt(0) || ''}
+            <div className="relative group shrink-0">
+              <div className="w-20 h-20 rounded-full bg-[#004322] text-white flex items-center justify-center font-bold text-2xl shadow-sm uppercase overflow-hidden border-2 border-emerald-100">
+                {currentAvatarUrl ? (
+                  <img
+                    src={currentAvatarUrl}
+                    alt={user?.firstName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>
+                    {user?.firstName?.charAt(0) || 'A'}
+                    {user?.lastName?.charAt(0) || ''}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#004322] text-white flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-white disabled:opacity-50"
+                title="Modifier la photo de profil"
+              >
+                <Icon name={isUploadingAvatar ? 'sync' : 'photo_camera'} className="text-sm" />
+              </button>
             </div>
             <div className="text-center sm:text-left">
               <h1 className="text-2xl font-bold text-gray-900">
@@ -210,7 +252,7 @@ function UnifiedProfilePage() {
               <p className="text-sm text-gray-500">{user?.email}</p>
               <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
                 <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-[#004322] uppercase tracking-wider">
-                  {getFrenchRole(primaryRole)}
+                  Acheteur Enregistré
                 </span>
                 <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
                   Compte Actif
@@ -224,7 +266,7 @@ function UnifiedProfilePage() {
             onClick={handleLogout}
             className="px-4 py-2.5 rounded-xl border border-red-200 text-red-700 hover:bg-red-50 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-xs"
           >
-            <span className="material-symbols-outlined text-base">logout</span>
+            <Icon name="logout" className="text-base" />
             Se déconnecter
           </button>
         </div>
@@ -240,8 +282,20 @@ function UnifiedProfilePage() {
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">person</span>
+            <Icon name="person" className="text-lg" />
             Mes informations
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('addresses')}
+            className={`pb-3 px-2 text-sm font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+              activeTab === 'addresses'
+                ? 'border-[#004322] text-[#004322]'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Icon name="location_on" className="text-lg" />
+            Mes adresses
           </button>
           <button
             type="button"
@@ -252,23 +306,32 @@ function UnifiedProfilePage() {
                 : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">lock</span>
+            <Icon name="lock" className="text-lg" />
             Sécurité & Mot de passe
           </button>
+          <Link
+            to="/payment-method"
+            className="pb-3 px-2 text-sm font-bold transition-all border-b-2 border-transparent text-gray-500 hover:text-[#004322] cursor-pointer flex items-center gap-2 ml-auto"
+          >
+            <Icon name="credit_card" className="text-lg" />
+            Moyen de paiement
+          </Link>
         </div>
 
-        {/* Tab 1: Personal & Role Information */}
+        {/* Tab 1: Personal & Buyer Information */}
         {activeTab === 'info' && (
           <form onSubmit={handleSaveInfo} className="space-y-6">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322]">badge</span>
-                Coordonnées générales
+                <Icon name="badge" className="text-[#004322]" />
+                Coordonnées Générales
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Prénom</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Prénom <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.firstName}
@@ -278,7 +341,9 @@ function UnifiedProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Nom</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Nom <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.lastName}
@@ -288,17 +353,20 @@ function UnifiedProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Adresse Email</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Adresse Email <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
+                    disabled
+                    className="w-full px-3.5 py-2.5 border border-gray-200 bg-gray-50 rounded-xl text-sm text-gray-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Numéro de téléphone</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Numéro de téléphone <span className="text-gray-400 font-normal">(Optionnel)</span>
+                  </label>
                   <input
                     type="tel"
                     value={formData.phoneNumber}
@@ -309,245 +377,46 @@ function UnifiedProfilePage() {
                 </div>
               </div>
 
-              {/* Role Specific Section */}
-              {primaryRole === 'Driver' && (
-                <div className="pt-4 border-t border-gray-100 space-y-4">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#004322]">local_shipping</span>
-                    Informations Chauffeur
-                  </h3>
+              <div className="pt-4 border-t border-gray-100 space-y-4">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <Icon name="storefront" className="text-[#004322]" />
+                  Informations Entreprise & Facturation
+                </h3>
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Numéro de Permis</label>
-                      <input
-                        type="text"
-                        value={formData.licenseNumber}
-                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                        placeholder="Non renseigné"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Catégorie</label>
-                      <select
-                        value={formData.licenseCategory}
-                        onChange={(e) => setFormData({ ...formData, licenseCategory: e.target.value })}
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      >
-                        <option value="B">Permis B (Véhicule léger)</option>
-                        <option value="C">Permis C (Poids lourd)</option>
-                        <option value="C1">Permis C1</option>
-                        <option value="CE">Permis CE (Semi-remorque)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {primaryRole === 'Inspector' && (
-                <div className="pt-4 border-t border-gray-100 space-y-5">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#004322]">verified_user</span>
-                    Informations Inspecteur
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Agence / Entreprise</label>
-                      <input
-                        type="text"
-                        value={formData.agencyName}
-                        onChange={(e) => setFormData({ ...formData, agencyName: e.target.value })}
-                        placeholder="Non renseignée"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Numéro d'agrément</label>
-                      <input
-                        type="text"
-                        value={formData.licenseNumber}
-                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                        placeholder="Non renseigné"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Assigned Inspection Centers Card */}
-                  <div className="bg-[#f8f9ff] border border-gray-200 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#004322] text-xl">corporate_fare</span>
-                        <h4 className="text-xs font-bold text-gray-900">Stations d'Inspection Assignées</h4>
-                      </div>
-                      <span className="text-[10px] font-bold bg-emerald-100 text-[#004322] px-2 py-0.5 rounded-full">
-                        {myCenters.length > 0 ? `${myCenters.length} station(s) active(s)` : myCenter ? 'Active' : 'Aucune'}
-                      </span>
-                    </div>
-
-                    {myCenters.length > 0 ? (
-                      <div className="space-y-2 text-xs">
-                        {myCenters.map((center) => (
-                          <div
-                            key={center.id}
-                            className="bg-white border border-gray-200/80 rounded-xl p-3 space-y-1.5"
-                          >
-                            <div className="flex items-center justify-between text-gray-800">
-                              <span className="font-bold">{center.name}</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-[10px] bg-gray-100 px-2 py-0.5 rounded text-[#004322] font-bold">
-                                  {center.code}
-                                </span>
-                                <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                                  {center.regionName}
-                                </span>
-                              </div>
-                            </div>
-                            {center.address && (
-                              <p className="text-gray-500 text-[11px] flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">location_on</span>
-                                {center.address}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                        <div className="pt-2 border-t border-gray-200/60 flex justify-end">
-                          <Link
-                            to="/inspector/my-center"
-                            className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1"
-                          >
-                            Voir les détails de la station →
-                          </Link>
-                        </div>
-                      </div>
-                    ) : myCenter ? (
-                      <div className="space-y-2 text-xs">
-                        <div className="flex items-center justify-between text-gray-700">
-                          <span className="font-semibold">{myCenter.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-[#004322] font-bold">
-                              {myCenter.code}
-                            </span>
-                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                              {myCenter.regionName}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-gray-500 text-[11px] flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">location_on</span>
-                          {myCenter.address}
-                        </p>
-                        <div className="pt-2 border-t border-gray-200/60 flex justify-end">
-                          <Link
-                            to="/inspector/my-center"
-                            className="text-xs font-bold text-[#004322] hover:underline flex items-center gap-1"
-                          >
-                            Voir les détails de la station →
-                          </Link>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500 italic">
-                        Aucun centre d'inspection assigné pour le moment.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {primaryRole === 'Farmer' && (
-                <div className="pt-4 border-t border-gray-100 space-y-4">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#004322]">agriculture</span>
-                    Informations Exploitation
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nom de l'exploitation</label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nom de l'entreprise (optionnel)</label>
                       <input
                         type="text"
                         value={formData.companyName}
                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        placeholder="Ex: SARL Agro Import"
+                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">N° TVA / Registre du commerce</label>
+                      <input
+                        type="text"
+                        value={formData.vatNumber}
+                        onChange={(e) => setFormData({ ...formData, vatNumber: e.target.value })}
                         placeholder="Non renseigné"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Région d'activité</label>
-                      <input
-                        type="text"
-                        value={formData.regionName}
-                        onChange={(e) => setFormData({ ...formData, regionName: e.target.value })}
-                        placeholder="Ex: Dakar, Thiès..."
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Adresse de la ferme</label>
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Non renseignée"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Présentation / Bio</label>
-                      <textarea
-                        rows={3}
-                        value={formData.bio}
-                        onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                        placeholder="Non renseignée"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
+                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
                       />
                     </div>
                   </div>
-                </div>
-              )}
-
-              {primaryRole === 'Buyer' && (
-                <div className="pt-4 border-t border-gray-100 space-y-4">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#004322]">storefront</span>
-                    Informations Entreprise & Livraison
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Nom de l'entreprise</label>
-                        <input
-                          type="text"
-                          value={formData.companyName}
-                          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                          placeholder="Non renseigné"
-                          className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">N° TVA / Registre</label>
-                        <input
-                          type="text"
-                          value={formData.vatNumber}
-                          onChange={(e) => setFormData({ ...formData, vatNumber: e.target.value })}
-                          placeholder="Non renseigné"
-                          className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Adresse de livraison</label>
-                      <input
-                        type="text"
-                        value={formData.shippingAddress}
-                        onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
-                        placeholder="Non renseignée"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Adresse de livraison par défaut</label>
+                    <input
+                      type="text"
+                      value={formData.shippingAddress}
+                      onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
+                      placeholder="Non renseignée"
+                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#004322]/20 focus:border-[#004322]"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="pt-4 flex justify-end">
                 <Button
@@ -563,12 +432,30 @@ function UnifiedProfilePage() {
           </form>
         )}
 
-        {/* Tab 2: Security & Change Password */}
+        {/* Tab 2: Saved Addresses */}
+        {activeTab === 'addresses' && (
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+            <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+              <Icon name="location_on" className="text-[#004322]" />
+              Carnet d'adresses
+            </h2>
+            <p className="text-xs text-gray-500">
+              Gérez vos adresses de livraison et d'enlèvement enregistrées.
+            </p>
+            <AddressSelector
+              onSelectAddress={() => {}}
+              title="Mes adresses enregistrées"
+              showActions
+            />
+          </div>
+        )}
+
+        {/* Tab 3: Security & Change Password */}
         {activeTab === 'security' && (
           <form onSubmit={handleChangePasswordSubmit} className="space-y-6">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004322]">lock</span>
+                <Icon name="lock" className="text-[#004322]" />
                 Changer de mot de passe
               </h2>
 

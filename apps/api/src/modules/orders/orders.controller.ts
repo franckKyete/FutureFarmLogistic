@@ -6,13 +6,20 @@ import {
   Body,
   Query,
   UseGuards,
+  Res,
+  Req,
+  Headers,
+  RawBodyRequest,
+  BadRequestException,
 } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Permission, AuthUser } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { OrdersService } from './orders.service';
 import { RejectOrderLineDto } from './dto/reject-order-line.dto';
 
@@ -43,10 +50,33 @@ export class OrdersController {
     return this.ordersService.listAllOrdersAdmin(options);
   }
 
+  @Public()
   @Post('payments/confirm')
   @ApiOperation({ summary: 'Confirm order payment via gateway reference' })
   confirmPayment(@Query('paymentRef') paymentRef: string) {
     return this.ordersService.confirmPayment(paymentRef);
+  }
+
+  @Public()
+  @Post('payments/pawapay/callback')
+  @ApiOperation({ summary: 'PawaPay webhook callback handler' })
+  async pawapayCallback(@Body() body: any) {
+    return this.ordersService.handlePawaPayCallback(body);
+  }
+
+  @Public()
+  @Post('payments/stripe/webhook')
+  @ApiOperation({ summary: 'Stripe webhook listener' })
+  async stripeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    if (!req.rawBody) {
+      throw new BadRequestException(
+        'Raw request body is required for Stripe signature verification',
+      );
+    }
+    return this.ordersService.handleStripeWebhook(req.rawBody, signature);
   }
 
   @Get()
@@ -63,27 +93,67 @@ export class OrdersController {
     return this.ordersService.getOrderForUser(id, user.id, user.permissions);
   }
 
+  @Post(':id/retry-payment')
+  @RequirePermissions(Permission.ORDER_READ)
+  @ApiOperation({ summary: 'Retry payment for an unpaid order' })
+  retryPayment(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.ordersService.retryPayment(id, user.id, user.permissions);
+  }
+
+  @Get(':id/pdf')
+  @RequirePermissions(Permission.ORDER_READ)
+  @ApiOperation({ summary: 'Generate and download purchase order (bon de commande) PDF' })
+  async getOrderPdf(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.ordersService.generateOrderPdf(
+      id,
+      user.id,
+      user.permissions,
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="bon-de-commande-${id.slice(0, 8).toUpperCase()}.pdf"`,
+    );
+    res.send(pdfBuffer);
+  }
+
+  @Get(':id/pdf-url')
+  @RequirePermissions(Permission.ORDER_READ)
+  @ApiOperation({ summary: 'Get secured S3 signed URL for purchase order PDF' })
+  async getOrderPdfUrl(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.ordersService.getOrderPdfSignedUrl(id, user.id, user.permissions);
+  }
+
   @Post(':id/confirm-line/:lineId')
   @RequirePermissions(Permission.ORDER_CONFIRM)
   @ApiOperation({ summary: 'Farmer: Confirm a specific order line' })
-  confirmLine(
+  async confirmLine(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Param('lineId') lineId: string,
   ) {
-    return this.ordersService.confirmOrderLine(user.id, id, lineId);
+    await this.ordersService.confirmOrderLine(user.id, id, lineId);
+    return this.ordersService.getOrderForUser(id, user.id, user.permissions);
   }
 
   @Post(':id/reject-line/:lineId')
   @RequirePermissions(Permission.ORDER_REJECT)
   @ApiOperation({ summary: 'Farmer: Reject a specific order line' })
-  rejectLine(
+  async rejectLine(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Param('lineId') lineId: string,
     @Body() dto: RejectOrderLineDto,
   ) {
-    return this.ordersService.rejectOrderLine(user.id, id, lineId, dto);
+    await this.ordersService.rejectOrderLine(user.id, id, lineId, dto);
+    return this.ordersService.getOrderForUser(id, user.id, user.permissions);
   }
 
   @Post(':id/ship')

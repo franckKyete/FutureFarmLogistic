@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useMemo } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -195,9 +196,7 @@ function LogisticsPage() {
   if (errorRuns || errorDrivers) {
     return (
       <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 p-8">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
-          error_outline
-        </span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)] mb-4" />
         <p className="text-lg font-medium text-[var(--admin-on-surface)] mb-1">
           Erreur de chargement
         </p>

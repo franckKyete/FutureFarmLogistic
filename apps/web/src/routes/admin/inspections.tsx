@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
@@ -139,7 +140,7 @@ function InspectionsPage() {
         const percentage = row.aiPreScreenScore !== null ? Math.round(row.aiPreScreenScore * 10) : null;
         return (
           <div className="flex items-center gap-1.5 font-bold text-emerald-600">
-            <span className="material-symbols-outlined text-base">verified</span>
+            <Icon name="verified" className="text-base" />
             <span>{percentage !== null ? `${percentage}%` : '—'}</span>
           </div>
         );
@@ -164,9 +165,7 @@ function InspectionsPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-[var(--admin-outline-variant)]/40 p-8">
-        <span className="material-symbols-outlined text-5xl text-[var(--admin-error)] mb-4">
-          error_outline
-        </span>
+        <Icon name="error_outline" className="text-5xl text-[var(--admin-error)] mb-4" />
         <p className="text-lg font-medium text-[var(--admin-on-surface)] mb-1">
           Erreur de chargement
         </p>

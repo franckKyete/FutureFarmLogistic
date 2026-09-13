@@ -11,8 +11,11 @@ import { InspectionCenterEntity } from '../inspections/entities/inspection-cente
 import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrdersModule } from '../orders/orders.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+
+import { AddressesModule } from '../addresses/addresses.module';
 
 @Module({
   imports: [
@@ -28,6 +31,8 @@ import { UsersService } from './users.service';
       InspectorCenterAssignmentEntity,
     ]),
     NotificationsModule,
+    OrdersModule,
+    AddressesModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

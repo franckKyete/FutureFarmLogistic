@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsUUID, IsDateString, IsObject } from 'class-validator';
-import {
+import type {
   CreateInspectionReportDto,
   InspectionChecklist,
 } from '@futurefarm/types';

@@ -15,6 +15,7 @@ import { VisitEntity } from '../visits/entities/visit.entity';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { AuthModule } from '../auth/auth.module';
+import { CurrenciesModule } from '../currencies/currencies.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
     ConfigModule,
     AuthModule,
+    CurrenciesModule,
     NotificationsModule,
   ],
   controllers: [ProductsController],

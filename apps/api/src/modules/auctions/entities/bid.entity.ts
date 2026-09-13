@@ -41,6 +41,19 @@ export class BidEntity {
   })
   priceAtBid: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'CDF' })
+  currency: string;
+
+  @Column({
+    name: 'exchange_rate',
+    type: 'decimal',
+    precision: 16,
+    scale: 6,
+    default: 2300.0,
+    transformer: numericTransformer,
+  })
+  exchangeRate: number;
+
   @Column({
     name: 'quantity_won',
     type: 'decimal',
@@ -49,6 +62,19 @@ export class BidEntity {
     transformer: numericTransformer,
   })
   quantityWon: number;
+
+  @Column({
+    name: 'auto_bid_max_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  autoBidMaxPrice: number | null;
+
+  @Column({ name: 'is_auto_bid', type: 'boolean', default: false })
+  isAutoBid: boolean;
 
   @Column({
     type: 'enum',
@@ -60,6 +86,9 @@ export class BidEntity {
   @Index()
   @Column({ name: 'order_id', type: 'uuid', nullable: true })
   orderId: string | null;
+
+  @Column({ name: 'delivery_address', type: 'jsonb', nullable: true })
+  deliveryAddress: any | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -34,3 +34,14 @@ export const confirmPaymentMutation = () => ({
     return data.data;
   },
 });
+
+export const retryPaymentMutation = () => ({
+  mutationFn: async (
+    orderId: string,
+  ): Promise<{ order: OrderDto; paymentUrl?: string }> => {
+    const { data } = await apiClient.post<{
+      data: { order: OrderDto; paymentUrl?: string };
+    }>(`/orders/${orderId}/retry-payment`);
+    return data.data;
+  },
+});

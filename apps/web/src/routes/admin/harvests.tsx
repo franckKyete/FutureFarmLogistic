@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useMemo } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -102,7 +103,7 @@ function HarvestValidationPage() {
               />
             ) : (
               <div className="w-12 h-12 rounded-lg bg-[var(--admin-primary-container)]/10 flex items-center justify-center text-[var(--admin-primary)] shrink-0">
-                <span className="material-symbols-outlined text-xl">grass</span>
+                <Icon name="grass" className="text-xl" />
               </div>
             )}
             <div>
@@ -297,7 +298,7 @@ function HarvestValidationPage() {
                 />
               ) : (
                 <div className="w-16 h-16 rounded-lg bg-[var(--admin-primary-container)]/10 flex items-center justify-center text-[var(--admin-primary)] shrink-0">
-                  <span className="material-symbols-outlined text-2xl">grass</span>
+                  <Icon name="grass" className="text-2xl" />
                 </div>
               )}
               <div>

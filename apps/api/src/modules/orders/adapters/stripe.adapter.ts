@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderEntity } from '../entities/order.entity';
-import { PaymentGatewayPort } from '../interfaces/payment-gateway.port';
-import { PaymentInitResult, PaymentConfirmResult, PaymentStatus } from '@futurefarm/types';
+import type { PaymentGatewayPort } from '../interfaces/payment-gateway.port';
+import { PaymentInitResult, PaymentConfirmResult, PaymentStatus, PaymentOptions } from '@futurefarm/types';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -18,9 +18,7 @@ export class StripePaymentGateway implements PaymentGatewayPort {
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY is not defined. Stripe operations will fail.');
     }
-    this.stripe = new Stripe(secretKey || '', {
-      apiVersion: '2025-02-18-or-whatever' as any, // Using the library default
-    });
+    this.stripe = new Stripe(secretKey || '');
     this.currency = this.configService.get<string>('STRIPE_CURRENCY', 'usd');
     
     // Default success/cancel URLs pointing to local web app if not configured
@@ -29,19 +27,26 @@ export class StripePaymentGateway implements PaymentGatewayPort {
     this.cancelUrl = this.configService.get<string>('STRIPE_CANCEL_URL', `${defaultOrigin}/checkout`);
   }
 
-  async initiatePayment(order: OrderEntity, amount: number): Promise<PaymentInitResult> {
-    this.logger.log(`Initiating Stripe payment of ${amount} ${this.currency} for order ${order.id}`);
+  async initiatePayment(
+    order: OrderEntity,
+    amount: number,
+    _options?: PaymentOptions,
+  ): Promise<PaymentInitResult> {
+    const paymentCurrency = (order.currency || this.currency || 'USD').toLowerCase();
+    this.logger.log(`Initiating Stripe payment of ${amount} ${paymentCurrency.toUpperCase()} for order ${order.id}`);
 
     try {
-      // Amount in cents/smallest currency unit
-      const unitAmount = Math.round(amount * 100);
+      // Smallest currency unit (cents for USD/EUR, whole unit for zero-decimal currencies like XOF/XAF/RWF/UGX)
+      const zeroDecimalCurrencies = ['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(paymentCurrency);
+      const unitAmount = isZeroDecimal ? Math.round(amount) : Math.round(amount * 100);
 
       const session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
           {
             price_data: {
-              currency: this.currency,
+              currency: paymentCurrency,
               product_data: {
                 name: `FutureFarm Order #${order.id.slice(0, 8)}`,
                 description: `Payment for crop harvests`,
@@ -61,6 +66,7 @@ export class StripePaymentGateway implements PaymentGatewayPort {
         gatewayRef: session.id,
         status: PaymentStatus.PENDING,
         metadata: {
+          provider: 'stripe',
           stripeSessionId: session.id,
           paymentIntentId: typeof session.payment_intent === 'string'
             ? session.payment_intent
@@ -80,24 +86,68 @@ export class StripePaymentGateway implements PaymentGatewayPort {
   }
 
   async confirmPayment(paymentRef: string): Promise<PaymentConfirmResult> {
-    this.logger.log(`Confirming Stripe payment for session ${paymentRef}`);
+    this.logger.log(`Confirming Stripe payment for reference ${paymentRef}`);
 
     try {
-      const session = await this.stripe.checkout.sessions.retrieve(paymentRef);
-      const isPaid = session.payment_status === 'paid';
+      // 1. PaymentIntent flow (e.g. auction won off-session charge)
+      if (paymentRef.startsWith('pi_')) {
+        const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentRef);
+        const isPaid = paymentIntent.status === 'succeeded';
+        return {
+          success: isPaid,
+          pending: paymentIntent.status === 'processing' || paymentIntent.status === 'requires_action',
+          gatewayRef: paymentRef,
+          metadata: {
+            paymentIntentId: paymentIntent.id,
+            status: paymentIntent.status,
+            amountReceived: paymentIntent.amount_received,
+          },
+        };
+      }
 
-      const result: PaymentConfirmResult = {
-        success: isPaid,
-        gatewayRef: paymentRef,
-        metadata: {
-          paymentStatus: session.payment_status,
-          status: session.status,
-          paymentIntentId: typeof session.payment_intent === 'string'
-            ? session.payment_intent
-            : session.payment_intent?.id,
-        },
-      };
-      return result;
+      // 2. Checkout Session flow (default marketplace cart checkout)
+      let session: Stripe.Checkout.Session | null = null;
+      try {
+        session = await this.stripe.checkout.sessions.retrieve(paymentRef);
+      } catch (sessionErr: any) {
+        // Fallback: Check if paymentRef is a PaymentIntent if not starting with pi_
+        try {
+          const pi = await this.stripe.paymentIntents.retrieve(paymentRef);
+          if (pi) {
+            return {
+              success: pi.status === 'succeeded',
+              pending: pi.status === 'processing' || pi.status === 'requires_action',
+              gatewayRef: paymentRef,
+              metadata: {
+                paymentIntentId: pi.id,
+                status: pi.status,
+              },
+            };
+          }
+        } catch {
+          // Re-throw original sessionErr if fallback fails
+          throw sessionErr;
+        }
+      }
+
+      if (session) {
+        const isPaid = session.payment_status === 'paid';
+
+        const result: PaymentConfirmResult = {
+          success: isPaid,
+          gatewayRef: paymentRef,
+          metadata: {
+            paymentStatus: session.payment_status,
+            status: session.status,
+            paymentIntentId: typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : session.payment_intent?.id,
+          },
+        };
+        return result;
+      }
+
+      throw new Error(`Unable to retrieve Stripe session or payment intent for ${paymentRef}`);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       const errStack = error instanceof Error ? error.stack : undefined;
@@ -114,13 +164,19 @@ export class StripePaymentGateway implements PaymentGatewayPort {
     this.logger.log(`Refunding Stripe payment ${paymentRef} with amount ${amount} ${this.currency}`);
 
     try {
-      const session = await this.stripe.checkout.sessions.retrieve(paymentRef);
-      const paymentIntentId = typeof session.payment_intent === 'string'
-        ? session.payment_intent
-        : (session.payment_intent as any)?.id;
+      let paymentIntentId: string | undefined;
+
+      if (paymentRef.startsWith('pi_')) {
+        paymentIntentId = paymentRef;
+      } else {
+        const session = await this.stripe.checkout.sessions.retrieve(paymentRef);
+        paymentIntentId = typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : (session.payment_intent as any)?.id;
+      }
 
       if (!paymentIntentId) {
-        throw new Error('No PaymentIntent associated with checkout session to refund.');
+        throw new Error('No PaymentIntent associated with payment reference to refund.');
       }
 
       await this.stripe.refunds.create({
@@ -128,12 +184,227 @@ export class StripePaymentGateway implements PaymentGatewayPort {
         amount: Math.round(amount * 100),
       });
 
-      this.logger.log(`Successfully refunded ${amount} for session ${paymentRef}`);
+      this.logger.log(`Successfully refunded ${amount} for reference ${paymentRef}`);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       const errStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`Stripe refund failed: ${errMsg}`, errStack);
       throw error;
     }
+  }
+
+  constructWebhookEvent(rawBody: Buffer | string, signature: string): Stripe.Event {
+    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      throw new BadRequestException('STRIPE_WEBHOOK_SECRET is not configured');
+    }
+    return this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+  }
+
+  async createCustomer(params: {
+    email: string;
+    name?: string;
+    userId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<Stripe.Customer> {
+    const createParams: Stripe.CustomerCreateParams = {
+      email: params.email,
+    };
+    if (params.name) {
+      createParams.name = params.name;
+    }
+    if (params.metadata || params.userId) {
+      createParams.metadata = {
+        ...(params.userId ? { userId: params.userId } : {}),
+        ...(params.metadata || {}),
+      };
+    }
+    return this.stripe.customers.create(createParams);
+  }
+
+  async createSetupIntent(
+    customerId: string,
+  ): Promise<{ clientSecret: string; customerId: string }> {
+    const setupIntent = await this.stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+    });
+
+    if (!setupIntent.client_secret) {
+      throw new BadRequestException('Failed to create Stripe SetupIntent client secret');
+    }
+
+    return {
+      clientSecret: setupIntent.client_secret,
+      customerId,
+    };
+  }
+
+  async attachPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+  ): Promise<{
+    id: string;
+    brand: string | null;
+    last4: string | null;
+    expMonth: number | null;
+    expYear: number | null;
+  }> {
+    // Attach payment method to customer
+    const paymentMethod = await this.stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
+
+    // Set as default payment method on the customer invoice settings
+    await this.stripe.customers.update(customerId, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
+    });
+
+    return {
+      id: paymentMethod.id,
+      brand: paymentMethod.card?.brand || null,
+      last4: paymentMethod.card?.last4 || null,
+      expMonth: paymentMethod.card?.exp_month || null,
+      expYear: paymentMethod.card?.exp_year || null,
+    };
+  }
+
+  async detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    return this.stripe.paymentMethods.detach(paymentMethodId);
+  }
+
+  async createSetupCheckoutSession(params: {
+    customerId: string;
+    successUrl: string;
+    cancelUrl: string;
+    userId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<{ sessionId: string; sessionUrl: string }> {
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: 'setup',
+      customer: params.customerId,
+      payment_method_types: ['card'],
+      success_url: `${params.successUrl}${params.successUrl.includes('?') ? '&' : '?'}setup_session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: params.cancelUrl,
+      metadata: {
+        userId: params.userId || '',
+        purpose: 'save_card',
+        ...(params.metadata || {}),
+      },
+    };
+
+    if (params.userId) {
+      sessionParams.client_reference_id = params.userId;
+    }
+
+    const session = await this.stripe.checkout.sessions.create(sessionParams);
+
+    if (!session.url) {
+      throw new BadRequestException('Failed to create Stripe Checkout Setup session URL');
+    }
+
+    return {
+      sessionId: session.id,
+      sessionUrl: session.url,
+    };
+  }
+
+  async confirmSetupCheckoutSession(sessionId: string): Promise<{
+    paymentMethodId: string;
+    brand: string | null;
+    last4: string | null;
+    expMonth: number | null;
+    expYear: number | null;
+    customerId: string;
+    userId?: string;
+  }> {
+    const session = await this.stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['setup_intent', 'setup_intent.payment_method'],
+    });
+
+    const setupIntent = session.setup_intent as Stripe.SetupIntent;
+    if (!setupIntent) {
+      throw new BadRequestException('No SetupIntent associated with this checkout session');
+    }
+
+    const paymentMethod = setupIntent.payment_method as Stripe.PaymentMethod;
+    if (!paymentMethod) {
+      throw new BadRequestException('No PaymentMethod attached to SetupIntent');
+    }
+
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+    if (customerId) {
+      await this.stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethod.id,
+        },
+      });
+    }
+
+    const result: {
+      paymentMethodId: string;
+      brand: string | null;
+      last4: string | null;
+      expMonth: number | null;
+      expYear: number | null;
+      customerId: string;
+      userId?: string;
+    } = {
+      paymentMethodId: paymentMethod.id,
+      brand: paymentMethod.card?.brand || null,
+      last4: paymentMethod.card?.last4 || null,
+      expMonth: paymentMethod.card?.exp_month || null,
+      expYear: paymentMethod.card?.exp_year || null,
+      customerId: customerId || '',
+    };
+
+    const resolvedUserId = session.client_reference_id || session.metadata?.userId;
+    if (resolvedUserId) {
+      result.userId = resolvedUserId;
+    }
+
+    return result;
+  }
+
+  async chargeSavedCard(params: {
+    customerId: string;
+    paymentMethodId: string;
+    amount: number;
+    currency: string;
+    description?: string;
+    orderId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<Stripe.PaymentIntent> {
+    const { customerId, paymentMethodId, amount, currency, description, orderId, metadata } = params;
+    const paymentCurrency = (currency || this.currency || 'USD').toLowerCase();
+
+    const zeroDecimalCurrencies = [
+      'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof',
+    ];
+    const unitMultiplier = zeroDecimalCurrencies.includes(paymentCurrency) ? 1 : 100;
+    const stripeAmount = Math.round(amount * unitMultiplier);
+
+    const intentParams: Stripe.PaymentIntentCreateParams = {
+      amount: stripeAmount,
+      currency: paymentCurrency,
+      customer: customerId,
+      payment_method: paymentMethodId,
+      off_session: true,
+      confirm: true,
+    };
+
+    if (description) {
+      intentParams.description = description;
+    }
+    if (orderId || metadata) {
+      intentParams.metadata = {
+        ...(orderId ? { orderId } : {}),
+        ...(metadata || {}),
+      };
+    }
+
+    return this.stripe.paymentIntents.create(intentParams);
   }
 }

@@ -148,12 +148,14 @@ export interface UpdateUserParams {
   companyName?: string | undefined;
   regionName?: string | undefined;
   address?: string | undefined;
+  addressDetails?: any;
   bio?: string | undefined;
   vatNumber?: string | undefined;
   billingAddress?: string | undefined;
   shippingAddress?: string | undefined;
   isCertified?: boolean | undefined;
   avatarUrl?: string | undefined;
+  bannerUrl?: string | undefined;
   inspectionCenterIds?: string[] | undefined;
 }
 

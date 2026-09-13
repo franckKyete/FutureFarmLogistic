@@ -213,7 +213,15 @@ describe('InspectionsService', () => {
   });
 
   describe('submitReport', () => {
-    it('should submit report and approve harvest if score >= 4.0', async () => {
+    const passingChecklist = {
+      [InspectionChecklistItem.VISUAL_QUALITY]: { passed: true, notes: 'OK' },
+      [InspectionChecklistItem.MICROBIAL_COUNT]: { passed: true, notes: 'OK' },
+      [InspectionChecklistItem.WEIGHT_CALIBRATION]: { passed: true, notes: 'OK' },
+      [InspectionChecklistItem.PACKAGING]: { passed: true, notes: 'OK' },
+      [InspectionChecklistItem.LABELING]: { passed: true, notes: 'OK' },
+    };
+
+    it('should submit report and approve harvest if score >= 4.0 and all checklist items passed', async () => {
       inspectorProfileRepo.findOne.mockResolvedValue({
         id: 'prof-id',
         isActiveInspector: true,
@@ -223,6 +231,7 @@ describe('InspectionsService', () => {
         status: InspectionStatus.IN_PROGRESS,
         inspectorProfileId: 'prof-id',
         harvestId: 'harvest-id',
+        checklist: passingChecklist,
       } as InspectionReportEntity);
       harvestRepo.findOne.mockResolvedValue({
         id: 'harvest-id',
@@ -233,10 +242,41 @@ describe('InspectionsService', () => {
       const res = await service.submitReport('report-id', 'user-id', {
         finalQualityScore: 8.5,
         overallNotes: 'Passed cleanly',
+        checklist: passingChecklist,
       });
 
       expect(res.status).toBe(InspectionStatus.SUBMITTED);
       expect(res.finalQualityScore).toBe(8.5);
+    });
+
+    it('should throw BadRequestException if score >= 4.0 but some checklist item is not passed', async () => {
+      const failingChecklist = {
+        ...passingChecklist,
+        [InspectionChecklistItem.MICROBIAL_COUNT]: { passed: false, notes: 'Mold detected' },
+      };
+
+      inspectorProfileRepo.findOne.mockResolvedValue({
+        id: 'prof-id',
+        isActiveInspector: true,
+      } as InspectorProfileEntity);
+      reportRepo.findOne.mockResolvedValue({
+        id: 'report-id',
+        status: InspectionStatus.IN_PROGRESS,
+        inspectorProfileId: 'prof-id',
+        harvestId: 'harvest-id',
+        checklist: failingChecklist,
+      } as InspectionReportEntity);
+      harvestRepo.findOne.mockResolvedValue({
+        id: 'harvest-id',
+      } as HarvestEntity);
+
+      await expect(
+        service.submitReport('report-id', 'user-id', {
+          finalQualityScore: 8.5,
+          overallNotes: 'Looks good otherwise',
+          checklist: failingChecklist,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject report and harvest if score < 4.0', async () => {
@@ -249,6 +289,7 @@ describe('InspectionsService', () => {
         status: InspectionStatus.IN_PROGRESS,
         inspectorProfileId: 'prof-id',
         harvestId: 'harvest-id',
+        checklist: passingChecklist,
       } as InspectionReportEntity);
       harvestRepo.findOne.mockResolvedValue({
         id: 'harvest-id',

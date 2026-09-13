@@ -15,19 +15,21 @@ import {
   ProductCategory,
   HarvestStatus,
   InspectionStatus,
-  InspectionChecklist,
+  type InspectionChecklist,
   InspectionChecklistItem,
-  AuthUser,
-  AiSuggestHarvestResponseDto,
+  type AuthUser,
+  type AiSuggestHarvestResponseDto,
   VisitStatus,
   NotificationChannel,
   NotificationPriority,
 } from '@futurefarm/types';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { ProductEntity } from './entities/product.entity';
 import { HarvestEntity } from './entities/harvest.entity';
 import { FarmerProfileEntity } from '../users/entities/farmer-profile.entity';
 import { ParcelEntity } from '../users/entities/parcel.entity';
+import { CurrenciesService } from '../currencies/currencies.service';
 import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 import { InspectorProfileEntity } from '../inspections/entities/inspector-profile.entity';
 import { InspectionReportEntity } from '../inspections/entities/inspection-report.entity';
@@ -142,8 +144,50 @@ export class ProductsService {
     private readonly visitRepository: Repository<VisitEntity>,
     private readonly configService: ConfigService,
     @Optional()
+    private readonly currenciesService?: CurrenciesService,
+    @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly storageService?: StorageService,
   ) {}
+
+  /**
+   * Hydrates harvest photos, avatar and banner URLs with valid signed URLs
+   */
+  async hydrateHarvest(harvest: HarvestEntity): Promise<HarvestEntity> {
+    if (!harvest) return harvest;
+    if (this.storageService) {
+      if (harvest.photoUrls && Array.isArray(harvest.photoUrls) && harvest.photoUrls.length > 0) {
+        harvest.photoUrls = await Promise.all(
+          harvest.photoUrls.map((p) => this.storageService!.getSignedUrl(p)),
+        );
+      }
+      if (harvest.farmerProfile?.avatarUrl) {
+        harvest.farmerProfile.avatarUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.avatarUrl,
+        );
+      }
+      if (harvest.farmerProfile?.bannerUrl) {
+        harvest.farmerProfile.bannerUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.bannerUrl,
+        );
+      }
+      if (harvest.farmerProfile?.user?.avatarUrl) {
+        harvest.farmerProfile.user.avatarUrl = await this.storageService.getSignedUrl(
+          harvest.farmerProfile.user.avatarUrl,
+        );
+      }
+    }
+    return harvest;
+  }
+
+  /**
+   * Hydrates an array of harvests concurrently
+   */
+  async hydrateHarvests(harvests: HarvestEntity[]): Promise<HarvestEntity[]> {
+    if (!harvests || !this.storageService) return harvests;
+    return Promise.all(harvests.map((h) => this.hydrateHarvest(h)));
+  }
 
   // =============================================================================
   // Product Crop Templates
@@ -299,8 +343,21 @@ export class ProductsService {
       }
     }
 
+    const targetCurrency = dto.currency || 'CDF';
+    let currency = 'CDF';
+    let exchangeRate = 2300.0;
+    if (this.currenciesService) {
+      const snap = await this.currenciesService.getRateSnapshot(targetCurrency);
+      currency = snap.currency;
+      exchangeRate = snap.exchangeRate;
+    }
+    const pricePerUnitUSD = Number((dto.pricePerUnit / exchangeRate).toFixed(2));
+
     const harvest = this.harvestRepository.create({
       ...dto,
+      currency,
+      exchangeRate,
+      pricePerUnitUSD,
       farmerProfileId: farmerProfile.id,
       status: HarvestStatus.PENDING_APPROVAL,
     });
@@ -312,7 +369,7 @@ export class ProductsService {
       void this.notifyRegionalInspectors(farmerProfile, product, savedHarvest);
     }
 
-    return savedHarvest;
+    return this.hydrateHarvest(savedHarvest);
   }
 
   private async notifyRegionalInspectors(
@@ -512,7 +569,7 @@ export class ProductsService {
       }
     }
 
-    return savedHarvest;
+    return this.hydrateHarvest(savedHarvest);
   }
 
   async updateHarvest(
@@ -539,10 +596,22 @@ export class ProductsService {
       await this.validateInspectorRegionalAccess(userId, farmerProfile);
     }
 
+    if (dto.currency || dto.pricePerUnit !== undefined) {
+      const targetCurrency = dto.currency || harvest.currency || 'CDF';
+      let exchangeRate = harvest.exchangeRate || 2300.0;
+      if (this.currenciesService && dto.currency) {
+        const snap = await this.currenciesService.getRateSnapshot(targetCurrency);
+        harvest.currency = snap.currency;
+        harvest.exchangeRate = snap.exchangeRate;
+        exchangeRate = snap.exchangeRate;
+      }
+      const price = dto.pricePerUnit !== undefined ? dto.pricePerUnit : harvest.pricePerUnit;
+      harvest.pricePerUnitUSD = Number((price / exchangeRate).toFixed(2));
+    }
+
     // Only reset status to PENDING_APPROVAL when a farmer directly modifies their batch.
     // When an inspector adjusts details via proxy during inspection/audit, preserve the current status (e.g. FLAGGED_PHYSICAL).
     const newStatus = isProxy ? harvest.status : HarvestStatus.PENDING_APPROVAL;
-
     Object.assign(harvest, {
       ...dto,
       status: newStatus,
@@ -551,19 +620,20 @@ export class ProductsService {
       rejectionReason: isProxy ? harvest.rejectionReason : null,
     });
 
-    return this.harvestRepository.save(harvest);
+    const savedHarvest = await this.harvestRepository.save(harvest);
+    return this.hydrateHarvest(savedHarvest);
   }
 
   async findHarvestById(id: string): Promise<HarvestEntity> {
     const harvest = await this.harvestRepository.findOne({
       where: { id },
-      relations: ['product', 'farmerProfile'],
+      relations: ['product', 'farmerProfile', 'farmerProfile.user', 'parcel'],
     });
 
     if (!harvest) {
       throw new NotFoundException(`Harvest batch with ID "${id}" not found.`);
     }
-    return harvest;
+    return this.hydrateHarvest(harvest);
   }
 
   async deleteHarvest(
@@ -725,16 +795,17 @@ export class ProductsService {
 
     // Map public views to apply the stock safety margin buffer
     if (options.isPublicView) {
-      return harvests.map((h) => {
+      const mapped = harvests.map((h) => {
         h.quantityInStock = Math.max(
           0,
           Number(h.quantityInStock) - Number(h.stockMarge),
         );
         return h;
       });
+      return this.hydrateHarvests(mapped);
     }
 
-    return harvests;
+    return this.hydrateHarvests(harvests);
   }
 
   async verifyHarvest(
@@ -842,7 +913,7 @@ export class ProductsService {
       }
     }
 
-    return savedHarvest;
+    return this.hydrateHarvest(savedHarvest);
   }
 
   // =============================================================================
@@ -852,6 +923,10 @@ export class ProductsService {
   async getDecayedPrice(id: string): Promise<{
     basePrice: number;
     decayedPrice: number;
+    basePriceUSD: number;
+    decayedPriceUSD: number;
+    currency: string;
+    exchangeRate: number;
     multiplier: number;
     daysRemaining: number;
   }> {
@@ -885,11 +960,20 @@ export class ProductsService {
     }
 
     const basePrice = Number(harvest.pricePerUnit);
+    const exchangeRate = Number(harvest.exchangeRate) || 1.0;
+    const basePriceUSD = harvest.pricePerUnitUSD !== null && harvest.pricePerUnitUSD !== undefined
+      ? Number(harvest.pricePerUnitUSD)
+      : Number((basePrice / exchangeRate).toFixed(2));
     const decayedPrice = Number((basePrice * multiplier).toFixed(2));
+    const decayedPriceUSD = Number((basePriceUSD * multiplier).toFixed(2));
 
     return {
       basePrice,
       decayedPrice,
+      basePriceUSD,
+      decayedPriceUSD,
+      currency: harvest.currency || 'USD',
+      exchangeRate,
       multiplier,
       daysRemaining: diffDays,
     };

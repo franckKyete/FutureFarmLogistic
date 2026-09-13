@@ -9,7 +9,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { HarvestStatus, InspectionChecklist } from '@futurefarm/types';
+import { HarvestStatus, type InspectionChecklist } from '@futurefarm/types';
 import { CreateHarvestDto } from './create-harvest.dto';
 
 export class CreateHarvestProxyDto extends OmitType(CreateHarvestDto, [

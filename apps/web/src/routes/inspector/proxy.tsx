@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { requireRole } from '@/features/auth/utils/role-guard';
 import { Permission } from '@futurefarm/types';
 import { useProducers } from '@/features/inspector/api/accounts.queries';
 import { useOfflineSyncState } from '@/features/harvests/offline';
+import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
 
 export interface InspectorProxySearchParams {
   tab?: 'register' | 'harvest' | undefined;
@@ -44,7 +46,13 @@ function InspectorProxyPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState<AddressValue>({
+    streetAddress: '',
+    streetAddress2: '',
+    city: '',
+    stateOrProvince: '',
+    country: 'COD',
+  });
   const [bio, setBio] = useState('');
   const [createdTempPassword, setCreatedTempPassword] = useState<string | null>(null);
 
@@ -104,7 +112,13 @@ function InspectorProxyPage() {
       setEmail('');
       setPhone('');
       setCompanyName('');
-      setAddress('');
+      setAddress({
+        streetAddress: '',
+        streetAddress2: '',
+        city: '',
+        stateOrProvince: '',
+        country: 'COD',
+      });
       setBio('');
       void queryClient.invalidateQueries({ queryKey: ['inspector', 'producers'] });
     },
@@ -117,10 +131,21 @@ function InspectorProxyPage() {
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !email || !companyName || !address) {
+    if (!firstName || !lastName || !email || !companyName || !address.streetAddress || !address.city || !address.stateOrProvince) {
       addToast('Veuillez remplir tous les champs obligatoires.', 'warning');
       return;
     }
+
+    const formattedAddress = [
+      address.streetAddress,
+      address.streetAddress2,
+      address.city,
+      address.stateOrProvince,
+      address.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     const payload: {
       firstName: string;
       lastName: string;
@@ -134,7 +159,7 @@ function InspectorProxyPage() {
       lastName,
       email,
       companyName,
-      address,
+      address: formattedAddress,
     };
     if (phone.trim()) payload.phoneNumber = phone.trim();
     if (bio.trim()) payload.bio = bio.trim();
@@ -171,9 +196,7 @@ function InspectorProxyPage() {
           </div>
           {!isOnline && (
             <div className="flex items-center gap-1.5 bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-semibold">
-              <span className="material-symbols-outlined text-sm text-amber-700 animate-pulse">
-                cloud_off
-              </span>
+              <Icon name="cloud_off" className="text-sm text-amber-700 animate-pulse" />
               <span>Hors-ligne</span>
             </div>
           )}
@@ -229,7 +252,7 @@ function InspectorProxyPage() {
           {createdTempPassword && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
               <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
-                <span className="material-symbols-outlined text-sm">key</span>
+                <Icon name="key" className="text-sm" />
                 Mot de passe temporaire généré avec succès
               </div>
               <p className="text-xs text-emerald-700">
@@ -289,27 +312,26 @@ function InspectorProxyPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Nom de la ferme / Exploitation *</label>
-                <input
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
-                  placeholder="Ex: Ferme Mutombo & Fils"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Localisation / Adresse *</label>
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
-                  placeholder="Ex: Village Mbanza-Ngungu, Kongo-Central"
-                  required
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-700">Nom de la ferme / Exploitation *</label>
+              <input
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:border-[#1a5c35]"
+                placeholder="Ex: Ferme Mutombo & Fils"
+                required
+              />
+            </div>
+
+            {/* Address of the exploitation */}
+            <div className="pt-2 border-t border-gray-100">
+              <AddressInputGroup
+                value={address}
+                onChange={setAddress}
+                title="Adresse de l'exploitation"
+                subtitle="Localisation principale de la ferme"
+                required
+              />
             </div>
 
             <div className="space-y-1">
@@ -328,7 +350,7 @@ function InspectorProxyPage() {
               disabled={registerFarmerProxy.isPending}
               className="w-full bg-[#1a5c35] text-white font-bold py-3 rounded-xl hover:bg-[#144a2a] active:scale-98 transition-all cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-sm">person_add</span>
+              <Icon name="person_add" className="text-sm" />
               {registerFarmerProxy.isPending ? 'Création en cours...' : 'Créer le compte producteur'}
             </button>
           </form>
@@ -342,7 +364,7 @@ function InspectorProxyPage() {
           {proxyDraftsReadyForReview.length > 0 && (
             <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-xs space-y-3">
               <div className="flex items-center gap-2 text-emerald-950 font-bold text-xs">
-                <span className="material-symbols-outlined text-emerald-700">auto_awesome</span>
+                <Icon name="auto_awesome" className="text-emerald-700" />
                 <span>Récoltes analysées prêtes pour révision ({proxyDraftsReadyForReview.length})</span>
               </div>
               <div className="space-y-2">
@@ -360,7 +382,7 @@ function InspectorProxyPage() {
                         />
                       ) : (
                         <div className="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                          <span className="material-symbols-outlined text-xl">psychiatry</span>
+                          <Icon name="psychiatry" className="text-xl" />
                         </div>
                       )}
                       <div>
@@ -399,7 +421,7 @@ function InspectorProxyPage() {
           {proxyDraftsPendingAnalysis.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-xs space-y-2">
               <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
-                <span className="material-symbols-outlined text-amber-700 animate-spin">sync</span>
+                <Icon name="sync" className="text-amber-700 animate-spin" />
                 <span>Lots en attente d'analyse IA en arrière-plan ({proxyDraftsPendingAnalysis.length})</span>
               </div>
               <p className="text-[11px] text-amber-800">
@@ -422,9 +444,7 @@ function InspectorProxyPage() {
 
             {/* Farmer Search input */}
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-sm">
-                search
-              </span>
+              <Icon name="search" className="absolute left-3 top-2.5 text-gray-400 text-sm" />
               <input
                 type="text"
                 value={farmerSearchQuery}
@@ -486,13 +506,9 @@ function InspectorProxyPage() {
                       </div>
 
                       <div className="flex-shrink-0 ml-2">
-                        <span
-                          className={`material-symbols-outlined text-lg ${
+                        <Icon name={isSelected ? 'check_circle' : 'radio_button_unchecked'} className="text-lg ${
                             isSelected ? 'text-[#004322]' : 'text-gray-300'
-                          }`}
-                        >
-                          {isSelected ? 'check_circle' : 'radio_button_unchecked'}
-                        </span>
+                          }" />
                       </div>
                     </div>
                   );
@@ -505,7 +521,7 @@ function InspectorProxyPage() {
               <div className="pt-3 border-t border-gray-200 space-y-4">
                 <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#004322]">how_to_reg</span>
+                    <Icon name="how_to_reg" className="text-[#004322]" />
                     <div>
                       <div className="text-[11px] font-bold text-emerald-950">Agriculteur sélectionné</div>
                       <div className="text-xs font-bold text-[#004322]">{selectedFarmerName}</div>
@@ -525,7 +541,7 @@ function InspectorProxyPage() {
                   onClick={handleStartHarvestFlow}
                   className="w-full bg-[#004322] hover:bg-[#1a5c35] text-white font-bold py-4 rounded-xl active:scale-98 transition-all cursor-pointer shadow-md text-xs uppercase tracking-wider flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-base">add_a_photo</span>
+                  <Icon name="add_a_photo" className="text-base" />
                   Commencer l'analyse de récolte pour {selectedFarmerName}
                 </button>
               </div>

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useRef } from 'react';
 
 export interface HarvestPhotoPickerProps {
@@ -102,12 +103,7 @@ export function HarvestPhotoPicker({
       {/* Photo Grid */}
       {photos.length === 0 ? (
         <div className="border-2 border-dashed border-[#c0c9be] rounded-xl p-5 text-center space-y-2 bg-white/60">
-          <span
-            className="material-symbols-outlined text-3xl text-[#707970]"
-            style={{ fontVariationSettings: "'FILL' 0" }}
-          >
-            add_a_photo
-          </span>
+          <Icon name="add_a_photo" className="text-3xl text-[#707970]" />
           <p className="text-xs text-[#707970]">
             Aucune photo ajoutée pour ce lot de récolte.
           </p>
@@ -135,9 +131,7 @@ export function HarvestPhotoPicker({
                 {/* Featured Badge */}
                 {isFeatured && (
                   <div className="absolute top-1.5 left-1.5 bg-[#004322] text-white px-1.5 py-0.5 rounded-md text-[9px] font-bold flex items-center gap-0.5 shadow-sm">
-                    <span className="material-symbols-outlined text-[11px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      star
-                    </span>
+                    <Icon name="star" className="text-[11px]" />
                     Couverture
                   </div>
                 )}
@@ -152,7 +146,7 @@ export function HarvestPhotoPicker({
                   className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-sm"
                   title="Supprimer la photo"
                 >
-                  <span className="material-symbols-outlined text-[12px]">close</span>
+                  <Icon name="close" className="text-[12px]" />
                 </button>
               </div>
             );
@@ -167,7 +161,7 @@ export function HarvestPhotoPicker({
           onClick={() => cameraInputRef.current?.click()}
           className="flex-1 bg-[#004322] text-white py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+          <Icon name="photo_camera" className="text-[16px]" />
           Prendre une photo
         </button>
         <button
@@ -175,7 +169,7 @@ export function HarvestPhotoPicker({
           onClick={() => galleryInputRef.current?.click()}
           className="flex-1 bg-white border border-[#c0c9be] text-[#004322] py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer hover:bg-[#f0f4ff]"
         >
-          <span className="material-symbols-outlined text-[16px]">photo_library</span>
+          <Icon name="photo_library" className="text-[16px]" />
           Galerie
         </button>
       </div>

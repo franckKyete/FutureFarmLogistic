@@ -1,10 +1,10 @@
 import { OrderEntity } from '../entities/order.entity';
-import { PaymentInitResult, PaymentConfirmResult, PaymentStatus } from '@futurefarm/types';
+import { PaymentInitResult, PaymentConfirmResult, PaymentStatus, PaymentOptions } from '@futurefarm/types';
 
 export const PAYMENT_GATEWAY_PORT = 'PaymentGatewayPort';
 
 export interface PaymentGatewayPort {
-  initiatePayment(order: OrderEntity, amount: number): Promise<PaymentInitResult>;
+  initiatePayment(order: OrderEntity, amount: number, options?: PaymentOptions): Promise<PaymentInitResult>;
   confirmPayment(paymentRef: string): Promise<PaymentConfirmResult>;
   refundPayment(paymentRef: string, amount: number): Promise<void>;
 }
@@ -15,7 +15,7 @@ import { Injectable, Logger } from '@nestjs/common';
 export class MockPaymentGateway implements PaymentGatewayPort {
   private readonly logger = new Logger(MockPaymentGateway.name);
 
-  async initiatePayment(order: OrderEntity, amount: number): Promise<PaymentInitResult> {
+  async initiatePayment(order: OrderEntity, amount: number, _options?: PaymentOptions): Promise<PaymentInitResult> {
     this.logger.log(`Initiating mock payment of ${amount} for order ${order.id}`);
     const gatewayRef = `mock-ref-${order.id}-${Date.now()}`;
     return {

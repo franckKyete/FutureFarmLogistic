@@ -1,10 +1,10 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getProductsQuery,
   createProductMutation,
   createHarvestMutation,
-  aiSuggestHarvestMutation,
 } from '@/features/harvests/api/harvests.queries';
 import {
   refreshOfflineQueueState,
@@ -102,9 +102,6 @@ export function HarvestFormView({
   const [reviewedDraft, setReviewedDraft] = useState<OfflineHarvestDraft | null>(null);
   const [isReviewMode, setIsReviewMode] = useState(false);
 
-  // AI Assistant states (text-based helper)
-  const [aiPrompt, setAiPrompt] = useState('');
-
   // Queries
   const { data: products } = useQuery(getProductsQuery());
 
@@ -159,21 +156,6 @@ export function HarvestFormView({
   // Mutations
   const createProduct = useMutation(createProductMutation());
   const createHarvest = useMutation(createHarvestMutation());
-  const aiSuggest = useMutation({
-    ...aiSuggestHarvestMutation(),
-    onSuccess: (data) => {
-      if (data.category && Object.values(ProductCategory).includes(data.category as ProductCategory)) {
-        setNewCropCategory(data.category as ProductCategory);
-      }
-      if (data.suggestedName) setNewCropName(data.suggestedName);
-      if (data.farmingMethods) setFarmingMethods(data.farmingMethods);
-      if (data.recommendedShelfLifeDays) setShelfLifeDays(String(data.recommendedShelfLifeDays));
-      addToast('Suggestions IA appliquées !', 'success');
-    },
-    onError: (err) => {
-      addToast(err instanceof Error ? err.message : 'Erreur lors de la suggestion IA', 'error');
-    },
-  });
 
   const handleApplyAiReviewSuggestions = () => {
     if (!reviewedDraft?.aiResult) return;
@@ -404,7 +386,7 @@ export function HarvestFormView({
             onClick={onNavigateBack}
             className="w-10 h-10 rounded-full border border-[#c0c9be] flex items-center justify-center text-[#004322] hover:bg-[#ebf4e6] active:scale-95 transition-all cursor-pointer"
           >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <Icon name="arrow_back" className="text-lg" />
           </button>
           <div>
             <h1 className="font-display text-xl font-black text-[#004322] tracking-tight">
@@ -423,7 +405,7 @@ export function HarvestFormView({
         </div>
         {!isOnline && (
           <div className="flex items-center gap-1.5 bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full text-xs font-semibold">
-            <span className="material-symbols-outlined text-sm text-amber-700 animate-pulse">cloud_off</span>
+            <Icon name="cloud_off" className="text-sm text-amber-700 animate-pulse" />
             <span>Hors-ligne</span>
           </div>
         )}
@@ -433,7 +415,7 @@ export function HarvestFormView({
       {isProxy && effectiveFarmerName && (
         <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-2xl p-3.5 flex items-center gap-3 shadow-xs">
           <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-            <span className="material-symbols-outlined text-xl">person</span>
+            <Icon name="person" className="text-xl" />
           </div>
           <div>
             <div className="text-[11px] font-bold text-emerald-950 uppercase tracking-wider">Agriculteur Bénéficiaire</div>
@@ -447,9 +429,7 @@ export function HarvestFormView({
         <div className="mb-6 bg-gradient-to-br from-emerald-900 to-[#004322] text-white rounded-2xl p-5 shadow-lg space-y-4 border border-emerald-700 animate-slide-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-300 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                auto_awesome
-              </span>
+              <Icon name="auto_awesome" className="text-amber-300 text-2xl" />
               <div>
                 <h3 className="font-bold text-sm text-white">Analyse IA Terminée</h3>
                 <p className="text-[11px] text-emerald-200">
@@ -500,7 +480,7 @@ export function HarvestFormView({
               onClick={handleApplyAiReviewSuggestions}
               className="w-full mt-1 bg-amber-400 hover:bg-amber-300 text-[#004322] font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-98"
             >
-              <span className="material-symbols-outlined text-sm">auto_fix_high</span>
+              <Icon name="auto_fix_high" className="text-sm" />
               Appliquer les suggestions de l'IA au formulaire
             </button>
           </div>
@@ -523,7 +503,7 @@ export function HarvestFormView({
         <section className="bg-white border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[#c0c9be]/40 pb-3">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#004322]">psychiatry</span>
+              <Icon name="psychiatry" className="text-[#004322]" />
               <h2 className="text-sm font-bold text-[#004322]">Culture / Produit</h2>
             </div>
             <div className="flex items-center gap-1 bg-[#ebf4e6] p-0.5 rounded-lg text-[11px] font-bold">
@@ -609,7 +589,7 @@ export function HarvestFormView({
         {/* Section 2: Quantités & Prix */}
         <section className="bg-white border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-[#c0c9be]/40 pb-3">
-            <span className="material-symbols-outlined text-[#004322]">scale</span>
+            <Icon name="scale" className="text-[#004322]" />
             <h2 className="text-sm font-bold text-[#004322]">Quantités & Prix</h2>
           </div>
 
@@ -670,7 +650,7 @@ export function HarvestFormView({
         {/* Section 3: Dates & Conservation */}
         <section className="bg-white border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-[#c0c9be]/40 pb-3">
-            <span className="material-symbols-outlined text-[#004322]">calendar_month</span>
+            <Icon name="calendar_month" className="text-[#004322]" />
             <h2 className="text-sm font-bold text-[#004322]">Dates & Conservation</h2>
           </div>
 
@@ -706,38 +686,6 @@ export function HarvestFormView({
 
         </section>
 
-        {/* Section 4: Assistant IA Textuel (optionnel - Producteur uniquement) */}
-        {!isProxy && (
-          <section className="bg-emerald-50/50 border border-[#c0c9be] rounded-2xl p-4 shadow-xs space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#004322]">smart_toy</span>
-              <h2 className="text-sm font-bold text-[#004322]">Assistant IA (Optionnel)</h2>
-            </div>
-            <p className="text-[11px] text-[#707970]">
-              Décrivez votre lot en quelques mots pour générer automatiquement les paramètres.
-            </p>
-            <div className="flex gap-2">
-              <input
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                className="flex-1 bg-white border border-[#c0c9be] rounded-lg p-2 text-xs outline-none focus:border-[#004322]"
-                placeholder="Ex: 300kg de bananes plantains bio récoltées hier..."
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (!aiPrompt.trim()) return;
-                  aiSuggest.mutate(aiPrompt.trim());
-                }}
-                disabled={aiSuggest.isPending || !aiPrompt.trim()}
-                className="bg-[#004322] text-white px-3 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
-              >
-                {aiSuggest.isPending ? 'Analyse...' : 'Suggérer'}
-              </button>
-            </div>
-          </section>
-        )}
-
         {/* Submit Actions */}
         <div className="pt-2 space-y-2">
           <button
@@ -745,9 +693,7 @@ export function HarvestFormView({
             disabled={createHarvest.isPending || createProduct.isPending}
             className="w-full bg-[#004322] text-white font-bold py-3.5 rounded-xl hover:opacity-90 active:scale-98 transition-all disabled:opacity-50 cursor-pointer shadow-md text-xs uppercase tracking-wider flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-sm">
-              {!isOnline ? 'cloud_off' : isReviewMode ? 'check_circle' : 'publish'}
-            </span>
+            <Icon name={!isOnline ? 'cloud_off' : isReviewMode ? 'check_circle' : 'publish'} className="text-sm" />
             {createHarvest.isPending || createProduct.isPending
               ? 'Publication en cours...'
               : !isOnline

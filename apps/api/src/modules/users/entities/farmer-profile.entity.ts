@@ -41,6 +41,9 @@ export class FarmerProfileEntity {
   @Column({ name: 'avatar_url', type: 'text', nullable: true })
   avatarUrl: string | null;
 
+  @Column({ name: 'banner_url', type: 'text', nullable: true })
+  bannerUrl: string | null;
+
   @Column({ name: 'is_certified', default: false })
   isCertified: boolean;
 

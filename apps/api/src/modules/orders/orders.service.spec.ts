@@ -7,6 +7,8 @@ import {
   OrderStatus,
   OrderLineStatus,
   PaymentStatus,
+  PaymentInitResult,
+  PaymentConfirmResult,
   HarvestStatus,
   Permission,
 } from '@futurefarm/types';
@@ -22,6 +24,7 @@ import { UserEntity } from '../users/entities/user.entity';
 import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PAYMENT_GATEWAY_PORT } from './interfaces/payment-gateway.port';
+import { StripePaymentGateway } from './adapters/stripe.adapter';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -35,7 +38,12 @@ describe('OrdersService', () => {
       const entity = maybeEntity ?? entityOrClass;
       return Promise.resolve({ id: 'saved-id', ...entity });
     }),
+    find: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockPaymentRecordRepo = {
     find: jest.fn(),
+    save: jest.fn(),
   };
 
   const mockDataSource = {
@@ -43,22 +51,31 @@ describe('OrdersService', () => {
       const actualCb = typeof modeOrCb === 'function' ? modeOrCb : cb;
       return actualCb(mockEntityManager);
     }),
+    getRepository: jest.fn((entity: any) => {
+      if (entity === PaymentRecordEntity) return mockPaymentRecordRepo;
+      return {};
+    }),
   };
 
   const mockPaymentGateway = {
-    initiatePayment: jest.fn(() =>
+    initiatePayment: jest.fn<Promise<PaymentInitResult>, [any, number]>(() =>
       Promise.resolve({
         gatewayRef: 'mock-gateway-ref',
+        paymentUrl: 'https://mock-gateway.com/pay',
         status: PaymentStatus.PENDING,
       }),
     ),
-    confirmPayment: jest.fn(() =>
+    confirmPayment: jest.fn<Promise<PaymentConfirmResult>, [string]>(() =>
       Promise.resolve({
         success: true,
         gatewayRef: 'mock-gateway-ref',
       }),
     ),
-    refundPayment: jest.fn(() => Promise.resolve()),
+    refundPayment: jest.fn<Promise<void>, [string, number]>(() => Promise.resolve()),
+  };
+
+  const mockStripeGateway = {
+    constructWebhookEvent: jest.fn(),
   };
 
   const mockProductsService = {
@@ -85,7 +102,18 @@ describe('OrdersService', () => {
         },
         {
           provide: getRepositoryToken(OrderLineEntity),
-          useValue: { find: jest.fn(), save: jest.fn() },
+          useValue: {
+            find: jest.fn(),
+            save: jest.fn(),
+            createQueryBuilder: jest.fn(() => ({
+              innerJoinAndSelect: jest.fn().mockReturnThis(),
+              leftJoinAndSelect: jest.fn().mockReturnThis(),
+              where: jest.fn().mockReturnThis(),
+              andWhere: jest.fn().mockReturnThis(),
+              orderBy: jest.fn().mockReturnThis(),
+              getMany: jest.fn().mockResolvedValue([{ id: 'line-1', farmerProfileId: 'farmer-1' }]),
+            })),
+          },
         },
         {
           provide: getRepositoryToken(PaymentRecordEntity),
@@ -126,6 +154,10 @@ describe('OrdersService', () => {
         {
           provide: PAYMENT_GATEWAY_PORT,
           useValue: mockPaymentGateway,
+        },
+        {
+          provide: StripePaymentGateway,
+          useValue: mockStripeGateway,
         },
       ],
     }).compile();
@@ -197,6 +229,7 @@ describe('OrdersService', () => {
     it('should confirm payment and update statuses', async () => {
       const mockPaymentRecord = {
         id: 'pay-1',
+        orderId: 'order-1',
         status: PaymentStatus.PENDING,
         gatewayRef: 'ref-1',
         order: {
@@ -208,6 +241,7 @@ describe('OrdersService', () => {
 
       mockEntityManager.findOne.mockImplementation((entityClass) => {
         if (entityClass === PaymentRecordEntity) return Promise.resolve(mockPaymentRecord);
+        if (entityClass === OrderEntity) return Promise.resolve(mockPaymentRecord.order);
         if (entityClass === FarmerProfileEntity) return Promise.resolve({ userId: 'farmer-user-1' });
         return Promise.resolve(null);
       });
@@ -216,6 +250,96 @@ describe('OrdersService', () => {
       expect(result).toBeDefined();
       expect(mockPaymentGateway.confirmPayment).toHaveBeenCalledWith('ref-1');
       expect(mockNotificationsService.send).toHaveBeenCalled();
+    });
+
+    it('should set status to FAILED and throw when gateway confirmation fails', async () => {
+      const mockOrder = {
+        id: 'order-1',
+        buyerId: 'buyer-1',
+        paymentStatus: PaymentStatus.PENDING,
+      };
+      const mockPaymentRecord = {
+        id: 'pay-1',
+        orderId: 'order-1',
+        status: PaymentStatus.PENDING,
+        gatewayRef: 'ref-1',
+        order: mockOrder,
+      };
+
+      mockEntityManager.findOne.mockImplementation((entityClass) => {
+        if (entityClass === PaymentRecordEntity) return Promise.resolve(mockPaymentRecord);
+        if (entityClass === OrderEntity) return Promise.resolve(mockOrder);
+        return Promise.resolve(null);
+      });
+
+      mockPaymentGateway.confirmPayment.mockResolvedValueOnce({
+        success: false,
+        gatewayRef: 'ref-1',
+      });
+
+      await expect(service.confirmPayment('ref-1')).rejects.toThrow(BadRequestException);
+      expect(mockPaymentRecord.status).toBe(PaymentStatus.FAILED);
+      expect(mockOrder.paymentStatus).toBe(PaymentStatus.FAILED);
+      expect(mockEntityManager.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('retryPayment', () => {
+    it('should initiate a new payment session for pending order', async () => {
+      const mockOrder = {
+        id: 'order-1',
+        buyerId: 'buyer-1',
+        status: OrderStatus.PENDING_PAYMENT,
+        paymentStatus: PaymentStatus.FAILED,
+        totalAmount: 15000,
+        lines: [],
+      };
+
+      orderRepo.findOne.mockResolvedValue(mockOrder);
+      mockPaymentGateway.initiatePayment.mockResolvedValueOnce({
+        gatewayRef: 'new-gateway-ref',
+        paymentUrl: 'https://pay.example.com/checkout',
+        status: PaymentStatus.PENDING,
+      });
+
+      const result = await service.retryPayment('order-1', 'buyer-1', [Permission.ORDER_READ]);
+      expect(result.order).toBeDefined();
+      expect(result.paymentUrl).toBe('https://pay.example.com/checkout');
+      expect(mockOrder.paymentStatus).toBe(PaymentStatus.PENDING);
+      expect(mockPaymentGateway.initiatePayment).toHaveBeenCalledWith(mockOrder, 15000);
+      expect(mockEntityManager.save).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if user is not the buyer and not admin', async () => {
+      const mockOrder = {
+        id: 'order-1',
+        buyerId: 'buyer-1',
+        status: OrderStatus.PENDING_PAYMENT,
+        totalAmount: 15000,
+        lines: [],
+      };
+
+      orderRepo.findOne.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.retryPayment('order-1', 'other-user', [Permission.ORDER_READ]),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if order is not pending payment', async () => {
+      const mockOrder = {
+        id: 'order-1',
+        buyerId: 'buyer-1',
+        status: OrderStatus.CONFIRMED,
+        totalAmount: 15000,
+        lines: [],
+      };
+
+      orderRepo.findOne.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.retryPayment('order-1', 'buyer-1', [Permission.ORDER_READ]),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -520,10 +644,39 @@ describe('OrdersService', () => {
       expect(result.length).toBe(1);
     });
 
-    it('should list my orders', async () => {
+    it('should list my orders and trigger background reconciliation', async () => {
       orderRepo.find.mockResolvedValue([{ id: 'order-1' }]);
+      const reconcileSpy = jest
+        .spyOn(service, 'reconcileBuyerOrdersBackground')
+        .mockResolvedValue();
+
       const result = await service.listMyOrders('buyer-1');
       expect(result.length).toBe(1);
+
+      // Wait a tick for setImmediate
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(reconcileSpy).toHaveBeenCalledWith('buyer-1');
+    });
+
+    it('should reconcile pending buyer orders in background', async () => {
+      const pendingOrder = { id: 'order-pending', buyerId: 'buyer-1', status: OrderStatus.PENDING_PAYMENT };
+      orderRepo.find.mockResolvedValue([pendingOrder]);
+
+      mockPaymentRecordRepo.find.mockResolvedValue([
+        { id: 'pr-1', orderId: 'order-pending', gatewayRef: 'pi_test_123', status: PaymentStatus.PENDING },
+      ]);
+
+      const confirmSpy = jest.spyOn(service, 'confirmPayment').mockResolvedValue({
+        id: 'order-pending',
+        status: OrderStatus.AWAITING_CONFIRMATION,
+      } as any);
+
+      await service.reconcileBuyerOrdersBackground('buyer-1');
+
+      expect(mockPaymentRecordRepo.find).toHaveBeenCalledWith({
+        where: { orderId: 'order-pending', status: PaymentStatus.PENDING },
+      });
+      expect(confirmSpy).toHaveBeenCalledWith('pi_test_123');
     });
 
     it('should list all orders for admin with pagination', async () => {
@@ -531,6 +684,50 @@ describe('OrdersService', () => {
       const result = await service.listAllOrdersAdmin({});
       expect(result.data.length).toBe(1);
       expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('handleStripeWebhook', () => {
+    it('should confirm payment on checkout.session.completed event', async () => {
+      const rawBody = Buffer.from('{"id":"evt_123"}');
+      const signature = 'sig_test_123';
+
+      mockStripeGateway.constructWebhookEvent.mockReturnValueOnce({
+        id: 'evt_123',
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'cs_session_abc',
+          },
+        },
+      });
+
+      const confirmSpy = jest.spyOn(service, 'confirmPayment').mockResolvedValueOnce({
+        id: 'order-1',
+      } as any);
+
+      const result = await service.handleStripeWebhook(rawBody, signature);
+
+      expect(mockStripeGateway.constructWebhookEvent).toHaveBeenCalledWith(rawBody, signature);
+      expect(confirmSpy).toHaveBeenCalledWith('cs_session_abc');
+      expect(result).toEqual({ received: true, eventType: 'checkout.session.completed' });
+    });
+
+    it('should throw BadRequestException if stripeGateway is not available', async () => {
+      const serviceWithoutStripe = new OrdersService(
+        orderRepo,
+        orderLineRepo,
+        farmerProfileRepo,
+        mockProductsService as any,
+        mockNotificationsService as any,
+        mockDataSource as any,
+        mockPaymentGateway as any,
+        undefined,
+      );
+
+      await expect(
+        serviceWithoutStripe.handleStripeWebhook(Buffer.from(''), 'sig'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -16,7 +16,9 @@ The Purchase & Order module manages the transactional checkout flow for agricult
   - Any of the first three states ──(buyer cancel)──► `CANCELLED`
 - **Cancellation Fee**: Gated by a 10% fee if the buyer cancels an already `CONFIRMED` order. Fees can be manually adjusted/waived by administrators.
 - **Auction Won Integration**: Dutch auctions create pre-confirmed orders and payment records atomically upon winning bids.
-- **Pluggable Payments**: Decoupled using a `PaymentGatewayPort` interface, allowing hot-swappable external payment gateways (e.g. Stripe, CinetPay).
+- **Pluggable Payments**: Decoupled using a `PaymentGatewayPort` interface and routed via a `CompositePaymentGateway` supporting international card payments via **Stripe** and West African Mobile Money (Wave, Orange Money, Free Money) via **PawaPay**.
+- **Payment Reconciliation Redundancy**: When a buyer loads their orders list (`GET /v1/orders`), a non-blocking background task queries the payment gateway to reconcile any pending payments. State transitions in `confirmPayment` use `SERIALIZABLE` transactions with pessimistic row locking (`pessimistic_write`) to guarantee zero race conditions between concurrent webhooks and polling reconciliation, broadcasting real-time updates over WebSocket (`order:status_changed`).
+- **Multi-Channel Farmer Notifications**: As soon as payment is confirmed, all involved farmers receive multi-channel notifications (Database, Email, SMS) detailing the exact crops, quantities, and units to inspect and prepare for dispatch.
 
 ---
 

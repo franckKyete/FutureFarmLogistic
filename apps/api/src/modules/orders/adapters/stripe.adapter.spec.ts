@@ -38,6 +38,13 @@ describe('StripePaymentGateway', () => {
           }),
         },
       },
+      paymentIntents: {
+        retrieve: jest.fn().mockResolvedValue({
+          id: 'pi_123',
+          status: 'succeeded',
+          amount_received: 10000,
+        }),
+      },
       refunds: {
         create: jest.fn().mockResolvedValue({}),
       },
@@ -62,6 +69,7 @@ describe('StripePaymentGateway', () => {
         paymentUrl: 'https://checkout.stripe.com/pay/sess_123',
         status: PaymentStatus.PENDING,
         metadata: {
+          provider: 'stripe',
           stripeSessionId: 'sess_123',
           paymentIntentId: 'pi_123',
         },
@@ -104,16 +112,89 @@ describe('StripePaymentGateway', () => {
       });
       expect(mockStripeInstance.checkout.sessions.retrieve).toHaveBeenCalledWith('sess_123');
     });
+
+    it('should retrieve payment intent directly for pi_ references and confirm payment status', async () => {
+      const result = await gateway.confirmPayment('pi_123');
+
+      expect(result).toEqual({
+        success: true,
+        pending: false,
+        gatewayRef: 'pi_123',
+        metadata: {
+          paymentIntentId: 'pi_123',
+          status: 'succeeded',
+          amountReceived: 10000,
+        },
+      });
+      expect(mockStripeInstance.paymentIntents.retrieve).toHaveBeenCalledWith('pi_123');
+    });
   });
 
-  describe('refundPayment', () => {
-    it('should create a refund for the associated payment intent', async () => {
-      await gateway.refundPayment('sess_123', 50);
+  describe('createSetupCheckoutSession', () => {
+    it('should create a setup checkout session and return session URL', async () => {
+      const result = await gateway.createSetupCheckoutSession({
+        customerId: 'cus_123',
+        successUrl: 'http://localhost:3001/auctions/auc-1',
+        cancelUrl: 'http://localhost:3001/auctions/auc-1',
+        userId: 'user-1',
+      });
 
-      expect(mockStripeInstance.checkout.sessions.retrieve).toHaveBeenCalledWith('sess_123');
-      expect(mockStripeInstance.refunds.create).toHaveBeenCalledWith({
-        payment_intent: 'pi_123',
-        amount: 5000,
+      expect(result).toEqual({
+        sessionId: 'sess_123',
+        sessionUrl: 'https://checkout.stripe.com/pay/sess_123',
+      });
+      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalledWith({
+        mode: 'setup',
+        customer: 'cus_123',
+        payment_method_types: ['card'],
+        success_url: 'http://localhost:3001/auctions/auc-1?setup_session_id={CHECKOUT_SESSION_ID}',
+        cancel_url: 'http://localhost:3001/auctions/auc-1',
+        client_reference_id: 'user-1',
+        metadata: {
+          userId: 'user-1',
+          purpose: 'save_card',
+        },
+      });
+    });
+  });
+
+  describe('confirmSetupCheckoutSession', () => {
+    it('should retrieve setup checkout session and return payment method info', async () => {
+      mockStripeInstance.checkout.sessions.retrieve.mockResolvedValueOnce({
+        id: 'sess_setup_123',
+        customer: 'cus_123',
+        setup_intent: {
+          id: 'seti_123',
+          payment_method: {
+            id: 'pm_123',
+            card: {
+              brand: 'visa',
+              last4: '4242',
+              exp_month: 12,
+              exp_year: 2030,
+            },
+          },
+        },
+      });
+      mockStripeInstance.customers = {
+        update: jest.fn().mockResolvedValue({}),
+      };
+
+      const result = await gateway.confirmSetupCheckoutSession('sess_setup_123');
+
+      expect(result).toEqual({
+        paymentMethodId: 'pm_123',
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 12,
+        expYear: 2030,
+        customerId: 'cus_123',
+        userId: undefined,
+      });
+      expect(mockStripeInstance.customers.update).toHaveBeenCalledWith('cus_123', {
+        invoice_settings: {
+          default_payment_method: 'pm_123',
+        },
       });
     });
   });

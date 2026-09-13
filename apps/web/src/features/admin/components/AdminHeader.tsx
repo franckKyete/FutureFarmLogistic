@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearAuth } from '@/features/auth/store/auth.store';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,9 +18,7 @@ export function AdminHeader() {
     <header className="fixed top-0 right-0 h-[60px] left-[240px] bg-[var(--admin-surface-container-lowest)] border-b border-[var(--admin-outline-variant)]/40 flex justify-between items-center px-6 z-40">
       <div className="flex items-center gap-4 w-1/3">
         <div className="relative w-full max-w-[400px]">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-on-surface-variant)] text-lg">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-on-surface-variant)] text-lg" />
           <input
             className="w-full pl-10 pr-4 py-2 bg-[var(--admin-surface-container-low)] border-none rounded-full text-sm focus:ring-2 focus:ring-[var(--admin-primary)]/20 text-[var(--admin-on-surface)] placeholder-[var(--admin-on-surface-variant)]/60"
             placeholder="Rechercher un utilisateur, un ID ou un document..."
@@ -47,11 +46,11 @@ export function AdminHeader() {
 
         <div className="flex items-center gap-2">
           <button className="p-2 hover:bg-[var(--admin-surface-container-high)] rounded-full relative text-[var(--admin-on-surface-variant)]">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            <Icon name="notifications" className="text-[20px]" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--admin-secondary)] rounded-full"></span>
           </button>
           <button className="p-2 hover:bg-[var(--admin-surface-container-high)] rounded-full text-[var(--admin-on-surface-variant)]">
-            <span className="material-symbols-outlined text-[20px]">settings</span>
+            <Icon name="settings" className="text-[20px]" />
           </button>
 
           <div className="h-8 w-[1px] bg-[var(--admin-outline-variant)]/40 mx-2"></div>
@@ -66,14 +65,14 @@ export function AdminHeader() {
               </p>
             </div>
             <div className="w-10 h-10 rounded-full bg-[var(--admin-primary-container)]/10 flex items-center justify-center border border-[var(--admin-primary)]/10 overflow-hidden">
-              <span className="material-symbols-outlined text-xl text-[var(--admin-primary)]">person</span>
+              <Icon name="person" className="text-xl text-[var(--admin-primary)]" />
             </div>
             <button
               onClick={handleLogout}
               className="p-2 text-[var(--admin-on-surface-variant)] hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors cursor-pointer"
               title="Déconnexion"
             >
-              <span className="material-symbols-outlined text-[20px]">logout</span>
+              <Icon name="logout" className="text-[20px]" />
             </button>
           </div>
 

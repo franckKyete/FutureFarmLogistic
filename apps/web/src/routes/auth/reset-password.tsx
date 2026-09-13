@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -87,7 +88,7 @@ export function ResetPasswordPage() {
           {!token ? (
             <div className="flex flex-col items-center text-center gap-4 py-2">
               <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
-                <span className="material-symbols-outlined text-4xl">link_off</span>
+                <Icon name="link_off" className="text-4xl" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-2xl font-bold text-on-surface tracking-tight">
@@ -116,12 +117,7 @@ export function ResetPasswordPage() {
           ) : isSuccess ? (
             <div className="flex flex-col items-center text-center gap-4 py-2">
               <div className="w-16 h-16 rounded-full bg-[#004322]/10 flex items-center justify-center text-[#004322]">
-                <span
-                  className="material-symbols-outlined text-4xl"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  check_circle
-                </span>
+                <Icon name="check_circle" className="text-4xl" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-2xl font-bold text-on-surface tracking-tight">
@@ -139,7 +135,7 @@ export function ResetPasswordPage() {
                   className="w-full bg-[#004322] text-on-primary font-semibold text-sm py-3.5 rounded-lg text-center hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   Se connecter
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  <Icon name="arrow_forward" className="text-[18px]" />
                 </button>
               </div>
             </div>
@@ -164,9 +160,7 @@ export function ResetPasswordPage() {
                     Nouveau mot de passe
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                      lock
-                    </span>
+                    <Icon name="lock" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                     <input
                       className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-12 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
                       id="newPassword"
@@ -185,9 +179,7 @@ export function ResetPasswordPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      <span className="material-symbols-outlined text-[20px]">
-                        {showPassword ? 'visibility_off' : 'visibility'}
-                      </span>
+                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} className="text-[20px]" />
                     </button>
                   </div>
                 </div>
@@ -201,9 +193,7 @@ export function ResetPasswordPage() {
                     Confirmer le nouveau mot de passe
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                      lock_reset
-                    </span>
+                    <Icon name="lock_reset" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                     <input
                       className="w-full bg-surface-bright border border-outline-variant rounded-lg py-3 pl-10 pr-12 text-sm focus:outline-none focus:border-[#004322] focus:ring-2 focus:ring-[#eae2de]/80 transition-all placeholder:text-outline/40"
                       id="confirmPassword"
@@ -237,7 +227,7 @@ export function ResetPasswordPage() {
                   disabled={isPending || !newPassword || !confirmPassword}
                 >
                   {isPending ? 'Mise à jour en cours...' : 'Changer le mot de passe'}
-                  <span className="material-symbols-outlined text-[18px]">check</span>
+                  <Icon name="check" className="text-[18px]" />
                 </button>
               </form>
             </>
@@ -250,7 +240,7 @@ export function ResetPasswordPage() {
             to="/auth/login"
             className="text-xs text-[#004322] font-semibold hover:underline inline-flex items-center justify-center gap-1"
           >
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+            <Icon name="arrow_back" className="text-[16px]" />
             Retour à la page de connexion
           </Link>
         </footer>

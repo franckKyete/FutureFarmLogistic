@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -292,7 +293,7 @@ function DutchAuctionNewPage() {
               className="flex-[2] py-3 px-2 bg-[#004322] text-white rounded-xl text-xs font-semibold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isPending ? 'Lancement...' : "Lancer l'enchère"}
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </footer>
         </form>

@@ -1,3 +1,4 @@
+import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, useMemo } from 'react';
 import { useProducers } from '../../features/inspector/api/accounts.queries';
@@ -118,7 +119,7 @@ function AccountsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer"
           >
-            <span className="material-symbols-outlined text-base">person_add</span>
+            <Icon name="person_add" className="text-base" />
             <span>Enrôler</span>
           </button>
         </div>
@@ -126,9 +127,7 @@ function AccountsPage() {
 
       <div className="px-4 pt-4 pb-2">
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
           <input
             type="text"
             placeholder="Rechercher un producteur..."
@@ -197,7 +196,7 @@ function AccountsPage() {
           </>
         ) : isError ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <span className="material-symbols-outlined text-5xl text-red-300">error_outline</span>
+            <Icon name="error_outline" className="text-5xl text-red-300" />
             <p className="text-gray-500 mt-3 text-sm">Erreur de chargement</p>
             <button
               onClick={() => refetch()}
@@ -208,7 +207,7 @@ function AccountsPage() {
           </div>
         ) : !producers || producers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <span className="material-symbols-outlined text-5xl text-gray-300">search_off</span>
+            <Icon name="search_off" className="text-5xl text-gray-300" />
             <p className="text-gray-500 mt-3 text-sm">Aucun producteur trouvé</p>
           </div>
         ) : (
@@ -261,7 +260,7 @@ function AccountsPage() {
 
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
-                    <span className="material-symbols-outlined text-xs text-gray-400">location_on</span>
+                    <Icon name="location_on" className="text-xs text-gray-400" />
                     <span>{producer.regionName ? `Région : ${producer.regionName}` : 'Exploitation agricole'}</span>
                   </div>
                   <button
@@ -273,7 +272,7 @@ function AccountsPage() {
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#1a5c35] border border-emerald-200 rounded-xl text-xs font-bold hover:bg-[#1a5c35] hover:text-white transition-all cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-sm">add_photo_alternate</span>
+                    <Icon name="add_photo_alternate" className="text-sm" />
                     <span>Inspecter</span>
                   </button>
                 </div>
@@ -290,7 +289,7 @@ function AccountsPage() {
         className="fixed right-4 bottom-20 z-40 w-14 h-14 bg-[#1a5c35] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#145029] active:scale-95 transition-all"
         aria-label="Créer un producteur"
       >
-        <span className="material-symbols-outlined text-2xl">add</span>
+        <Icon name="add" className="text-2xl" />
       </button>
 
     </div>
