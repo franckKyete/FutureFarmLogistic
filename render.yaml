@@ -1,0 +1,42 @@
+databases:
+  - name: futurefarm-db
+    databaseName: futurefarm
+    user: futurefarm
+
+services:
+  - type: keyvalue
+    name: futurefarm-redis
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
+  # NestJS Backend API
+  - type: web
+    name: futurefarm-api
+    runtime: node
+    # Notice rootDir is removed so Render runs from the root
+    buildCommand: bun install && bunx turbo run build --filter=@futurefarm/api
+    startCommand: cd apps/api && bun run start
+    envVars:
+      - key: BUN_VERSION
+        value: "1.4.0" # Matched to your packageManager version
+      - key: DATABASE_URL
+        fromDatabase:
+          name: futurefarm-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: futurefarm-redis
+          envVarKey: REDIS_URL
+
+  # React Frontend
+  - type: web
+    name: futurefarm-web
+    runtime: static 
+    # rootDir removed here as well
+    buildCommand: bun install && bunx turbo run build --filter=@futurefarm/web
+    publishPath: apps/web/dist # Path must now include the app directory
+    envVars:
+      - key: BUN_VERSION
+        value: "1.4.0"
