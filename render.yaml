@@ -1,13 +1,13 @@
 databases:
   - name: futurefarm-db
-    plan: free
+    plan: 0.1c-256mb
     databaseName: futurefarm
     user: futurefarm
 
 services:
   - type: keyvalue
     name: futurefarm-redis
-    plan: free
+    plan: 256mb
     # Block public Redis access; Render services use the private network.
     ipAllowList: []
 
@@ -76,7 +76,6 @@ services:
 
   - type: web
     name: futurefarm-web
-    plan: free
     runtime: static
     buildCommand: bun install && bunx turbo run build --filter=@futurefarm/web
     staticPublishPath: apps/web/dist
