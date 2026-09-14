@@ -8,6 +8,8 @@ services:
   - type: keyvalue
     name: futurefarm-redis
     plan: free
+    # Block public Redis access; Render services use the private network.
+    ipAllowList: []
 
   # Keras product classification inference service.
   - type: web
