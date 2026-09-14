@@ -176,25 +176,9 @@ function StockPage() {
     return matchesCategory && matchesSearch;
   });
 
-  // Dynamic statistics
-  const activeCount = harvests ? harvests.filter((h) => h.status === 'APPROVED').length : 0;
-  const lowStockCount = harvests
-    ? harvests.filter((h) => h.status === 'APPROVED' && Number(h.quantityInStock) <= Number(h.stockMarge) && Number(h.quantityInStock) > 0).length
-    : 0;
-  const outOfStockCount = harvests ? harvests.filter((h) => Number(h.quantityInStock) === 0).length : 0;
-
   return (
     <div className="bg-surface text-on-surface font-sans min-h-screen relative">
       <main className="pt-4 px-4 max-w-[480px] mx-auto space-y-6">
-        {/* Alert Banner */}
-        {lowStockCount > 0 && (
-          <div className="bg-[#ffddbb] text-[#2b1700] flex items-center justify-between p-3.5 rounded-xl border border-[#ffa93d]/30 shadow-sm">
-            <div className="flex items-center gap-3">
-              <Icon name="warning" />
-              <span className="text-xs font-semibold">{lowStockCount} produits ont un stock faible</span>
-            </div>
-          </div>
-        )}
 
 
 
@@ -316,39 +300,6 @@ function StockPage() {
           </section>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2 bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-on-surface-variant text-xs font-semibold">Lots approuvés</span>
-              <Icon name="inventory_2" className="text-primary" />
-            </div>
-            <div className="text-2xl font-bold font-display text-primary">{activeCount}</div>
-            <div className="text-[10px] font-semibold text-on-surface-variant mt-1">Disponibles pour la vente</div>
-          </div>
-          <div className="bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-on-surface-variant text-xs font-semibold">Stocks faibles</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-xl font-bold text-secondary font-display">
-                {String(lowStockCount).padStart(2, '0')}
-              </span>
-              <span className="bg-secondary/10 px-2 py-0.5 rounded-full text-[9px] font-bold text-secondary mb-1">AMBRE</span>
-            </div>
-          </div>
-          <div className="bg-white border border-outline-variant p-4 rounded-xl shadow-sm">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-on-surface-variant text-xs font-semibold">Ruptures</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-xl font-bold text-error font-display">
-                {String(outOfStockCount).padStart(2, '0')}
-              </span>
-              <span className="bg-error/10 px-2 py-0.5 rounded-full text-[9px] font-bold text-error mb-1">ROUGE</span>
-            </div>
-          </div>
-        </div>
 
         {/* Search & Filter */}
         <div className="space-y-3">

@@ -218,11 +218,16 @@ export class AuctionsController {
 
   @Get(':id/bids')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.BID_READ_ALL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List all bids for a specific auction (Admin)' })
+  @ApiOperation({ summary: 'List all bids for a specific auction' })
   @ApiOkResponse({ description: 'List of bids' })
-  async findBidsForAuction(@Param('id') id: string) {
-    return this.auctionsService.listAllBidsForAdmin(id);
+  async findBidsForAuction(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    const isAdmin =
+      user.permissions.includes(Permission.BID_READ_ALL) ||
+      user.permissions.includes(Permission.AUCTION_MANAGE);
+    return this.auctionsService.listBidsForAuction(user.id, id, isAdmin);
   }
 }

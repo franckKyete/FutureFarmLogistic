@@ -195,9 +195,10 @@ export function FarmerHeader() {
         </div>
       );
     } else if (pathname.startsWith('/farmer/auctions/new')) {
-      title = 'Nouvelle enchère';
+      title = 'Créer une enchère';
       showBack = true;
       backTo = '/farmer/auctions';
+      rightAction = profileButton;
     } else if (pathname.startsWith('/farmer/auctions/bids')) {
       title = 'Mes Enchères';
       showBack = true;
