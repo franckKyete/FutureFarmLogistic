@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, VERSION_NEUTRAL, Version } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
@@ -15,6 +15,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @Version(VERSION_NEUTRAL)
   @HealthCheck()
   check() {
     return this.health.check([() => this.db.pingCheck('database')]);
