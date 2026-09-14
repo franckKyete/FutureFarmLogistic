@@ -9,7 +9,7 @@ import {
   BeforeInsert,
   BeforeUpdate,
 } from 'typeorm';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import { UserStatus } from '@futurefarm/types';
 import { RoleEntity } from '../../roles/entities/role.entity';

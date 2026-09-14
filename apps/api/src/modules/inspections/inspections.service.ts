@@ -343,9 +343,9 @@ export class InspectionsService {
       }
     }
 
-    if (photoUrls.length === 0) {
+    if (photoUrls.length < 10) {
       throw new BadRequestException(
-        'No photos available on this report or harvest to analyze',
+        `Au moins 10 photos sont requises pour effectuer le pré-screening IA (${photoUrls.length}/10 fournies)`,
       );
     }
 
@@ -397,13 +397,19 @@ export class InspectionsService {
       checklistEntries.length > 0 &&
       checklistEntries.every((item: any) => item?.passed === true);
 
-    const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 4.0);
+    const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 5.0);
     const scoreApproved = dto.finalQualityScore >= minScore;
 
     // Strict rule: cannot approve a report if not all checklist items are checked & green
     if (scoreApproved && !allChecklistPassed) {
       throw new BadRequestException(
         'Impossible d\'approuver le rapport : tous les critères de conformité qualité doivent être cochés et conformes (verts). Vous ne pouvez que rejeter le rapport.',
+      );
+    }
+
+    if (!scoreApproved && allChecklistPassed) {
+      this.logger.log(
+        `Inspection report ${id} cannot be approved because final quality score (${dto.finalQualityScore}) is below minimum threshold (${minScore}). Marking as REJECTED.`,
       );
     }
 
@@ -507,9 +513,9 @@ export class InspectionsService {
   async classifyHarvest(
     dto: AiClassifyHarvestDto,
   ): Promise<AiClassifyHarvestResponseDto> {
-    if (!dto.photoUrls || dto.photoUrls.length === 0) {
+    if (!dto.photoUrls || dto.photoUrls.length < 10) {
       throw new BadRequestException(
-        'Must provide at least one photo URL for classification',
+        `Au moins 10 photos sous différents angles sont requises pour la classification IA (${dto.photoUrls?.length || 0}/10 fournies)`,
       );
     }
 

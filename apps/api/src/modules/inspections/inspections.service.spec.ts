@@ -308,7 +308,7 @@ describe('InspectionsService', () => {
   });
 
   describe('runAiPreScreen', () => {
-    it('should query vision provider and set screen scores', async () => {
+    it('should query vision provider and set screen scores when at least 10 photos exist', async () => {
       inspectorProfileRepo.findOne.mockResolvedValue({
         id: 'prof-id',
         isActiveInspector: true,
@@ -317,7 +317,7 @@ describe('InspectionsService', () => {
         id: 'report-id',
         status: InspectionStatus.IN_PROGRESS,
         inspectorProfileId: 'prof-id',
-        photos: [{ url: 'http://test.com/photo.jpg' }],
+        photos: Array.from({ length: 10 }, (_, i) => ({ url: `http://test.com/photo${i}.jpg` })),
       } as InspectionReportEntity);
       mockVisionProvider.analyzeHarvestPhotos.mockResolvedValue({
         suggestedScore: 9.0,
@@ -331,10 +331,37 @@ describe('InspectionsService', () => {
       expect(res.aiPreScreenScore).toBe(9.0);
       expect(res.aiPreScreenNotes).toContain('Looks perfect');
     });
+
+    it('should throw BadRequestException if fewer than 10 photos are available', async () => {
+      inspectorProfileRepo.findOne.mockResolvedValue({
+        id: 'prof-id',
+        isActiveInspector: true,
+      } as InspectorProfileEntity);
+      reportRepo.findOne.mockResolvedValue({
+        id: 'report-id',
+        status: InspectionStatus.IN_PROGRESS,
+        inspectorProfileId: 'prof-id',
+        photos: [{ url: 'http://test.com/photo1.jpg' }],
+      } as InspectionReportEntity);
+
+      await expect(
+        service.runAiPreScreen('report-id', 'user-id'),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('classifyHarvest', () => {
-    it('should query vision provider and matching product', async () => {
+    const tenPhotos = Array.from({ length: 10 }, (_, i) => `http://test.com/photo${i}.jpg`);
+
+    it('should throw BadRequestException if fewer than 10 photos are provided', async () => {
+      await expect(
+        service.classifyHarvest({
+          photoUrls: ['http://test.com/photo1.jpg'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should query vision provider and matching product when 10 photos provided', async () => {
       mockVisionProvider.classifyHarvestPhotos.mockResolvedValue({
         isIdentified: true,
         suggestedName: 'Roma Tomatoes',
@@ -358,7 +385,7 @@ describe('InspectionsService', () => {
       productRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       const res = await service.classifyHarvest({
-        photoUrls: ['http://test.com/photo.jpg'],
+        photoUrls: tenPhotos,
         additionalNotes: 'Check this',
       });
 
@@ -392,7 +419,7 @@ describe('InspectionsService', () => {
       productRepo.save.mockImplementation((p: any) => Promise.resolve(p));
 
       const res = await service.classifyHarvest({
-        photoUrls: ['http://test.com/manioc.jpg'],
+        photoUrls: tenPhotos,
       });
 
       expect(productRepo.create).toHaveBeenCalledWith(
@@ -421,7 +448,7 @@ describe('InspectionsService', () => {
       });
 
       const res = await service.classifyHarvest({
-        photoUrls: ['http://test.com/blurry.jpg'],
+        photoUrls: tenPhotos,
       });
 
       expect(productRepo.create).not.toHaveBeenCalled();
