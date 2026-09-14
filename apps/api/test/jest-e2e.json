@@ -9,5 +9,8 @@
   "transformIgnorePatterns": [
     "node_modules/(?!.*(@scure|@noble|otplib|@otplib))",
     "packages/types/dist/"
-  ]
+  ],
+  "moduleNameMapper": {
+    "^bcrypt$": "<rootDir>/__mocks__/bcrypt.js"
+  }
 }

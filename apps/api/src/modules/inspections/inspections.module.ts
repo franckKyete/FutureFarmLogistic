@@ -17,7 +17,7 @@ import { InspectionCentersService } from './inspection-centers.service';
 import { InspectionsController } from './inspections.controller';
 import { InspectionCentersController } from './inspection-centers.controller';
 import { HarvestClassifyController } from './harvest-classify.controller';
-import { GeminiVisionProvider } from './providers/gemini-vision.provider';
+import { KerasVisionProvider } from './providers/keras-vision.provider';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -48,7 +48,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     InspectionCentersService,
     {
       provide: 'QUALITY_VISION_PROVIDER',
-      useClass: GeminiVisionProvider,
+      useClass: KerasVisionProvider,
     },
   ],
   exports: [InspectionsService, InspectionCentersService],

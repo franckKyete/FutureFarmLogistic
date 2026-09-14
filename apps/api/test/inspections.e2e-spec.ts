@@ -160,7 +160,7 @@ describe('Inspections (e2e)', () => {
         .post('/v1/harvests/ai-classify')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          photoUrls: ['http://example.com/photo.jpg'],
+          photoUrls: Array.from({ length: 10 }, (_, i) => `http://example.com/photo${i}.jpg`),
           additionalNotes: 'Red tomatoes harvested today',
         })
         .expect(200);

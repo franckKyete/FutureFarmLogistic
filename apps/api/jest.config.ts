@@ -14,6 +14,9 @@ const config: Config = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  moduleNameMapper: {
+    '^bcrypt$': '<rootDir>/../test/__mocks__/bcrypt.js',
+  },
 };
 
 export default config;

@@ -352,9 +352,14 @@ export class ProductsService {
       exchangeRate = snap.exchangeRate;
     }
     const pricePerUnitUSD = Number((dto.pricePerUnit / exchangeRate).toFixed(2));
+    const stockMarge =
+      dto.stockMarge !== undefined && dto.stockMarge !== null
+        ? dto.stockMarge
+        : Number((dto.quantityInStock * 0.1).toFixed(2));
 
     const harvest = this.harvestRepository.create({
       ...dto,
+      stockMarge,
       currency,
       exchangeRate,
       pricePerUnitUSD,
@@ -483,7 +488,7 @@ export class ProductsService {
     }
 
     const qualityScore = dto.qualityScore ?? 8.5;
-    const isApproved = qualityScore >= 4.0;
+    const isApproved = qualityScore >= 5.0;
     const status = isApproved
       ? HarvestStatus.APPROVED
       : HarvestStatus.REJECTED;
@@ -830,7 +835,17 @@ export class ProductsService {
     harvest.approvedAt = new Date();
 
     if (dto.status === HarvestStatus.APPROVED) {
-      harvest.qualityScore = dto.qualityScore ?? null;
+      const effectiveScore = dto.qualityScore ?? harvest.qualityScore;
+      if (
+        effectiveScore !== null &&
+        effectiveScore !== undefined &&
+        Number(effectiveScore) < 5.0
+      ) {
+        throw new BadRequestException(
+          `Impossible d'approuver une récolte avec un score de qualité inférieur à 5/10 (score: ${effectiveScore}).`,
+        );
+      }
+      harvest.qualityScore = dto.qualityScore ?? harvest.qualityScore ?? null;
       harvest.rejectionReason = null;
       if (this.visitRepository) {
         try {

@@ -1,11 +1,13 @@
 import { Icon } from '@/features/shared/components/Icon';
 import { useRef } from 'react';
+import { PhotoGuidanceBanner } from '@/features/harvests/components/PhotoGuidanceBanner';
 
 export interface HarvestPhotoPickerProps {
   photos: string[];
   onChangePhotos: (photos: string[]) => void;
   featuredIndex: number;
   onSelectFeaturedIndex: (index: number) => void;
+  showGuidanceBanner?: boolean;
 }
 
 export function HarvestPhotoPicker({
@@ -13,6 +15,7 @@ export function HarvestPhotoPicker({
   onChangePhotos,
   featuredIndex,
   onSelectFeaturedIndex,
+  showGuidanceBanner = false,
 }: HarvestPhotoPickerProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +74,10 @@ export function HarvestPhotoPicker({
 
   return (
     <div className="space-y-3 bg-[#f8f9ff] border border-[#c0c9be] p-4 rounded-xl">
+      {showGuidanceBanner && (
+        <PhotoGuidanceBanner photoCount={photos.length} minRequired={10} variant="light" />
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <label className="text-[11px] font-bold text-[#404941] block">
