@@ -40,6 +40,15 @@ export const getMyBidsQuery = () => ({
   },
 });
 
+export const getAuctionBidsQuery = (auctionId: string) => ({
+  queryKey: ['auctions', auctionId, 'bids'],
+  queryFn: async (): Promise<BidDto[]> => {
+    const { data } = await apiClient.get<{ data: BidDto[] }>(`/auctions/${auctionId}/bids`);
+    return data.data;
+  },
+  enabled: !!auctionId,
+});
+
 export const createAuctionMutation = () => ({
   mutationFn: async (payload: CreateAuctionDto): Promise<AuctionDto> => {
     const { data } = await apiClient.post<{ data: AuctionDto }>('/auctions', payload);

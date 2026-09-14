@@ -31,7 +31,7 @@ export * from './my-resource.types';
 ### 3. Rebuild the package
 
 ```bash
-pnpm --filter @futurefarm/types build
+bun --filter @futurefarm/types build
 ```
 
 ### 4. Use in both apps

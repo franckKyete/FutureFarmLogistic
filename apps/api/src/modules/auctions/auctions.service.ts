@@ -654,11 +654,38 @@ export class AuctionsService {
     return this.bidRepository.save(bid);
   }
 
-  async listAllBidsForAdmin(auctionId: string): Promise<BidEntity[]> {
+  async listBidsForAuction(
+    userId: string,
+    auctionId: string,
+    isAdmin = false,
+  ): Promise<BidEntity[]> {
+    const auction = await this.auctionRepository.findOne({
+      where: { id: auctionId },
+      relations: ['farmerProfile'],
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    const isOwnerFarmer = auction.farmerProfile?.userId === userId;
+
+    if (!isAdmin && !isOwnerFarmer) {
+      return this.bidRepository.find({
+        where: { auctionId, buyerId: userId },
+        relations: ['buyer'],
+        order: { createdAt: 'DESC' },
+      });
+    }
+
     return this.bidRepository.find({
       where: { auctionId },
       relations: ['buyer'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async listAllBidsForAdmin(auctionId: string): Promise<BidEntity[]> {
+    return this.listBidsForAuction('', auctionId, true);
   }
 }
