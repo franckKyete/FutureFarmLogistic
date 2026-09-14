@@ -99,4 +99,14 @@ export class CheckoutDto {
   @IsString()
   @IsOptional()
   currency?: string;
+
+  @ApiPropertyOptional({ example: 'http://192.168.1.50:3001', description: 'Base origin of the client initiating checkout' })
+  @IsString()
+  @IsOptional()
+  clientOrigin?: string;
+
+  @ApiPropertyOptional({ example: 'http://192.168.1.50:3001/orders', description: 'Explicit return URL for payment redirection' })
+  @IsString()
+  @IsOptional()
+  returnUrl?: string;
 }

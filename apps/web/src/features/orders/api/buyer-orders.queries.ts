@@ -41,7 +41,10 @@ export const retryPaymentMutation = () => ({
   ): Promise<{ order: OrderDto; paymentUrl?: string }> => {
     const { data } = await apiClient.post<{
       data: { order: OrderDto; paymentUrl?: string };
-    }>(`/orders/${orderId}/retry-payment`);
+    }>(`/orders/${orderId}/retry-payment`, {
+      clientOrigin: window.location.origin,
+      returnUrl: `${window.location.origin}/orders`,
+    });
     return data.data;
   },
 });

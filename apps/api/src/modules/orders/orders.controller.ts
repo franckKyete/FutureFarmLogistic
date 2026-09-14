@@ -16,6 +16,7 @@ import type { Response, Request } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Permission, AuthUser } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ClientOrigin } from '../../common/decorators/client-origin.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
@@ -96,8 +97,17 @@ export class OrdersController {
   @Post(':id/retry-payment')
   @RequirePermissions(Permission.ORDER_READ)
   @ApiOperation({ summary: 'Retry payment for an unpaid order' })
-  retryPayment(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.ordersService.retryPayment(id, user.id, user.permissions);
+  retryPayment(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @ClientOrigin() clientOrigin?: string,
+    @Body() body?: { clientOrigin?: string; returnUrl?: string },
+  ) {
+    const origin = body?.clientOrigin || clientOrigin;
+    const retryOptions: { clientOrigin?: string; returnUrl?: string } = {};
+    if (origin) retryOptions.clientOrigin = origin;
+    if (body?.returnUrl) retryOptions.returnUrl = body.returnUrl;
+    return this.ordersService.retryPayment(id, user.id, user.permissions, retryOptions);
   }
 
   @Get(':id/pdf')

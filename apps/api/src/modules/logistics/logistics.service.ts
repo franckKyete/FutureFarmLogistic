@@ -16,21 +16,28 @@ import {
   UpdateDeliveryRunDto,
   SkipStopDto,
   PushLocationDto,
+  OrderStatus,
   OrderLineStatus,
+  PickupReportStatus,
+  SubmitPickupReportDto,
 } from '@futurefarm/types';
 import { DeliveryRunEntity } from './entities/delivery-run.entity';
 import { DeliveryStopEntity } from './entities/delivery-stop.entity';
 import { DriverLocationEntity } from './entities/driver-location.entity';
+import { PickupReportEntity } from './entities/pickup-report.entity';
 import { OrderLineEntity } from '../orders/entities/order-line.entity';
-import { InspectionReportEntity } from '../inspections/entities/inspection-report.entity';
+import { OrderEntity } from '../orders/entities/order.entity';
 import {
   ROUTE_OPTIMIZER_PORT,
-  RouteOptimizerPort,
-  LatLon,
+  type RouteOptimizerPort,
+  type LatLon,
 } from './interfaces/route-optimizer.port';
-import { STORAGE_PORT, StoragePort } from './interfaces/storage.port';
+import { STORAGE_PORT, type StoragePort } from './interfaces/storage.port';
 import { VehiclesService } from './vehicles.service';
 import { LogisticsGateway } from './logistics.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationChannel, NotificationPriority } from '@futurefarm/types';
 
 @Injectable()
 export class LogisticsService {
@@ -45,8 +52,10 @@ export class LogisticsService {
     private readonly locationRepo: Repository<DriverLocationEntity>,
     @InjectRepository(OrderLineEntity)
     private readonly orderLineRepo: Repository<OrderLineEntity>,
-    @InjectRepository(InspectionReportEntity)
-    private readonly inspectionReportRepo: Repository<InspectionReportEntity>,
+    @InjectRepository(OrderEntity)
+    private readonly orderRepo: Repository<OrderEntity>,
+    @InjectRepository(PickupReportEntity)
+    private readonly pickupReportRepo: Repository<PickupReportEntity>,
     private readonly vehiclesService: VehiclesService,
     private readonly dataSource: DataSource,
     @Inject(ROUTE_OPTIMIZER_PORT)
@@ -56,6 +65,8 @@ export class LogisticsService {
     // Gateway is injected lazily (forwardRef) to avoid circular dependency
     @Inject('LOGISTICS_GATEWAY')
     private readonly gateway: LogisticsGateway,
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -85,6 +96,18 @@ export class LogisticsService {
         stop.notes = s.notes ?? null;
         stop.status = DeliveryStopStatus.PENDING;
         stops.push(await manager.save(DeliveryStopEntity, stop));
+        // Auto-create PickupReport in PENDING status for each COLLECTION stop
+        if (s.type === DeliveryStopType.COLLECTION) {
+          const report = manager.create(PickupReportEntity, {
+            stopId: stop.id,
+            driverId: dto.driverId ?? null,
+            orderLineId: s.orderLineId,
+            status: PickupReportStatus.PENDING,
+          });
+          const savedReport = await manager.save(PickupReportEntity, report);
+          stop.pickupReportId = savedReport.id;
+          await manager.save(DeliveryStopEntity, stop);
+        }
       }
 
       // Run OSRM optimisation if we have ≥2 stops
@@ -122,36 +145,140 @@ export class LogisticsService {
         await manager.save(DeliveryRunEntity, savedRun);
       }
 
-      return this.getRun(savedRun.id);
+      const runWithRelations = await manager.findOne(DeliveryRunEntity, {
+        where: { id: savedRun.id },
+        relations: [
+          'driver',
+          'vehicle',
+          'stops',
+          'stops.pickupReport',
+          'stops.orderLine',
+          'stops.orderLine.harvest',
+          'stops.orderLine.harvest.product',
+          'stops.orderLine.order',
+          'stops.orderLine.order.buyer',
+        ],
+      });
+
+      if (!runWithRelations) {
+        throw new NotFoundException(`Delivery run ${savedRun.id} not found after creation`);
+      }
+
+      if (runWithRelations.stops) {
+        runWithRelations.stops.sort((a, b) => a.sequence - b.sequence);
+      }
+
+      // Notify driver if assigned immediately upon creation
+      if (runWithRelations.driverId) {
+        const stopsList = runWithRelations.stops || [];
+        const origin = stopsList[0]?.address?.city || stopsList[0]?.address?.street || 'Point de collecte';
+        const destination = stopsList[stopsList.length - 1]?.address?.city || stopsList[stopsList.length - 1]?.address?.street || 'Destination';
+        const formattedDate = runWithRelations.scheduledAt.toLocaleDateString('fr-FR', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+        // 1. Send multi-channel notification (Database, SMS, Email, Push)
+        void this.notificationsService.send({
+          recipientIds: [runWithRelations.driverId],
+          title: 'Nouvelle tournée de livraison assignée',
+          body: `Vous avez été assigné à une nouvelle tournée (${stopsList.length} arrêts) prévue le ${formattedDate} (${origin} ➔ ${destination}).`,
+          channels: [
+            NotificationChannel.DATABASE,
+            NotificationChannel.EMAIL,
+            NotificationChannel.SMS,
+            NotificationChannel.PUSH,
+          ],
+          priority: NotificationPriority.HIGH,
+          metadata: {
+            runId: runWithRelations.id,
+            actionUrl: `/driver/runs/${runWithRelations.id}`,
+            actionText: 'Voir la tournée',
+          },
+        }).catch((err) => {
+          this.logger.warn(`Failed to send notification to driver ${runWithRelations.driverId}: ${(err as Error).message}`);
+        });
+
+        // 2. Real-time WebSocket dispatch event
+        this.gateway.emitRunAssigned(runWithRelations.driverId, {
+          runId: runWithRelations.id,
+          scheduledAt: runWithRelations.scheduledAt.toISOString(),
+          originCity: origin,
+          destinationCity: destination,
+          stopsCount: stopsList.length,
+          totalDistanceKm: runWithRelations.totalDistanceKm || undefined,
+        });
+      }
+
+      return runWithRelations;
     });
   }
 
   async listAllRuns(page = 1, limit = 20): Promise<{ data: DeliveryRunEntity[]; total: number }> {
     const [data, total] = await this.runRepo.findAndCount({
       order:     { scheduledAt: 'DESC' },
-      relations: ['driver', 'vehicle', 'stops'],
+      relations: ['driver', 'vehicle', 'stops', 'stops.pickupReport'],
       skip:      (page - 1) * limit,
       take:      limit,
     });
+    for (const run of data) {
+      if (run.stops) {
+        run.stops.sort((a, b) => a.sequence - b.sequence);
+      }
+    }
     return { data, total };
   }
 
   async listMyRuns(driverId: string): Promise<DeliveryRunEntity[]> {
-    return this.runRepo.find({
+    const runs = await this.runRepo.find({
       where:     { driverId },
       order:     { scheduledAt: 'DESC' },
-      relations: ['vehicle', 'stops'],
+      relations: [
+        'vehicle',
+        'stops',
+        'stops.pickupReport',
+        'stops.orderLine',
+        'stops.orderLine.harvest',
+        'stops.orderLine.harvest.product',
+        'stops.orderLine.farmerProfile',
+        'stops.orderLine.farmerProfile.user',
+        'stops.orderLine.order',
+        'stops.orderLine.order.buyer',
+      ],
     });
+    for (const run of runs) {
+      if (run.stops) {
+        run.stops.sort((a, b) => a.sequence - b.sequence);
+      }
+    }
+    return runs;
   }
 
   async getRun(id: string): Promise<DeliveryRunEntity> {
     const run = await this.runRepo.findOne({
       where:     { id },
-      relations: ['driver', 'vehicle', 'stops'],
+      relations: [
+        'driver',
+        'vehicle',
+        'stops',
+        'stops.pickupReport',
+        'stops.orderLine',
+        'stops.orderLine.harvest',
+        'stops.orderLine.harvest.product',
+        'stops.orderLine.farmerProfile',
+        'stops.orderLine.farmerProfile.user',
+        'stops.orderLine.order',
+        'stops.orderLine.order.buyer',
+      ],
     });
     if (!run) throw new NotFoundException(`Delivery run ${id} not found`);
     // Sort stops by sequence
-    run.stops.sort((a, b) => a.sequence - b.sequence);
+    if (run.stops) {
+      run.stops.sort((a, b) => a.sequence - b.sequence);
+    }
     return run;
   }
 
@@ -173,6 +300,62 @@ export class LogisticsService {
     }
     run.driverId = driverId;
     await this.runRepo.save(run);
+
+    const updated = await this.getRun(runId);
+    const stops = updated.stops || [];
+    const originStop = stops[0];
+    const destStop = stops[stops.length - 1];
+
+    const formattedDate = updated.scheduledAt.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    // 1. Send multi-channel notification (Database, SMS, Email, Push)
+    void this.notificationsService.send({
+      recipientIds: [driverId],
+      title: 'Nouvelle tournée de livraison assignée',
+      body: `Vous avez été assigné à une nouvelle tournée (${stops.length} arrêts) prévue le ${formattedDate} (${originStop?.address?.city || 'Origine'} ➔ ${destStop?.address?.city || 'Destination'}).`,
+      channels: [
+        NotificationChannel.DATABASE,
+        NotificationChannel.EMAIL,
+        NotificationChannel.SMS,
+        NotificationChannel.PUSH,
+      ],
+      priority: NotificationPriority.HIGH,
+      metadata: {
+        runId: updated.id,
+        actionUrl: `/driver/runs/${updated.id}`,
+        actionText: 'Voir la tournée',
+      },
+    }).catch((err) => {
+      this.logger.warn(`Failed to send assignment notification to driver ${driverId}: ${(err as Error).message}`);
+    });
+
+    // 2. Emit real-time dispatch notification to driver's personal room
+    this.gateway.emitRunAssigned(driverId, {
+      runId: updated.id,
+      scheduledAt: updated.scheduledAt.toISOString(),
+      originCity: originStop?.address?.city || originStop?.address?.street || 'Origine',
+      destinationCity: destStop?.address?.city || destStop?.address?.street || 'Destination',
+      stopsCount: stops.length,
+      totalDistanceKm: updated.totalDistanceKm || undefined,
+    });
+
+    return updated;
+  }
+
+  async unassignDriver(runId: string): Promise<DeliveryRunEntity> {
+    const run = await this.getRun(runId);
+    if (run.status !== DeliveryRunStatus.PLANNED) {
+      throw new BadRequestException('Can only unassign driver from a PLANNED run');
+    }
+    run.driverId = null;
+    await this.runRepo.save(run);
+    this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.PLANNED);
     return this.getRun(runId);
   }
 
@@ -233,10 +416,208 @@ export class LogisticsService {
     if (run.status !== DeliveryRunStatus.PLANNED) {
       throw new BadRequestException('Run is not in PLANNED status');
     }
-    run.status    = DeliveryRunStatus.IN_PROGRESS;
+    run.status = DeliveryRunStatus.IN_PROGRESS;
     run.startedAt = new Date();
     await this.runRepo.save(run);
     this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.IN_PROGRESS);
+    return this.getRun(runId);
+  }
+
+  async startTransit(runId: string, driverId: string): Promise<DeliveryRunEntity> {
+    const run = await this.getRun(runId);
+    if (run.driverId !== driverId) {
+      throw new ForbiddenException('You are not the assigned driver for this run');
+    }
+    if (run.status === DeliveryRunStatus.COMPLETED || run.status === DeliveryRunStatus.CANCELLED) {
+      throw new BadRequestException('Cannot start transit on a completed or cancelled run');
+    }
+
+    // 1. Mark run as IN_PROGRESS if not already
+    if (run.status === DeliveryRunStatus.PLANNED) {
+      run.status = DeliveryRunStatus.IN_PROGRESS;
+      run.startedAt = new Date();
+      await this.runRepo.save(run);
+      this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.IN_PROGRESS);
+    }
+
+    // 2. Identify all order lines across stops in this run
+    const orderLineIds = Array.from(
+      new Set(
+        run.stops
+          .map((s) => s.orderLineId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const affectedOrderIds = new Set<string>();
+
+    for (const lineId of orderLineIds) {
+      const line = await this.orderLineRepo.findOne({
+        where: { id: lineId },
+        relations: ['order'],
+      });
+
+      if (line) {
+        if (line.status !== OrderLineStatus.DELIVERED && line.status !== OrderLineStatus.REJECTED) {
+          line.status = OrderLineStatus.SHIPPED;
+          await this.orderLineRepo.save(line);
+          this.logger.log(`OrderLine ${line.id} marked SHIPPED via startTransit on run ${runId}`);
+        }
+        if (line.orderId) {
+          affectedOrderIds.add(line.orderId);
+        }
+      }
+    }
+
+    // 3. For each affected order, check if all items are now in transit (or delivered)
+    for (const orderId of affectedOrderIds) {
+      await this.syncOrderStatusAfterTransit(orderId);
+    }
+
+    return this.getRun(runId);
+  }
+
+  private async syncOrderStatusAfterTransit(orderId: string): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['lines', 'buyer'],
+    });
+    if (!order) return;
+
+    const nonRejected = (order.lines || []).filter((l) => l.status !== OrderLineStatus.REJECTED);
+    if (nonRejected.length === 0) return;
+
+    const allShippedOrDelivered = nonRejected.every(
+      (l) => l.status === OrderLineStatus.SHIPPED || l.status === OrderLineStatus.DELIVERED,
+    );
+
+    if (allShippedOrDelivered && order.status !== OrderStatus.SHIPPED && order.status !== OrderStatus.DELIVERED) {
+      order.status = OrderStatus.SHIPPED;
+      await this.orderRepo.save(order);
+      this.logger.log(`Order ${order.id} automatically updated to SHIPPED because all items are in transit`);
+
+      // Send notifications to buyer
+      await this.notificationsService.send({
+        recipientIds: [order.buyerId],
+        title: 'Commande en cours de livraison',
+        body: `Votre commande #${order.id.slice(0, 8)} est désormais en transit et en route pour la livraison.`,
+        channels: [
+          NotificationChannel.DATABASE,
+          NotificationChannel.EMAIL,
+          NotificationChannel.SMS,
+          NotificationChannel.PUSH,
+        ],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          orderId: order.id,
+          actionUrl: `/buyer/orders/${order.id}`,
+          actionText: 'Suivre la commande',
+        },
+      }).catch((err) => {
+        this.logger.warn(`Failed to notify buyer for order ${order.id} transit: ${(err as Error).message}`);
+      });
+
+      this.notificationsGateway.emitOrderStatusChanged(order.buyerId, {
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        message: `Votre commande #${order.id.slice(0, 8)} est en cours de livraison`,
+      });
+    }
+  }
+
+  private async syncOrderStatusAfterDelivery(orderId: string): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['lines', 'buyer'],
+    });
+    if (!order) return;
+
+    const nonRejected = (order.lines || []).filter((l) => l.status !== OrderLineStatus.REJECTED);
+    if (nonRejected.length === 0) return;
+
+    const allDelivered = nonRejected.every((l) => l.status === OrderLineStatus.DELIVERED);
+
+    if (allDelivered && order.status !== OrderStatus.DELIVERED) {
+      order.status = OrderStatus.DELIVERED;
+      await this.orderRepo.save(order);
+      this.logger.log(`Order ${order.id} automatically updated to DELIVERED because all items are delivered`);
+
+      // Send notifications to buyer
+      await this.notificationsService.send({
+        recipientIds: [order.buyerId],
+        title: 'Commande livrée',
+        body: `Votre commande #${order.id.slice(0, 8)} a été entièrement livrée. Bon appétit !`,
+        channels: [
+          NotificationChannel.DATABASE,
+          NotificationChannel.EMAIL,
+          NotificationChannel.SMS,
+          NotificationChannel.PUSH,
+        ],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          orderId: order.id,
+          actionUrl: `/buyer/orders/${order.id}`,
+          actionText: 'Voir la commande',
+        },
+      }).catch((err) => {
+        this.logger.warn(`Failed to notify buyer for order ${order.id} delivery: ${(err as Error).message}`);
+      });
+
+      this.notificationsGateway.emitOrderStatusChanged(order.buyerId, {
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        message: `Votre commande #${order.id.slice(0, 8)} a été livrée`,
+      });
+    }
+  }
+
+  async completeRun(runId: string, driverId: string): Promise<DeliveryRunEntity> {
+    const run = await this.getRun(runId);
+    if (run.driverId !== driverId) {
+      throw new ForbiddenException('You are not the assigned driver for this run');
+    }
+    if (run.status === DeliveryRunStatus.COMPLETED) {
+      return run;
+    }
+    if (run.status === DeliveryRunStatus.CANCELLED) {
+      throw new BadRequestException('Cannot complete a cancelled run');
+    }
+
+    // Check that delivery stops are either completed or skipped
+    const deliveryStops = run.stops.filter((s) => s.type === DeliveryStopType.DELIVERY);
+    const incompleteDeliveries = deliveryStops.filter(
+      (s) => s.status !== DeliveryStopStatus.COMPLETED && s.status !== DeliveryStopStatus.SKIPPED,
+    );
+    if (incompleteDeliveries.length > 0) {
+      throw new BadRequestException(
+        `Impossible de terminer la tournée : ${incompleteDeliveries.length} livraison(s) non finalisée(s)`,
+      );
+    }
+
+    run.status = DeliveryRunStatus.COMPLETED;
+    run.completedAt = new Date();
+    await this.runRepo.save(run);
+    this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.COMPLETED);
+    this.logger.log(`Delivery run ${runId} marked COMPLETED by driver ${driverId}`);
+
+    // Synchronize final order statuses for all orders in run
+    const affectedOrderIds = new Set<string>();
+    for (const stop of deliveryStops) {
+      if (stop.status === DeliveryStopStatus.COMPLETED && stop.orderLineId) {
+        await this.orderLineRepo.update(stop.orderLineId, {
+          status: OrderLineStatus.DELIVERED,
+        });
+        const line = await this.orderLineRepo.findOne({ where: { id: stop.orderLineId } });
+        if (line?.orderId) affectedOrderIds.add(line.orderId);
+      }
+    }
+
+    for (const orderId of affectedOrderIds) {
+      await this.syncOrderStatusAfterDelivery(orderId);
+    }
+
     return this.getRun(runId);
   }
 
@@ -280,16 +661,15 @@ export class LogisticsService {
   }
 
   /**
-   * Trigger AI pickup inspection for a COLLECTION stop.
-   * The inspection report ID is stored on the stop.
+   * Driver submits pickup inspection report for a COLLECTION stop.
    */
-  async createPickupReport(
-    runId:       string,
-    stopId:      string,
-    driverId:    string,
-    reportId:    string,
-  ): Promise<DeliveryStopEntity> {
-    const run  = await this.getRun(runId);
+  async submitPickupReport(
+    runId:    string,
+    stopId:   string,
+    driverId: string,
+    dto:      SubmitPickupReportDto,
+  ): Promise<PickupReportEntity> {
+    const run = await this.getRun(runId);
     if (run.driverId !== driverId) {
       throw new ForbiddenException('You are not the assigned driver for this run');
     }
@@ -298,15 +678,38 @@ export class LogisticsService {
       throw new BadRequestException('Pickup reports are only available on COLLECTION stops');
     }
     if (stop.status !== DeliveryStopStatus.ARRIVED) {
-      throw new BadRequestException('Driver must arrive at stop before creating a pickup report');
+      throw new BadRequestException('Driver must arrive at stop before submitting a pickup report');
     }
 
-    // Verify report exists
-    const report = await this.inspectionReportRepo.findOne({ where: { id: reportId } });
-    if (!report) throw new NotFoundException(`Inspection report ${reportId} not found`);
+    let report: PickupReportEntity | null = null;
+    if (stop.pickupReportId) {
+      report = await this.pickupReportRepo.findOne({ where: { id: stop.pickupReportId } });
+    }
 
-    stop.pickupReportId = reportId;
-    return this.stopRepo.save(stop);
+    if (!report) {
+      report = this.pickupReportRepo.create({
+        stopId: stop.id,
+        driverId,
+        orderLineId: stop.orderLineId,
+      });
+    }
+
+    report.driverId = driverId;
+    report.quantityVerified = dto.quantityVerified;
+    report.conditionOk = dto.conditionOk;
+    report.packagingIntact = dto.packagingIntact;
+    report.weightActualKg = dto.weightActualKg;
+    report.notes = dto.notes ?? null;
+    report.status = PickupReportStatus.SUBMITTED;
+    report.submittedAt = new Date();
+
+    const saved = await this.pickupReportRepo.save(report);
+    if (stop.pickupReportId !== saved.id) {
+      stop.pickupReportId = saved.id;
+      await this.stopRepo.save(stop);
+    }
+
+    return saved;
   }
 
   async uploadProofPhoto(
@@ -342,11 +745,24 @@ export class LogisticsService {
       throw new BadRequestException('Stop must be in ARRIVED status to complete');
     }
 
-    // Gate: COLLECTION stops require an AI pickup report
-    if (stop.type === DeliveryStopType.COLLECTION && !stop.pickupReportId) {
-      throw new BadRequestException(
-        'A pickup report must be generated before completing a COLLECTION stop',
-      );
+    // Gate 1: Proof photo is strictly enforced on all stops (COLLECTION and DELIVERY)
+    if (!stop.proofPhotoUrl) {
+      throw new BadRequestException('A proof photo must be uploaded before completing this stop');
+    }
+
+    // Gate 2: COLLECTION stops require a completed pickup report
+    if (stop.type === DeliveryStopType.COLLECTION) {
+      if (!stop.pickupReportId) {
+        throw new BadRequestException(
+          'A pickup report must be submitted before completing a COLLECTION stop',
+        );
+      }
+      const report = await this.pickupReportRepo.findOne({ where: { id: stop.pickupReportId } });
+      if (!report || report.status !== PickupReportStatus.SUBMITTED) {
+        throw new BadRequestException(
+          'A pickup report must be submitted before completing a COLLECTION stop',
+        );
+      }
     }
 
     stop.status      = DeliveryStopStatus.COMPLETED;
@@ -359,6 +775,11 @@ export class LogisticsService {
         status: OrderLineStatus.DELIVERED,
       });
       this.logger.log(`OrderLine ${stop.orderLineId} marked DELIVERED by logistics stop ${stopId}`);
+
+      const line = await this.orderLineRepo.findOne({ where: { id: stop.orderLineId } });
+      if (line?.orderId) {
+        await this.syncOrderStatusAfterDelivery(line.orderId);
+      }
     }
 
     this.gateway.emitStopStatusUpdate(stopId, DeliveryStopStatus.COMPLETED, stop.completedAt);
@@ -412,7 +833,7 @@ export class LogisticsService {
   async pushLocation(driverId: string, dto: PushLocationDto): Promise<DriverLocationEntity> {
     const ping = this.locationRepo.create({
       driverId,
-      runId:    dto.runId,
+      runId:    dto.runId ?? null,
       lat:      dto.lat,
       lon:      dto.lon,
       heading:  dto.heading  ?? null,
@@ -421,13 +842,49 @@ export class LogisticsService {
     const saved = await this.locationRepo.save(ping);
 
     // Update vehicle last known position
-    const run = await this.runRepo.findOne({ where: { id: dto.runId } });
-    if (run?.vehicleId) {
-      await this.vehiclesService.updatePosition(run.vehicleId, dto.lat, dto.lon);
+    let vehicleId: string | null = null;
+    let orderIds: string[] = [];
+
+    if (dto.runId) {
+      const run = await this.runRepo.findOne({
+        where: { id: dto.runId },
+        relations: ['stops', 'stops.orderLine'],
+      });
+
+      if (run?.vehicleId) {
+        vehicleId = run.vehicleId;
+      }
+
+      // Extract unique order IDs for buyer tracking rooms
+      orderIds = Array.from(
+        new Set(
+          run?.stops
+            ?.map((s) => s.orderLine?.orderId)
+            .filter((id): id is string => !!id),
+        ),
+      );
     }
 
-    // Broadcast to subscribers
-    this.gateway.emitLocationUpdate(driverId, dto.lat, dto.lon, dto.heading ?? null);
+    if (!vehicleId) {
+      const driverVehicle = await this.vehiclesService.findByDriverId(driverId);
+      if (driverVehicle) {
+        vehicleId = driverVehicle.id;
+      }
+    }
+
+    if (vehicleId) {
+      await this.vehiclesService.updatePosition(vehicleId, dto.lat, dto.lon);
+    }
+
+    // Broadcast dual-precision to subscribers (exact to admin, fuzzy to buyer)
+    this.gateway.emitLocationUpdate(
+      driverId,
+      dto.lat,
+      dto.lon,
+      dto.heading ?? null,
+      dto.runId,
+      orderIds,
+    );
 
     return saved;
   }
@@ -437,5 +894,105 @@ export class LogisticsService {
       where: { runId },
       order: { recordedAt: 'DESC' },
     });
+  }
+
+  async getLatestDriverLocations(): Promise<
+    Array<{
+      driverId: string;
+      driverName: string;
+      driverPhone?: string | null;
+      vehiclePlate?: string | null;
+      vehicleType?: string | null;
+      lat: number;
+      lon: number;
+      heading?: number | null;
+      speedKmh?: number | null;
+      recordedAt: Date;
+    }>
+  > {
+    const results: Map<
+      string,
+      {
+        driverId: string;
+        driverName: string;
+        driverPhone?: string | null;
+        vehiclePlate?: string | null;
+        vehicleType?: string | null;
+        lat: number;
+        lon: number;
+        heading?: number | null;
+        speedKmh?: number | null;
+        recordedAt: Date;
+      }
+    > = new Map();
+
+    // 1. Get latest locations from driver_locations table
+    try {
+      const latestPings = await this.locationRepo
+        .createQueryBuilder('dl')
+        .distinctOn(['dl.driverId'])
+        .innerJoinAndSelect('dl.driver', 'driver')
+        .orderBy('dl.driverId')
+        .addOrderBy('dl.recordedAt', 'DESC')
+        .getMany();
+
+      for (const ping of latestPings) {
+        if (ping.lat != null && ping.lon != null) {
+          results.set(ping.driverId, {
+            driverId: ping.driverId,
+            driverName: ping.driver
+              ? `${ping.driver.firstName} ${ping.driver.lastName}`.trim()
+              : 'Chauffeur',
+            driverPhone: ping.driver?.phoneNumber ?? null,
+            vehiclePlate: null,
+            vehicleType: null,
+            lat: Number(ping.lat),
+            lon: Number(ping.lon),
+            heading: ping.heading != null ? Number(ping.heading) : null,
+            speedKmh: ping.speedKmh != null ? Number(ping.speedKmh) : null,
+            recordedAt: ping.recordedAt,
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not query distinct driver_locations: ${(err as Error).message}`,
+      );
+    }
+
+    // 2. Augment or fallback with active vehicles having lastKnownLat/Lon
+    try {
+      const vehicles = await this.vehiclesService.findAll();
+      for (const v of vehicles) {
+        if (v.currentDriverId && v.lastKnownLat != null && v.lastKnownLon != null) {
+          const existing = results.get(v.currentDriverId);
+          if (existing) {
+            existing.vehiclePlate = v.registrationPlate;
+            existing.vehicleType = v.type;
+          } else {
+            results.set(v.currentDriverId, {
+              driverId: v.currentDriverId,
+              driverName: v.currentDriver
+                ? `${v.currentDriver.firstName} ${v.currentDriver.lastName}`.trim()
+                : 'Chauffeur',
+              driverPhone: v.currentDriver?.phoneNumber ?? null,
+              vehiclePlate: v.registrationPlate,
+              vehicleType: v.type,
+              lat: Number(v.lastKnownLat),
+              lon: Number(v.lastKnownLon),
+              heading: null,
+              speedKmh: null,
+              recordedAt: v.lastSeenAt || new Date(),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not augment driver locations with vehicles: ${(err as Error).message}`,
+      );
+    }
+
+    return Array.from(results.values());
   }
 }

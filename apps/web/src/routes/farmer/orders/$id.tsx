@@ -1,6 +1,6 @@
 import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getOrderDetailsQuery,
@@ -49,7 +49,7 @@ function getInitials(name?: string): string {
   return clean.slice(0, 2).toUpperCase() || 'CL';
 }
 
-function FarmerOrderDetailPage() {
+export function FarmerOrderDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -103,21 +103,37 @@ function FarmerOrderDetailPage() {
 
   // Calculate overall status for the farmer's items
   const primaryLine = order?.lines?.[0];
+  const isConfirmed =
+    order?.status === OrderStatus.CONFIRMED ||
+    (order?.lines && order.lines.length > 0 && order.lines.every((l) => l.status === OrderLineStatus.CONFIRMED));
+
+  const isShipped =
+    order?.status === OrderStatus.SHIPPED ||
+    (order?.lines && order.lines.length > 0 && order.lines.every((l) => l.status === OrderLineStatus.SHIPPED));
+
+  const isDelivered =
+    order?.status === OrderStatus.DELIVERED ||
+    (order?.lines && order.lines.length > 0 && order.lines.every((l) => l.status === OrderLineStatus.DELIVERED));
+
+  const isRejected =
+    (order?.lines && order.lines.length > 0 && order.lines.every((l) => l.status === OrderLineStatus.REJECTED));
+
   const overallLineStatus: OrderLineStatus =
-    primaryLine?.status ||
-    (order?.status === OrderStatus.CONFIRMED
-      ? OrderLineStatus.CONFIRMED
-      : order?.status === OrderStatus.SHIPPED
+    isDelivered
+      ? OrderLineStatus.DELIVERED
+      : isShipped
         ? OrderLineStatus.SHIPPED
-        : order?.status === OrderStatus.DELIVERED
-          ? OrderLineStatus.DELIVERED
-          : OrderLineStatus.PENDING);
+        : isConfirmed
+          ? OrderLineStatus.CONFIRMED
+          : isRejected
+            ? OrderLineStatus.REJECTED
+            : primaryLine?.status || OrderLineStatus.PENDING;
 
   // Header status configuration
-  const statusBadge = (() => {
+  const statusBadge = useMemo(() => {
     switch (overallLineStatus) {
       case OrderLineStatus.CONFIRMED:
-        return { label: "En attente d'enlèvement", className: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+        return { label: 'Prêt pour la collecte', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
       case OrderLineStatus.SHIPPED:
         return { label: 'En transit', className: 'bg-blue-50 text-blue-800 border-blue-200' };
       case OrderLineStatus.DELIVERED:
@@ -129,22 +145,27 @@ function FarmerOrderDetailPage() {
           return { label: 'Annulée', className: 'bg-rose-50 text-rose-800 border-rose-200' };
         }
         if (order?.status === OrderStatus.CONFIRMED) {
-          return { label: "En attente d'enlèvement", className: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+          return { label: 'Prêt pour la collecte', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
         }
         return { label: 'En attente de confirmation', className: 'bg-amber-50 text-amber-800 border-amber-200' };
     }
-  })();
+  }, [overallLineStatus, order?.status]);
+
+  const rightAction = useMemo(
+    () => (
+      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusBadge.className}`}>
+        {statusBadge.label}
+      </span>
+    ),
+    [statusBadge.className, statusBadge.label],
+  );
 
   useFarmerLayout({
     title: `Commande #${id.slice(0, 8)}`,
     showBack: true,
     backTo: '/farmer/orders',
     hideBottomNav: true,
-    rightAction: (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusBadge.className}`}>
-        {statusBadge.label}
-      </span>
-    ),
+    rightAction,
   });
 
   if (isLoading) {
@@ -192,16 +213,14 @@ function FarmerOrderDetailPage() {
   // Extract delivery notes / slot
   const deliveryNotes = order.notes || '';
 
-  // Driver details (only when actually assigned from logistics after confirmation)
+  // Driver details (displayed whenever assigned)
   const deliveryInfo = (order as any).delivery;
-  const hasAssignedDriver = Boolean(
-    deliveryInfo?.driverName &&
-      (overallLineStatus === OrderLineStatus.CONFIRMED ||
-        overallLineStatus === OrderLineStatus.SHIPPED ||
-        overallLineStatus === OrderLineStatus.DELIVERED),
-  );
   const deliveryDriverName = deliveryInfo?.driverName || null;
   const deliveryDriverPhone = deliveryInfo?.driverPhone || null;
+  const deliveryDriverAvatar = deliveryInfo?.driverAvatarUrl || null;
+  const deliveryVehiclePlate = deliveryInfo?.vehiclePlate || null;
+  const deliveryVehicleType = deliveryInfo?.vehicleType || null;
+  const hasAssignedDriver = Boolean(deliveryDriverName);
 
   return (
     <div className="max-w-[480px] mx-auto min-h-screen bg-[#f8f9fc] text-[#0b1c30] font-sans pb-36 pt-4 px-4 space-y-4">
@@ -236,9 +255,37 @@ function FarmerOrderDetailPage() {
             <div className="p-5 space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1.5 flex-1 min-w-0">
-                  <span className="inline-block bg-[#e0f2fe] text-[#0369a1] text-[10px] font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider">
-                    {categoryLabel}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-block bg-[#e0f2fe] text-[#0369a1] text-[10px] font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider">
+                      {categoryLabel}
+                    </span>
+                    {line.status === OrderLineStatus.CONFIRMED || order?.status === OrderStatus.CONFIRMED ? (
+                      <span className="inline-flex items-center gap-1 bg-[#e6f4ea] text-[#004322] border border-[#aef2be] text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-2xs">
+                        <Icon name="check_circle" className="text-[13px] text-[#004322]" />
+                        <span>Prêt pour la collecte</span>
+                      </span>
+                    ) : line.status === OrderLineStatus.SHIPPED ? (
+                      <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        <Icon name="local_shipping" className="text-[13px]" />
+                        <span>En transit</span>
+                      </span>
+                    ) : line.status === OrderLineStatus.DELIVERED ? (
+                      <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 border border-gray-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        <Icon name="check" className="text-[13px]" />
+                        <span>Livré</span>
+                      </span>
+                    ) : line.status === OrderLineStatus.REJECTED ? (
+                      <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        <Icon name="cancel" className="text-[13px]" />
+                        <span>Rejeté</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        <Icon name="schedule" className="text-[13px]" />
+                        <span>En attente de confirmation</span>
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-xl font-black text-[#0b1c30] leading-tight truncate">
                     {productName}
                   </h2>
@@ -307,24 +354,40 @@ function FarmerOrderDetailPage() {
           </div>
 
           {hasAssignedDriver && deliveryDriverName ? (
-            <div className="bg-[#f0fdf4] border border-[#dcfce7] rounded-xl p-3 flex items-center justify-between gap-3">
+            <div data-testid="farmer-driver-card" className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-white text-[#1a5c35] flex items-center justify-center border border-[#bbf7d0] shrink-0 shadow-xs">
-                  <Icon name="person" className="text-[20px]" />
-                </div>
+                {deliveryDriverAvatar ? (
+                  <img
+                    src={deliveryDriverAvatar}
+                    alt={deliveryDriverName}
+                    className="w-11 h-11 rounded-xl object-cover border border-[#bbf7d0] shrink-0"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-xl bg-[#004322] text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+                    {getInitials(deliveryDriverName)}
+                  </div>
+                )}
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#0b1c30] truncate">{deliveryDriverName}</p>
-                  {deliveryDriverPhone && (
-                    <p className="text-[11px] text-[#707970]">{deliveryDriverPhone}</p>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-[#0b1c30] truncate">{deliveryDriverName}</p>
+                    <span className="bg-emerald-100 text-[#004322] text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                      Chauffeur assigné
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#707970] truncate mt-0.5">
+                    {deliveryVehiclePlate
+                      ? `Véhicule : ${deliveryVehicleType ? `${deliveryVehicleType} • ` : ''}${deliveryVehiclePlate}`
+                      : deliveryDriverPhone || 'Transporteur Future Farm'}
+                  </p>
                 </div>
               </div>
 
               {deliveryDriverPhone && (
                 <a
                   href={`tel:${deliveryDriverPhone}`}
-                  className="w-8 h-8 rounded-full bg-white text-[#1a5c35] flex items-center justify-center border border-[#bbf7d0] hover:bg-[#1a5c35] hover:text-white transition-colors shrink-0 shadow-xs"
-                  title="Appeler le transporteur"
+                  className="w-9 h-9 rounded-full bg-white text-[#004322] flex items-center justify-center border border-[#bbf7d0] hover:bg-[#004322] hover:text-white transition-colors shrink-0 shadow-xs"
+                  title="Appeler le chauffeur"
+                  data-testid="farmer-driver-phone-btn"
                 >
                   <Icon name="phone" className="text-[18px]" />
                 </a>
@@ -336,9 +399,9 @@ function FarmerOrderDetailPage() {
                 <Icon name="schedule" className="text-[20px]" />
               </div>
               <div className="text-xs space-y-0.5">
-                <p className="font-bold text-[#0b1c30]">Attribution du transporteur après confirmation</p>
+                <p className="font-bold text-[#0b1c30]">Chauffeur en cours d'attribution</p>
                 <p className="text-[11px] text-[#707970] leading-relaxed">
-                  Le chauffeur ou transporteur sera automatiquement désigné dès que vous aurez confirmé la disponibilité de votre lot.
+                  Le chauffeur ou transporteur sera automatiquement désigné pour la collecte de votre lot.
                 </p>
               </div>
             </div>
@@ -484,7 +547,9 @@ function FarmerOrderDetailPage() {
       <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#e2e8f0] p-4 shadow-xl">
         <div className="max-w-[480px] mx-auto space-y-2.5">
           {/* Action State 1: PENDING -> Confirmer le lot / Rejeter */}
-          {overallLineStatus === OrderLineStatus.PENDING && order.status !== OrderStatus.CANCELLED && (
+          {overallLineStatus === OrderLineStatus.PENDING &&
+            order.status !== OrderStatus.CANCELLED &&
+            order.status !== OrderStatus.CONFIRMED && (
             <div className="space-y-2">
               <button
                 type="button"
@@ -516,22 +581,24 @@ function FarmerOrderDetailPage() {
             </div>
           )}
 
-          {/* Action State 2: CONFIRMED -> Lot confirmé & En attente d'enlèvement */}
-          {overallLineStatus === OrderLineStatus.CONFIRMED && (
+          {/* Action State 2: CONFIRMED -> Prêt pour la collecte */}
+          {(overallLineStatus === OrderLineStatus.CONFIRMED || order.status === OrderStatus.CONFIRMED) && (
             <div className="space-y-2">
-              <div className="p-3.5 bg-[#e6f4ea] border border-[#aef2be] rounded-2xl text-center text-xs font-bold text-[#004322] flex items-center justify-center gap-2 shadow-xs">
-                <Icon name="verified" className="text-[20px]" />
-                <span>Lot confirmé — En attente d'enlèvement par le transporteur</span>
+              <div
+                data-testid="farmer-ready-pickup-indicator"
+                className="py-3.5 px-4 bg-[#e6f4ea] border border-[#aef2be] rounded-2xl text-center text-sm font-bold text-[#004322] flex items-center justify-center gap-2 shadow-xs"
+              >
+                <Icon name="check_circle" className="text-[20px] text-[#004322]" />
+                <span>Prêt pour la collecte</span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowIssueModal(true)}
-                className="w-full py-3 px-4 border border-[#b91c1c] hover:bg-rose-50 text-[#b91c1c] font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-xs"
+              <Link
+                to="/farmer/orders"
+                className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-[#707970] hover:text-[#0b1c30] font-bold rounded-2xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                <Icon name="error_outline" className="text-[18px]" />
-                <span>Signaler un problème</span>
-              </button>
+                <Icon name="arrow_back" className="text-[16px]" />
+                <span>Retour à la liste des commandes</span>
+              </Link>
             </div>
           )}
 

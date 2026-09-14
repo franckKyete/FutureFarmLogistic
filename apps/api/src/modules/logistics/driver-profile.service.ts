@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DriverProfileEntity } from './entities/driver-profile.entity';
+import { VehicleEntity } from './entities/vehicle.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { CreateDriverProfileDto, UpdateDriverProfileDto } from './dto/driver-profile.dto';
 
@@ -16,6 +17,8 @@ export class DriverProfileService {
     private readonly driverProfileRepo: Repository<DriverProfileEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(VehicleEntity)
+    private readonly vehicleRepo: Repository<VehicleEntity>,
   ) {}
 
   async createProfile(dto: CreateDriverProfileDto): Promise<DriverProfileEntity> {
@@ -40,7 +43,7 @@ export class DriverProfileService {
     return this.driverProfileRepo.save(profile);
   }
 
-  async getProfileByUserId(userId: string): Promise<DriverProfileEntity> {
+  async getProfileByUserId(userId: string): Promise<DriverProfileEntity & { vehicle?: VehicleEntity | null }> {
     const profile = await this.driverProfileRepo.findOne({
       where: { userId },
       relations: ['user'],
@@ -48,7 +51,10 @@ export class DriverProfileService {
     if (!profile) {
       throw new NotFoundException(`Driver profile not found for user ${userId}`);
     }
-    return profile;
+    const vehicle = await this.vehicleRepo.findOne({
+      where: { currentDriverId: userId, isActive: true },
+    });
+    return { ...profile, vehicle: vehicle ?? null };
   }
 
   async updateProfileByUserId(
@@ -78,5 +84,12 @@ export class DriverProfileService {
       order: { createdAt: 'DESC' },
     });
     return { data, total };
+  }
+
+  async listAvailableProfiles(): Promise<DriverProfileEntity[]> {
+    return this.driverProfileRepo.find({
+      where: { isAvailable: true },
+      relations: ['user'],
+    });
   }
 }

@@ -30,6 +30,7 @@ import { UploadedFileDto } from '../products/products.controller';
 
 import { Permission, AuthUser, UserStatus } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ClientOrigin } from '../../common/decorators/client-origin.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
@@ -231,9 +232,19 @@ export class UsersController {
   @ApiOperation({ summary: 'Create a Stripe Hosted Checkout Setup session URL to save card' })
   createSetupSession(
     @CurrentUser() user: AuthUser,
-    @Body() body?: { returnUrl?: string; auctionId?: string },
+    @ClientOrigin() clientOrigin?: string,
+    @Body() body?: { returnUrl?: string; auctionId?: string; clientOrigin?: string },
   ) {
-    return this.usersService.createSetupSession(user.id, body);
+    const origin = body?.clientOrigin || clientOrigin;
+    const sessionOptions: {
+      returnUrl?: string | undefined;
+      auctionId?: string | undefined;
+      clientOrigin?: string | undefined;
+    } = {};
+    if (body?.returnUrl) sessionOptions.returnUrl = body.returnUrl;
+    if (body?.auctionId) sessionOptions.auctionId = body.auctionId;
+    if (origin) sessionOptions.clientOrigin = origin;
+    return this.usersService.createSetupSession(user.id, sessionOptions);
   }
 
   @Post('me/payment-method/confirm-setup-session')

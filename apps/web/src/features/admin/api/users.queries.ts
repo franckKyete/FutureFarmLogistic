@@ -82,6 +82,11 @@ export interface CreateDriverParams {
   licenseNumber: string;
   licenseCategory: string;
   licenseExpiresAt?: string;
+  vehicleBrand?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleCapacityKg?: number;
+  vehicleCapacityM3?: number;
 }
 
 export function useCreateInspector() {

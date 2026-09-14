@@ -60,6 +60,8 @@ const mockSavedAddresses: AddressDto[] = [
     city: 'Dakar',
     country: 'SEN',
     postalCode: '10000',
+    latitude: 14.6937,
+    longitude: -17.4441,
     isDefault: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -76,6 +78,8 @@ const mockSavedAddresses: AddressDto[] = [
     city: 'Dakar',
     country: 'SEN',
     postalCode: '10000',
+    latitude: 14.7167,
+    longitude: -17.4677,
     isDefault: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -229,18 +233,16 @@ describe('CheckoutPage (/checkout)', () => {
     // Form inputs
     expect(screen.getByText('Adresse de livraison')).toBeDefined();
     expect(await screen.findByText(/12 Rue des Agriculteurs/)).toBeDefined();
-    expect(screen.getByText('Date de livraison')).toBeDefined();
-    expect(screen.getByText('Créneau de livraison')).toBeDefined();
-    expect(screen.getByText('Matin (08:00 - 12:00)')).toBeDefined();
-    expect(screen.getByText('Après-midi')).toBeDefined();
-    expect(screen.getByText('Soir')).toBeDefined();
+    expect(screen.queryByText('Date de livraison')).toBeNull();
+    expect(screen.queryByText('Créneau de livraison')).toBeNull();
+    expect(screen.queryByText('Matin (08:00 - 12:00)')).toBeNull();
 
     // Special instructions
     expect(screen.getByPlaceholderText('Ex: Code porte, étage, point de repère...')).toBeDefined();
 
     // Bottom summary bar & trust indicators
     expect(screen.getByText('TOTAL À PAYER')).toBeDefined();
-    expect(screen.getByText('Livré sous 24h')).toBeDefined();
+    expect(screen.queryByText('Livré sous 24h')).toBeNull();
     expect(screen.getByText(/Paiement sécurisé/i)).toBeDefined();
 
     // CTA in sticky footer
@@ -309,7 +311,7 @@ describe('CheckoutPage (/checkout)', () => {
             street: '12 Rue des Agriculteurs',
             city: 'Dakar',
           }),
-          notes: expect.stringContaining('Date:'),
+          notes: undefined,
           paymentMethod: 'stripe',
         }),
       );
@@ -366,7 +368,7 @@ describe('CheckoutPage (/checkout)', () => {
     const originalLocation = window.location;
     // @ts-ignore
     delete (window as any).location;
-    (window as any).location = { href: '' };
+    (window as any).location = { href: '', origin: 'http://localhost:3000' };
 
     mockCheckoutResponse = {
       order: {

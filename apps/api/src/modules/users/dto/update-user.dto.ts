@@ -46,6 +46,21 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  licenseExpiresAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  vehicleBrand?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
   isAvailable?: boolean;
 

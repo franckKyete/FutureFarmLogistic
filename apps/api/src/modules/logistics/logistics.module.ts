@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 
@@ -9,6 +9,8 @@ import { DriverLocationEntity } from './entities/driver-location.entity';
 import { DriverProfileEntity } from './entities/driver-profile.entity';
 import { UserEntity } from '../users/entities/user.entity';
 
+import { PickupReportEntity } from './entities/pickup-report.entity';
+
 // Cross-module entities needed by LogisticsService
 import { OrderLineEntity } from '../orders/entities/order-line.entity';
 import { InspectionReportEntity } from '../inspections/entities/inspection-report.entity';
@@ -16,6 +18,8 @@ import { InspectionReportEntity } from '../inspections/entities/inspection-repor
 import { VehiclesService } from './vehicles.service';
 import { LogisticsService } from './logistics.service';
 import { DriverProfileService } from './driver-profile.service';
+import { DispatchService } from './dispatch.service';
+import { VrpRouteOptimizer } from './vrp-route-optimizer';
 import { VehiclesController } from './vehicles.controller';
 import { LogisticsController } from './logistics.controller';
 import { DriverProfileController } from './driver-profile.controller';
@@ -28,9 +32,12 @@ import {
 import { STORAGE_PORT } from './interfaces/storage.port';
 import { StorageService } from '../storage/storage.service';
 
+import { BullModule } from '@nestjs/bull';
 import { OrdersModule } from '../orders/orders.module';
 import { InspectionsModule } from '../inspections/inspections.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrderEntity } from '../orders/entities/order.entity';
+import { OrderDispatchProcessor } from './order-dispatch.processor';
 
 @Module({
   imports: [
@@ -41,18 +48,24 @@ import { NotificationsModule } from '../notifications/notifications.module';
       DriverLocationEntity,
       DriverProfileEntity,
       UserEntity,
+      PickupReportEntity,
       // Needed for direct repository access (deliver line propagation & report lookup)
+      OrderEntity,
       OrderLineEntity,
       InspectionReportEntity,
     ]),
     ConfigModule,
-    OrdersModule,
+    BullModule.registerQueue({
+      name: 'order-dispatch',
+    }),
+    forwardRef(() => OrdersModule),
     InspectionsModule,
     NotificationsModule,
   ],
   controllers: [LogisticsController, VehiclesController, DriverProfileController],
   providers: [
     VehiclesService,
+    OrderDispatchProcessor,
     LogisticsGateway,
     {
       // Expose gateway under a string token so LogisticsService can inject it
@@ -62,6 +75,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     },
     LogisticsService,
     DriverProfileService,
+    DispatchService,
+    VrpRouteOptimizer,
     {
       provide: ROUTE_OPTIMIZER_PORT,
       useClass: OsrmRouteOptimizer,
@@ -71,6 +86,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
       useExisting: StorageService,
     },
   ],
-  exports: [LogisticsService, VehiclesService, DriverProfileService],
+  exports: [LogisticsService, VehiclesService, DriverProfileService, DispatchService],
 })
 export class LogisticsModule {}

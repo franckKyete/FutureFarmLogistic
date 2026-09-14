@@ -1,5 +1,5 @@
 import { Icon } from '@/features/shared/components/Icon';
-import { createRootRouteWithContext, Link, Outlet, useLocation } from '@tanstack/react-router';
+import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import type { QueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -20,7 +20,6 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function RootLayout() {
-  const location = useLocation();
   const { queryClient } = Route.useRouteContext();
   const { user, isAuthenticated } = useAuth();
   const toasts = useToasts();
@@ -128,46 +127,8 @@ function RootLayout() {
     </div>
   );
 
-  const renderMustChangePasswordBanner = () => {
-    const isProfilePage =
-      location.pathname.startsWith('/profile') ||
-      location.pathname.startsWith('/inspector/profile') ||
-      location.pathname.startsWith('/farmer/profile') ||
-      location.pathname.startsWith('/driver/profile');
-
-    if (!isAuthenticated || !user?.mustChangePassword || isProfilePage) {
-      return null;
-    }
-
-    const targetProfileUrl = user?.roles?.includes('Inspector')
-      ? '/inspector/profile'
-      : user?.roles?.includes('Driver')
-      ? '/driver/profile'
-      : user?.roles?.includes('Farmer')
-      ? '/farmer/profile'
-      : '/profile';
-
-    return (
-      <div className="bg-amber-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold z-50 sticky top-0 animate-slide-in">
-        <div className="flex items-center gap-2 max-w-7xl mx-auto flex-1">
-          <Icon name="warning" className="text-lg" />
-          <span className="truncate sm:whitespace-normal">
-            Vous utilisez un mot de passe temporaire. Veuillez définir votre mot de passe personnalisé.
-          </span>
-          <Link
-            to={targetProfileUrl}
-            className="ml-auto underline font-bold hover:text-amber-100 bg-amber-700/80 px-3 py-1 rounded-lg shrink-0"
-          >
-            Changer de mot de passe
-          </Link>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen">
-      {renderMustChangePasswordBanner()}
       <Outlet />
       {renderToasts()}
       {import.meta.env.DEV && <TanStackRouterDevtools />}

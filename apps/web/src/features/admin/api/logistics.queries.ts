@@ -13,6 +13,7 @@ import type {
 
 export interface VehicleDto {
   id: string;
+  brand?: string | null;
   registrationPlate: string;
   type: string;
   capacityKg: number;
@@ -30,7 +31,10 @@ export interface DriverProfileDto {
   licenseCategory: string;
   licenseExpiresAt: string | null;
   isAvailable: boolean;
-  user?: { firstName: string; lastName: string; email: string };
+  averageRating?: number | null;
+  totalDeliveriesCompleted?: number;
+  user?: { firstName: string; lastName: string; email: string; phoneNumber?: string | null; avatarUrl?: string | null };
+  vehicle?: VehicleDto | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +45,7 @@ export interface DeliveryRunDto {
   driverId: string | null;
   vehicleId: string | null;
   scheduledAt: string;
+  totalDistanceKm?: number | null;
   notes: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -51,9 +56,12 @@ export interface DeliveryRunDto {
     firstName: string;
     lastName: string;
     email: string;
+    phoneNumber?: string | null;
+    avatarUrl?: string | null;
   } | null;
   vehicle?: {
     id: string;
+    brand?: string | null;
     registrationPlate: string;
     type: string;
     capacityKg: number;
@@ -74,6 +82,59 @@ export interface DeliveryRunDto {
     };
     eta: string | null;
     completedAt: string | null;
+    proofPhotoUrl?: string | null;
+    pickupReportId?: string | null;
+    pickupReport?: {
+      id: string;
+      status: string;
+      quantityVerified?: boolean | null;
+      conditionOk?: string | null;
+      packagingIntact?: boolean | null;
+      weightActualKg?: number | null;
+      notes?: string | null;
+    } | null;
+    orderLine?: {
+      id: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+      harvest?: {
+        id: string;
+        photoUrls?: string[];
+        unit?: string;
+        product?: {
+          id: string;
+          name: string;
+          category: string;
+        };
+      };
+      farmerProfile?: {
+        id: string;
+        companyName?: string | null;
+        address?: string | null;
+        user?: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          phoneNumber?: string | null;
+        } | null;
+      } | null;
+      order?: {
+        id: string;
+        deliveryAddress?: {
+          street?: string;
+          streetAddress?: string;
+          city?: string;
+        } | null;
+        buyer?: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          phoneNumber?: string | null;
+          email: string;
+        };
+      };
+    } | null;
     notes: string | null;
   }>;
 }
@@ -252,5 +313,35 @@ export function useAssignVehicleToRun() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'runs'] });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Driver Locations (Fleet Overview)
+// ---------------------------------------------------------------------------
+
+export interface DriverLatestLocationDto {
+  driverId: string;
+  driverName: string;
+  driverPhone?: string | null;
+  vehiclePlate?: string | null;
+  vehicleType?: string | null;
+  lat: number;
+  lon: number;
+  heading?: number | null;
+  speedKmh?: number | null;
+  recordedAt: string;
+}
+
+export function useDriverLocations() {
+  return useQuery<DriverLatestLocationDto[]>({
+    queryKey: ['admin', 'logistics', 'drivers', 'locations'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: DriverLatestLocationDto[] }>(
+        '/logistics/drivers/locations',
+      );
+      return data.data;
+    },
+    refetchInterval: 15000, // Periodic refresh every 15s for live dashboard
   });
 }

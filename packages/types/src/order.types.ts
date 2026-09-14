@@ -60,6 +60,8 @@ export interface CheckoutDto {
   phoneNumber?: string | undefined;
   mmoProvider?: string | undefined;
   currency?: string | undefined;
+  clientOrigin?: string | undefined;
+  returnUrl?: string | undefined;
 }
 
 export interface RejectOrderLineDto {
@@ -100,12 +102,24 @@ export interface OrderPartySummaryDto {
 
 export interface OrderDeliverySummaryDto {
   mode: string;
+  runId?: string | null;
+  scheduledAt?: string | null;
+  runStatus?: string | null;
   driverName?: string | null;
   driverPhone?: string | null;
+  driverAvatarUrl?: string | null;
   vehiclePlate?: string | null;
   vehicleType?: string | null;
   status?: string | null;
   eta?: string | null;
+  stops?: Array<{
+    id: string;
+    type: string;
+    status: string;
+    address: { street: string; city: string; lat: number; lon: number };
+    sequence: number;
+    orderLineId: string;
+  }>;
 }
 
 export interface OrderLineDto {
@@ -167,6 +181,8 @@ export interface PaymentOptions {
   paymentMethod?: PaymentMethodType | string | undefined;
   phoneNumber?: string | undefined;
   mmoProvider?: string | undefined;
+  clientOrigin?: string | undefined;
+  returnUrl?: string | undefined;
 }
 
 export interface PaymentInitResult {

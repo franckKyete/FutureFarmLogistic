@@ -5,6 +5,7 @@ import { NotFoundException, ConflictException } from '@nestjs/common';
 import { DriverProfileService } from './driver-profile.service';
 import { DriverProfileEntity } from './entities/driver-profile.entity';
 import { UserEntity } from '../users/entities/user.entity';
+import { VehicleEntity } from './entities/vehicle.entity';
 
 describe('DriverProfileService', () => {
   let service: DriverProfileService;
@@ -30,6 +31,15 @@ describe('DriverProfileService', () => {
           provide: getRepositoryToken(UserEntity),
           useValue: {
             findOneBy: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(VehicleEntity),
+          useValue: {
+            findOne: jest.fn(),
+            findOneBy: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
           },
         },
       ],
@@ -87,7 +97,9 @@ describe('DriverProfileService', () => {
       const mockProfile = { id: 'profile-1', userId: 'user-1' };
       driverProfileRepo.findOne.mockResolvedValue(mockProfile);
       await service.deleteProfileByUserId('user-1');
-      expect(driverProfileRepo.remove).toHaveBeenCalledWith(mockProfile);
+      expect(driverProfileRepo.remove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'profile-1', userId: 'user-1' }),
+      );
     });
   });
 

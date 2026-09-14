@@ -72,6 +72,29 @@ describe('PawaPayPaymentGateway', () => {
       expect(result.status).toBe(PaymentStatus.PENDING);
     });
 
+    it('should use dynamic clientOrigin for returnUrl when provided', async () => {
+      const mockFetchResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          checkoutId: 'ch_lan_123',
+          redirectUrl: 'https://checkout.sandbox.pawapay.io/ch_lan_123',
+          checkoutCode: 'code_lan_123',
+          status: 'ACCEPTED',
+        }),
+      };
+      global.fetch = jest.fn().mockResolvedValue(mockFetchResponse);
+
+      const order = { id: 'order-lan-pawa', buyerId: 'buyer-uuid-1' } as OrderEntity;
+      await gateway.initiatePayment(order, 5000, {
+        clientOrigin: 'http://192.168.24.178:3001',
+      });
+
+      const sentBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      expect(sentBody.returnUrl).toContain('https://192.168.24.178:3001/orders');
+      expect(sentBody.returnUrl).toContain('orderId=order-lan-pawa');
+      expect(sentBody.returnUrl).toContain('provider=pawapay');
+    });
+
     it('should round UP float amounts to next whole integer using Math.ceil', async () => {
       const mockFetchResponse = {
         ok: true,

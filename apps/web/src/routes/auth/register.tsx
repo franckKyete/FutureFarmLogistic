@@ -8,6 +8,7 @@ import { useActiveRegions } from '@/features/admin/api/inspections.queries';
 import { setAuth } from '@/features/auth/store/auth.store';
 import { useCurrencyStore } from '@/features/currency/store/currency.store';
 import { AddressInputGroup, type AddressValue } from '@/features/addresses/components';
+import { LocationPickerMap } from '@/features/shared/components/LocationPickerMap';
 import type { RegisterFarmerPayload, RegisterBuyerPayload } from '@/features/auth/api/auth.queries';
 
 export const Route = createFileRoute('/auth/register')({
@@ -53,6 +54,7 @@ function RegisterPage() {
     stateOrProvince: '',
     country: 'COD',
   });
+  const [farmerCoordinates, setFarmerCoordinates] = useState<{ lat: number; lon: number } | null>(null);
   const [regionName, setRegionName] = useState(''); // Only Farmer
 
   const [buyerBillingAddress, setBuyerBillingAddress] = useState<AddressValue>({
@@ -146,6 +148,10 @@ function RegisterPage() {
           setValidationError('Veuillez renseigner l\'adresse complète de votre exploitation (Ligne 1, Ville, Province/Région).');
           return;
         }
+        if (!farmerCoordinates || typeof farmerCoordinates.lat !== 'number' || typeof farmerCoordinates.lon !== 'number') {
+          setValidationError("Veuillez positionner le repère sur la carte pour définir l'emplacement GPS de votre exploitation.");
+          return;
+        }
       } else {
         if (!buyerBillingAddress.streetAddress || !buyerBillingAddress.city || !buyerBillingAddress.stateOrProvince) {
           setValidationError('Veuillez renseigner l\'adresse de facturation complète (Ligne 1, Ville, Province/Région).');
@@ -187,12 +193,18 @@ function RegisterPage() {
     }
 
     if (role === 'FARMER') {
+      if (!farmerCoordinates || typeof farmerCoordinates.lat !== 'number' || typeof farmerCoordinates.lon !== 'number') {
+        setValidationError("Veuillez sélectionner l'emplacement GPS précis de votre exploitation sur la carte.");
+        return;
+      }
       const payload: RegisterFarmerPayload = {
         ...baseData,
         phoneNumber: phoneNumber.trim(),
         companyName: companyName.trim(),
         address: formatAddressString(farmerAddress),
         regionName,
+        latitude: farmerCoordinates.lat,
+        longitude: farmerCoordinates.lon,
       };
       if (bio.trim()) payload.bio = bio.trim();
       registerFarmer(payload);
@@ -526,6 +538,31 @@ function RegisterPage() {
                         subtitle="Localisation principale de vos parcelles et récoltes"
                         required
                       />
+
+                      {/* Interactive Map Picker for Farm Location */}
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-on-surface-variant flex items-center gap-1.5">
+                            <Icon name="location_on" className="text-primary text-sm" />
+                            <span>Emplacement GPS de l'exploitation <span className="text-red-500">*</span></span>
+                          </label>
+                          <span className={`text-[10px] ${farmerCoordinates ? 'text-emerald-700 font-semibold' : 'text-red-500 font-medium'}`}>
+                            {farmerCoordinates
+                              ? `✓ ${farmerCoordinates.lat.toFixed(4)}, ${farmerCoordinates.lon.toFixed(4)}`
+                              : 'Requis — cliquez sur la carte'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                          Positionnez le repère sur la carte pour indiquer la localisation précise de votre ferme (obligatoire) :
+                        </p>
+                        <LocationPickerMap
+                          latitude={farmerCoordinates?.lat}
+                          longitude={farmerCoordinates?.lon}
+                          onChange={(coords) => setFarmerCoordinates(coords)}
+                          className="h-64 w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm relative z-0"
+                          label="Emplacement de l'exploitation"
+                        />
+                      </div>
                     </div>
                   </div>
                 ) : (

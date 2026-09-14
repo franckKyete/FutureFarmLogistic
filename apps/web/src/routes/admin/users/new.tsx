@@ -27,6 +27,13 @@ const LICENSE_CATEGORIES = [
   { value: 'E', label: 'Permis E', desc: 'Véhicules articulés & remorques lourdes' },
 ];
 
+const VEHICLE_TYPES = [
+  { value: 'VAN', label: 'Camionnette / Fourgon', icon: 'local_shipping', desc: 'Idéal pour petites collectes (1 000 - 3 500 kg)' },
+  { value: 'TRUCK', label: 'Poids Lourd / Camion', icon: 'rv_hookup', desc: 'Gros volumes et transports inter-régionaux (> 3 500 kg)' },
+  { value: 'UTILITY', label: 'Véhicule Utilitaire', icon: 'directions_car', desc: 'Polyvalent urbain & zones semi-rurales' },
+  { value: 'MOTORCYCLE', label: 'Tricycle / Moto-Cargo', icon: 'two_wheeler', desc: 'Accès rapide parcelles étroites (< 500 kg)' },
+];
+
 function CreateFieldAgentPage() {
   const navigate = useNavigate();
   const createInspectorMutation = useCreateInspector();
@@ -48,6 +55,13 @@ function CreateFieldAgentPage() {
   const [driverLicenseNumber, setDriverLicenseNumber] = useState('');
   const [licenseCategory, setLicenseCategory] = useState('B');
   const [licenseExpiresAt, setLicenseExpiresAt] = useState('');
+
+  // Vehicle details (for drivers)
+  const [vehicleBrand, setVehicleBrand] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleType, setVehicleType] = useState('VAN');
+  const [vehicleCapacityKg, setVehicleCapacityKg] = useState('1500');
+  const [vehicleCapacityM3, setVehicleCapacityM3] = useState('8');
 
   // Success result modal
   const [createdAgentResult, setCreatedAgentResult] = useState<{
@@ -112,6 +126,11 @@ function CreateFieldAgentPage() {
         licenseNumber: string;
         licenseCategory: string;
         licenseExpiresAt?: string;
+        vehicleBrand?: string;
+        vehiclePlate?: string;
+        vehicleType?: string;
+        vehicleCapacityKg?: number;
+        vehicleCapacityM3?: number;
       } = {
         firstName,
         lastName,
@@ -121,6 +140,14 @@ function CreateFieldAgentPage() {
         licenseCategory,
       };
       if (licenseExpiresAt) payload.licenseExpiresAt = licenseExpiresAt;
+
+      if (vehiclePlate.trim()) {
+        payload.vehiclePlate = vehiclePlate.trim().toUpperCase();
+        if (vehicleBrand.trim()) payload.vehicleBrand = vehicleBrand.trim();
+        if (vehicleType) payload.vehicleType = vehicleType;
+        if (vehicleCapacityKg) payload.vehicleCapacityKg = parseFloat(vehicleCapacityKg) || 1000;
+        if (vehicleCapacityM3) payload.vehicleCapacityM3 = parseFloat(vehicleCapacityM3) || 5;
+      }
 
       createDriverMutation.mutate(payload, {
         onSuccess: () => {
@@ -148,6 +175,11 @@ function CreateFieldAgentPage() {
     setSelectedCenterIds([]);
     setDriverLicenseNumber('');
     setLicenseExpiresAt('');
+    setVehicleBrand('');
+    setVehiclePlate('');
+    setVehicleType('VAN');
+    setVehicleCapacityKg('1500');
+    setVehicleCapacityM3('8');
   };
 
   const isPending = createInspectorMutation.isPending || createDriverMutation.isPending;
@@ -399,6 +431,140 @@ function CreateFieldAgentPage() {
             </AdminCard>
           )}
 
+          {/* Section 3: Vehicle Assignment for Drivers */}
+          {agentRole === 'driver' && (
+            <AdminCard className="p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-[var(--admin-outline-variant)]/20 pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="local_shipping" className="text-[var(--admin-primary)]" />
+                  <h2 className="font-bold text-base text-[var(--admin-on-surface)]">
+                    3. Véhicule Affecté & Capacités de Chargement
+                  </h2>
+                </div>
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  Optimisation VRP Future Farm
+                </span>
+              </div>
+
+              <p className="text-xs text-[var(--admin-on-surface-variant)] leading-relaxed">
+                Renseignez les caractéristiques du véhicule. La charge utile maximale (kg) et le volume utile (m³) sont directement exploités par le moteur d'optimisation de tournées (VRP) pour équilibrer la distribution et sélectionner le bon chauffeur.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Marque & Modèle du véhicule
+                  </label>
+                  <input
+                    type="text"
+                    value={vehicleBrand}
+                    onChange={(e) => setVehicleBrand(e.target.value)}
+                    placeholder="ex: Toyota Hilux, Renault Master, Isuzu..."
+                    className="w-full text-sm border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Plaque d'immatriculation
+                  </label>
+                  <input
+                    type="text"
+                    value={vehiclePlate}
+                    onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                    placeholder="ex: 1234-AB-01"
+                    className="w-full text-sm font-mono font-bold border border-gray-300 rounded-xl p-3 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2">
+                  Catégorie du véhicule
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {VEHICLE_TYPES.map((v) => {
+                    const isSelected = vehicleType === v.value;
+                    return (
+                      <div
+                        key={v.value}
+                        onClick={() => setVehicleType(v.value)}
+                        className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                          isSelected
+                            ? 'border-[var(--admin-primary)] bg-[var(--admin-primary-container)]/10 ring-1 ring-[var(--admin-primary)]'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-lg ${
+                            isSelected
+                              ? 'bg-[var(--admin-primary)] text-white'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          <Icon name={v.icon} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-[var(--admin-on-surface)]">{v.label}</span>
+                            {isSelected && (
+                              <Icon name="check_circle" className="text-sm text-[var(--admin-primary)] font-bold" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{v.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Charge utile max (kg) <span className="text-[var(--admin-primary)] font-mono">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="50"
+                      step="50"
+                      value={vehicleCapacityKg}
+                      onChange={(e) => setVehicleCapacityKg(e.target.value)}
+                      placeholder="1500"
+                      className="w-full text-sm font-semibold border border-gray-300 rounded-xl p-3 pr-10 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">
+                      kg
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">Capacité maximale de récolte transportable</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Volume utile du coffre (m³) <span className="text-[var(--admin-primary)] font-mono">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      value={vehicleCapacityM3}
+                      onChange={(e) => setVehicleCapacityM3(e.target.value)}
+                      placeholder="8"
+                      className="w-full text-sm font-semibold border border-gray-300 rounded-xl p-3 pr-10 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--admin-primary)] focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">
+                      m³
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">Volume maximal de chargement cubique</p>
+                </div>
+              </div>
+            </AdminCard>
+          )}
+
           {/* Section 2: Centers for Inspectors */}
           {agentRole === 'inspector' && (
             <AdminCard className="p-6 space-y-5">
@@ -547,6 +713,15 @@ function CreateFieldAgentPage() {
                   </p>
                 </div>
               </div>
+
+              {agentRole === 'driver' && (vehiclePlate || vehicleCapacityKg) && (
+                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-emerald-200">
+                  <span className="font-mono">{vehiclePlate || 'Immat. à définir'}</span>
+                  <span className="font-bold bg-white/15 px-2 py-0.5 rounded text-white">
+                    {vehicleCapacityKg} kg / {vehicleCapacityM3} m³
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="bg-[#eff4ff] p-3.5 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-1.5">

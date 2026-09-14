@@ -10,6 +10,7 @@ import { InspectorProfileEntity } from '../inspections/entities/inspector-profil
 import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { VehicleEntity } from '../logistics/entities/vehicle.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
 import { UsersController } from './users.controller';
@@ -27,6 +28,7 @@ import { AddressesModule } from '../addresses/addresses.module';
       ParcelEntity,
       InspectorProfileEntity,
       DriverProfileEntity,
+      VehicleEntity,
       InspectionCenterEntity,
       InspectorCenterAssignmentEntity,
     ]),

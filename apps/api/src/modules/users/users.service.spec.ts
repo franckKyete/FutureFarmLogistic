@@ -11,6 +11,7 @@ import { InspectorProfileEntity } from '../inspections/entities/inspector-profil
 import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { VehicleEntity } from '../logistics/entities/vehicle.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StripePaymentGateway } from '../orders/adapters/stripe.adapter';
 import { AddressesService } from '../addresses/addresses.service';
@@ -81,6 +82,7 @@ describe('UsersService', () => {
   };
 
   const mockInspectorProfileRepository = {
+    find: jest.fn(),
     findOne: jest.fn(),
     findOneBy: jest.fn(),
     create: jest.fn(),
@@ -88,6 +90,14 @@ describe('UsersService', () => {
   };
 
   const mockDriverProfileRepository = {
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockVehicleRepository = {
+    find: jest.fn(),
     findOne: jest.fn(),
     findOneBy: jest.fn(),
     create: jest.fn(),
@@ -158,6 +168,10 @@ describe('UsersService', () => {
         {
           provide: getRepositoryToken(DriverProfileEntity),
           useValue: mockDriverProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(VehicleEntity),
+          useValue: mockVehicleRepository,
         },
         {
           provide: NotificationsService,
@@ -335,6 +349,8 @@ describe('UsersService', () => {
       address: '123 Farm Rd',
       regionName: 'Dakar',
       bio: 'Organic crops',
+      latitude: -4.325,
+      longitude: 15.322,
     };
 
     it('should throw ConflictException if email already registered', async () => {
@@ -778,6 +794,47 @@ describe('UsersService', () => {
         expect.objectContaining({ isActive: false }),
       );
       expect(mockNotificationsService.send).toHaveBeenCalled();
+    });
+
+    it('should register driver and assign vehicle when vehicle details are provided', async () => {
+      usersRepository.findOneBy.mockResolvedValue(null);
+      rolesRepository.findOneBy.mockResolvedValue({ id: 'role-driver', name: 'Driver' });
+      const createdUser = { id: 'user-driver-2', email: 'driver2@farm.com', firstName: 'Jane', lastName: 'Drive', isActive: false };
+      usersRepository.create.mockReturnValue(createdUser);
+      usersRepository.save.mockResolvedValue(createdUser);
+      mockDriverProfileRepository.create.mockReturnValue({ id: 'profile-driver-2' });
+      mockDriverProfileRepository.save.mockResolvedValue({ id: 'profile-driver-2' });
+
+      mockVehicleRepository.findOne.mockResolvedValue(null);
+      const createdVehicle = { id: 'veh-1', registrationPlate: 'AB-123-CD', brand: 'Toyota', capacityKg: 1500, capacityM3: 8 };
+      mockVehicleRepository.create.mockReturnValue(createdVehicle);
+      mockVehicleRepository.save.mockResolvedValue(createdVehicle);
+
+      const result = await service.registerDriver({
+        email: 'driver2@farm.com',
+        firstName: 'Jane',
+        lastName: 'Drive',
+        phoneNumber: '+22501020399',
+        licenseNumber: 'LIC-5678',
+        licenseCategory: 'B',
+        vehicleBrand: 'Toyota',
+        vehiclePlate: 'AB-123-CD',
+        vehicleType: 'VAN',
+        vehicleCapacityKg: 1500,
+        vehicleCapacityM3: 8,
+      });
+
+      expect(result.id).toBe('user-driver-2');
+      expect(mockVehicleRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          brand: 'Toyota',
+          registrationPlate: 'AB-123-CD',
+          capacityKg: 1500,
+          capacityM3: 8,
+          currentDriverId: 'user-driver-2',
+        }),
+      );
+      expect(mockVehicleRepository.save).toHaveBeenCalled();
     });
 
     it('should resend welcome notification generating new temp password for inactive user', async () => {

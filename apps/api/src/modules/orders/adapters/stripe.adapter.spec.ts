@@ -95,6 +95,22 @@ describe('StripePaymentGateway', () => {
         client_reference_id: 'order-123',
       });
     });
+
+    it('should use clientOrigin when provided in options', async () => {
+      const order = { id: 'order-lan-123' } as OrderEntity;
+      await gateway.initiatePayment(order, 50, {
+        clientOrigin: 'http://192.168.24.178:3001',
+      });
+
+      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success_url:
+            'http://192.168.24.178:3001/orders?session_id={CHECKOUT_SESSION_ID}&order_id=order-lan-123',
+          cancel_url: 'http://192.168.24.178:3001/checkout',
+          client_reference_id: 'order-lan-123',
+        }),
+      );
+    });
   });
 
   describe('confirmPayment', () => {

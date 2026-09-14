@@ -11,7 +11,7 @@ import {
 import { DeliveryStopType, DeliveryStopStatus, type StopAddress } from '@futurefarm/types';
 import { DeliveryRunEntity } from './delivery-run.entity';
 import { OrderLineEntity } from '../../orders/entities/order-line.entity';
-import { InspectionReportEntity } from '../../inspections/entities/inspection-report.entity';
+import { PickupReportEntity } from './pickup-report.entity';
 
 @Entity('delivery_stops')
 export class DeliveryStopEntity {
@@ -67,13 +67,13 @@ export class DeliveryStopEntity {
   @Column({ name: 'proof_photo_url', type: 'varchar', length: 1000, nullable: true })
   proofPhotoUrl: string | null;
 
-  /** AI pickup inspection report (COLLECTION stops only) */
+  /** Driver pickup inspection report (COLLECTION stops only) */
   @Column({ name: 'pickup_report_id', type: 'uuid', nullable: true })
   pickupReportId: string | null;
 
-  @ManyToOne(() => InspectionReportEntity, { onDelete: 'SET NULL', nullable: true })
+  @ManyToOne(() => PickupReportEntity, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'pickup_report_id' })
-  pickupReport: InspectionReportEntity | null;
+  pickupReport: PickupReportEntity | null;
 
   @Column({ name: 'skip_reason', type: 'text', nullable: true })
   skipReason: string | null;

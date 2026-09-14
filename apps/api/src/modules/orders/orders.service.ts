@@ -7,6 +7,7 @@ import {
   Inject,
   Optional,
   Logger,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -43,6 +44,7 @@ import { FeesService } from '../fees/fees.service';
 import Stripe from 'stripe';
 import PDFDocument from 'pdfkit';
 import { StorageService } from '../storage/storage.service';
+import { DispatchService } from '../logistics/dispatch.service';
 
 @Injectable()
 export class OrdersService {
@@ -70,6 +72,9 @@ export class OrdersService {
     private readonly notificationsGateway?: NotificationsGateway,
     @Optional()
     private readonly storageService?: StorageService,
+    @Optional()
+    @Inject(forwardRef(() => DispatchService))
+    private readonly dispatchService?: DispatchService,
   ) {}
 
   async checkout(
@@ -203,6 +208,8 @@ export class OrdersService {
           paymentMethod: dto.paymentMethod,
           phoneNumber: dto.phoneNumber,
           mmoProvider: dto.mmoProvider,
+          clientOrigin: dto.clientOrigin,
+          returnUrl: dto.returnUrl,
         },
       );
 
@@ -409,6 +416,13 @@ export class OrdersService {
         }
       }
 
+      // Optimistic delivery calculation: calculate itineraries & schedule as soon as payment is cleared
+      if (this.dispatchService) {
+        void this.dispatchService.queueOrderDispatch(savedOrder.id).catch((err) => {
+          this.logger.error(`Error queueing dispatch for order ${savedOrder.id}: ${err.message}`);
+        });
+      }
+
       return savedOrder;
     });
   }
@@ -602,6 +616,7 @@ export class OrdersService {
     orderId: string,
     userId: string,
     permissions: Permission[],
+    options?: { clientOrigin?: string | undefined; returnUrl?: string | undefined },
   ): Promise<{ order: OrderEntity; paymentUrl?: string }> {
     const order = await this.getOrder(orderId);
     const isAdmin = permissions.includes(Permission.ORDER_READ_ALL);
@@ -623,11 +638,15 @@ export class OrdersService {
       const previousProvider = lastPayment?.metadata?.provider;
       const previousPhone = lastPayment?.metadata?.payerPhone;
 
-      const paymentResult = previousProvider
-        ? await this.paymentGateway.initiatePayment(order, order.totalAmount, {
-            paymentMethod: previousProvider,
-            phoneNumber: previousPhone,
-          })
+      const paymentOptions: Record<string, any> = {
+        ...(previousProvider ? { paymentMethod: previousProvider, phoneNumber: previousPhone } : {}),
+        ...(options?.clientOrigin ? { clientOrigin: options.clientOrigin } : {}),
+        ...(options?.returnUrl ? { returnUrl: options.returnUrl } : {}),
+      };
+      const hasOptions = Object.keys(paymentOptions).length > 0;
+
+      const paymentResult = hasOptions
+        ? await this.paymentGateway.initiatePayment(order, order.totalAmount, paymentOptions)
         : await this.paymentGateway.initiatePayment(order, order.totalAmount);
 
       const paymentRecord = new PaymentRecordEntity();
@@ -672,7 +691,10 @@ export class OrdersService {
         throw new NotFoundException('Order not found');
       }
 
-      if (order.status !== OrderStatus.AWAITING_CONFIRMATION) {
+      if (
+        order.status !== OrderStatus.AWAITING_CONFIRMATION &&
+        order.status !== OrderStatus.CONFIRMED
+      ) {
         throw new ConflictException('Order is not in confirmation phase');
       }
 
@@ -688,6 +710,9 @@ export class OrdersService {
       }
 
       if (line.status !== OrderLineStatus.PENDING) {
+        if (line.status === OrderLineStatus.CONFIRMED) {
+          return line;
+        }
         throw new ConflictException('Order line is already processed');
       }
 
@@ -755,7 +780,10 @@ export class OrdersService {
         throw new NotFoundException('Order not found');
       }
 
-      if (order.status !== OrderStatus.AWAITING_CONFIRMATION) {
+      if (
+        order.status !== OrderStatus.AWAITING_CONFIRMATION &&
+        order.status !== OrderStatus.CONFIRMED
+      ) {
         throw new ConflictException('Order is not in confirmation phase');
       }
 
@@ -823,6 +851,13 @@ export class OrdersService {
         paymentStatus: order.paymentStatus,
         message: `Article de la commande #${order.id.slice(0, 8)} rejeté par le producteur`,
       });
+
+      // Re-calculate route / delivery stops if a line is rejected
+      if (this.dispatchService) {
+        void this.dispatchService.recalculateForRejectedLine(orderId, lineId).catch((err) => {
+          this.logger.error(`Error recalculating route for rejected line ${lineId}: ${err.message}`);
+        });
+      }
 
       return savedLine;
     });
@@ -1239,30 +1274,67 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    // Populate live delivery / driver info if confirmed and assigned
+    // Populate live delivery / driver info if order is paid or confirmed
     try {
-      const isConfirmedOrShipped =
+      const isPaidOrConfirmed =
+        order.paymentStatus === PaymentStatus.PAID ||
+        order.status === OrderStatus.AWAITING_CONFIRMATION ||
         order.status === OrderStatus.CONFIRMED ||
         order.status === OrderStatus.SHIPPED ||
         order.status === OrderStatus.DELIVERED;
 
-      if (isConfirmedOrShipped) {
+      if (isPaidOrConfirmed) {
         const stopRepo = this.dataSource.getRepository(DeliveryStopEntity);
         const lineIds = (order.lines || []).map((l) => l.id);
         if (lineIds.length > 0) {
-          const stop = await stopRepo.findOne({
+          const stops = await stopRepo.find({
             where: { orderLineId: In(lineIds) },
-            relations: ['run', 'run.driver', 'run.vehicle'],
+            relations: ['run', 'run.driver', 'run.vehicle', 'run.stops'],
           });
+          const stop = stops.find((s) => s.run?.driver) || stops[0];
           if (stop && stop.run?.driver) {
             (order as any).delivery = {
               mode: 'Transporteur propre',
+              runId: stop.run.id,
+              scheduledAt: stop.run.scheduledAt ? stop.run.scheduledAt.toISOString() : null,
+              runStatus: stop.run.status,
               driverName: `${stop.run.driver.firstName} ${stop.run.driver.lastName}`.trim(),
               driverPhone: stop.run.driver.phoneNumber ?? null,
+              driverAvatarUrl: (stop.run.driver as any).avatarUrl ?? null,
               vehiclePlate: stop.run.vehicle?.registrationPlate ?? null,
               vehicleType: stop.run.vehicle?.type ?? null,
               status: stop.status,
               eta: stop.eta ? stop.eta.toISOString() : null,
+              stops: stop.run.stops ? stop.run.stops.map((s) => ({
+                id: s.id,
+                type: s.type,
+                status: s.status,
+                address: s.address,
+                sequence: s.sequence,
+                orderLineId: s.orderLineId,
+              })) : [],
+            };
+          } else if (stop && stop.run) {
+            (order as any).delivery = {
+              mode: 'Transporteur propre',
+              runId: stop.run.id,
+              scheduledAt: stop.run.scheduledAt ? stop.run.scheduledAt.toISOString() : null,
+              runStatus: stop.run.status,
+              driverName: null,
+              driverPhone: null,
+              driverAvatarUrl: null,
+              vehiclePlate: stop.run.vehicle?.registrationPlate ?? null,
+              vehicleType: stop.run.vehicle?.type ?? null,
+              status: stop.status,
+              eta: stop.eta ? stop.eta.toISOString() : null,
+              stops: stop.run.stops ? stop.run.stops.map((s) => ({
+                id: s.id,
+                type: s.type,
+                status: s.status,
+                address: s.address,
+                sequence: s.sequence,
+                orderLineId: s.orderLineId,
+              })) : [],
             };
           } else {
             (order as any).delivery = {
@@ -1277,7 +1349,6 @@ export class OrdersService {
           }
         }
       } else {
-        // Driver cannot be assigned to an order that has not been confirmed yet
         (order as any).delivery = {
           mode: 'Transporteur propre',
           driverName: null,
@@ -1685,7 +1756,7 @@ export class OrdersService {
       throw new ForbiddenException('User is not a farmer');
     }
 
-    return this.orderLineRepository
+    const lines = await this.orderLineRepository
       .createQueryBuilder('line')
       .innerJoinAndSelect('line.order', 'order')
       .leftJoinAndSelect('order.buyer', 'buyer')
@@ -1699,6 +1770,27 @@ export class OrdersService {
       })
       .orderBy('line.createdAt', 'DESC')
       .getMany();
+
+    for (const line of lines) {
+      if (
+        line.status === OrderLineStatus.PENDING &&
+        line.order?.status === OrderStatus.CONFIRMED
+      ) {
+        line.status = OrderLineStatus.CONFIRMED;
+      } else if (
+        line.status === OrderLineStatus.PENDING &&
+        line.order?.status === OrderStatus.SHIPPED
+      ) {
+        line.status = OrderLineStatus.SHIPPED;
+      } else if (
+        line.status === OrderLineStatus.PENDING &&
+        line.order?.status === OrderStatus.DELIVERED
+      ) {
+        line.status = OrderLineStatus.DELIVERED;
+      }
+    }
+
+    return lines;
   }
 
   async listAllOrdersAdmin(options: {
