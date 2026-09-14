@@ -29,7 +29,7 @@ export function AdminHeader() {
 
       <div className="flex items-center gap-4">
         <nav className="flex items-center gap-6 mr-6">
-          {(['main', 'management', 'finance', 'system'] as const).map((tab) => (
+          {([] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

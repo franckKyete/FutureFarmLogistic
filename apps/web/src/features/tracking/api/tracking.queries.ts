@@ -66,6 +66,24 @@ export const startRunMutation = () => ({
   },
 });
 
+export const startTransitMutation = () => ({
+  mutationFn: async (runId: string): Promise<DeliveryRunDto> => {
+    const { data } = await apiClient.post<{ data: DeliveryRunDto }>(
+      `/logistics/runs/${runId}/start-transit`,
+    );
+    return data.data;
+  },
+});
+
+export const completeRunMutation = () => ({
+  mutationFn: async (runId: string): Promise<DeliveryRunDto> => {
+    const { data } = await apiClient.post<{ data: DeliveryRunDto }>(
+      `/logistics/runs/${runId}/complete`,
+    );
+    return data.data;
+  },
+});
+
 export const arriveAtStopMutation = () => ({
   mutationFn: async ({ runId, stopId }: { runId: string; stopId: string }) => {
     const { data } = await apiClient.post(`/logistics/runs/${runId}/stops/${stopId}/arrive`);

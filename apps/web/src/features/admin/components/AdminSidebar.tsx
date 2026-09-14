@@ -18,11 +18,11 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Inspections & Qualité', path: '/admin/inspections', icon: 'verified', permission: Permission.INSPECTION_READ_ALL },
   { label: 'Centres d’inspection', path: '/admin/inspection-centers', icon: 'corporate_fare', permission: Permission.INSPECTION_CENTER_READ },
   { label: 'Supervision des enchères', path: '/admin/auctions', icon: 'gavel', permission: Permission.AUCTION_MANAGE },
-  { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
+  // { label: 'Gestion des litiges', path: '/admin/disputes', icon: 'scale', permission: Permission.DISPUTE_READ },
   { label: 'Transactions', path: '/admin/transactions', icon: 'receipt_long', permission: Permission.ORDER_READ_ALL },
   { label: 'Devises & Taux', path: '/admin/currencies', icon: 'currency_exchange', permission: Permission.DASHBOARD_READ },
   { label: 'Frais de plateforme', path: '/admin/fees', icon: 'payments', permission: Permission.DASHBOARD_READ },
-  { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
+  // { label: 'Analytiques & rapports', path: '/admin/analytics', icon: 'bar_chart', permission: Permission.DASHBOARD_READ },
 ];
 
 function NavLinkItem({ link }: { link: NavLink }) {

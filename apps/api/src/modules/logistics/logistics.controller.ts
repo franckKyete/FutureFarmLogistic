@@ -150,6 +150,22 @@ export class LogisticsController {
     return this.logisticsService.startRun(id, user.id);
   }
 
+  @Post('runs/:id/start-transit')
+  @RequirePermissions(Permission.DELIVERY_STOP_UPDATE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Driver: start transit towards buyers (updates items to SHIPPED)' })
+  startTransit(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.logisticsService.startTransit(id, user.id);
+  }
+
+  @Post('runs/:id/complete')
+  @RequirePermissions(Permission.DELIVERY_STOP_UPDATE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Driver: complete the run' })
+  completeRun(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.logisticsService.completeRun(id, user.id);
+  }
+
   @Post('runs/:id/cancel')
   @RequirePermissions(Permission.DELIVERY_RUN_CANCEL)
   @HttpCode(HttpStatus.OK)

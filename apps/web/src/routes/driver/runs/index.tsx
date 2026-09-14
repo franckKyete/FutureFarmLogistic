@@ -107,14 +107,18 @@ function RunCard({ run }: { run: DeliveryRunDto }) {
   const isPlanned = run.status === DeliveryRunStatus.PLANNED;
   const isDone = run.status === DeliveryRunStatus.COMPLETED;
 
-  const startStop = run.stops?.[0];
-  const endStop = run.stops?.[run.stops.length - 1];
+  const sortedStops = [...(run.stops || [])].sort((a, b) => a.sequence - b.sequence);
+  const collectionStops = sortedStops.filter((s) => s.type === 'COLLECTION');
+  const deliveryStops = sortedStops.filter((s) => s.type === 'DELIVERY');
+
+  const startStop = collectionStops[0] || sortedStops[0];
+  const endStop = deliveryStops[deliveryStops.length - 1] || sortedStops[sortedStops.length - 1];
 
   const startCity = startStop?.address?.city || 'Point de collecte';
   const endCity = endStop?.address?.city || 'Destination';
 
-  const stopsCount = run.stops?.length || 0;
-  const pendingStops = run.stops?.filter((s) => s.status !== 'COMPLETED' && s.status !== 'SKIPPED').length || 0;
+  const stopsCount = sortedStops.length;
+  const pendingStops = sortedStops.filter((s) => s.status !== 'COMPLETED' && s.status !== 'SKIPPED').length;
 
   return (
     <Link

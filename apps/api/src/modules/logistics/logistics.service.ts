@@ -16,6 +16,7 @@ import {
   UpdateDeliveryRunDto,
   SkipStopDto,
   PushLocationDto,
+  OrderStatus,
   OrderLineStatus,
   PickupReportStatus,
   SubmitPickupReportDto,
@@ -25,6 +26,7 @@ import { DeliveryStopEntity } from './entities/delivery-stop.entity';
 import { DriverLocationEntity } from './entities/driver-location.entity';
 import { PickupReportEntity } from './entities/pickup-report.entity';
 import { OrderLineEntity } from '../orders/entities/order-line.entity';
+import { OrderEntity } from '../orders/entities/order.entity';
 import {
   ROUTE_OPTIMIZER_PORT,
   type RouteOptimizerPort,
@@ -34,6 +36,7 @@ import { STORAGE_PORT, type StoragePort } from './interfaces/storage.port';
 import { VehiclesService } from './vehicles.service';
 import { LogisticsGateway } from './logistics.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationChannel, NotificationPriority } from '@futurefarm/types';
 
 @Injectable()
@@ -49,6 +52,8 @@ export class LogisticsService {
     private readonly locationRepo: Repository<DriverLocationEntity>,
     @InjectRepository(OrderLineEntity)
     private readonly orderLineRepo: Repository<OrderLineEntity>,
+    @InjectRepository(OrderEntity)
+    private readonly orderRepo: Repository<OrderEntity>,
     @InjectRepository(PickupReportEntity)
     private readonly pickupReportRepo: Repository<PickupReportEntity>,
     private readonly vehiclesService: VehiclesService,
@@ -61,6 +66,7 @@ export class LogisticsService {
     @Inject('LOGISTICS_GATEWAY')
     private readonly gateway: LogisticsGateway,
     private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -218,11 +224,16 @@ export class LogisticsService {
       skip:      (page - 1) * limit,
       take:      limit,
     });
+    for (const run of data) {
+      if (run.stops) {
+        run.stops.sort((a, b) => a.sequence - b.sequence);
+      }
+    }
     return { data, total };
   }
 
   async listMyRuns(driverId: string): Promise<DeliveryRunEntity[]> {
-    return this.runRepo.find({
+    const runs = await this.runRepo.find({
       where:     { driverId },
       order:     { scheduledAt: 'DESC' },
       relations: [
@@ -238,6 +249,12 @@ export class LogisticsService {
         'stops.orderLine.order.buyer',
       ],
     });
+    for (const run of runs) {
+      if (run.stops) {
+        run.stops.sort((a, b) => a.sequence - b.sequence);
+      }
+    }
+    return runs;
   }
 
   async getRun(id: string): Promise<DeliveryRunEntity> {
@@ -399,10 +416,208 @@ export class LogisticsService {
     if (run.status !== DeliveryRunStatus.PLANNED) {
       throw new BadRequestException('Run is not in PLANNED status');
     }
-    run.status    = DeliveryRunStatus.IN_PROGRESS;
+    run.status = DeliveryRunStatus.IN_PROGRESS;
     run.startedAt = new Date();
     await this.runRepo.save(run);
     this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.IN_PROGRESS);
+    return this.getRun(runId);
+  }
+
+  async startTransit(runId: string, driverId: string): Promise<DeliveryRunEntity> {
+    const run = await this.getRun(runId);
+    if (run.driverId !== driverId) {
+      throw new ForbiddenException('You are not the assigned driver for this run');
+    }
+    if (run.status === DeliveryRunStatus.COMPLETED || run.status === DeliveryRunStatus.CANCELLED) {
+      throw new BadRequestException('Cannot start transit on a completed or cancelled run');
+    }
+
+    // 1. Mark run as IN_PROGRESS if not already
+    if (run.status === DeliveryRunStatus.PLANNED) {
+      run.status = DeliveryRunStatus.IN_PROGRESS;
+      run.startedAt = new Date();
+      await this.runRepo.save(run);
+      this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.IN_PROGRESS);
+    }
+
+    // 2. Identify all order lines across stops in this run
+    const orderLineIds = Array.from(
+      new Set(
+        run.stops
+          .map((s) => s.orderLineId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const affectedOrderIds = new Set<string>();
+
+    for (const lineId of orderLineIds) {
+      const line = await this.orderLineRepo.findOne({
+        where: { id: lineId },
+        relations: ['order'],
+      });
+
+      if (line) {
+        if (line.status !== OrderLineStatus.DELIVERED && line.status !== OrderLineStatus.REJECTED) {
+          line.status = OrderLineStatus.SHIPPED;
+          await this.orderLineRepo.save(line);
+          this.logger.log(`OrderLine ${line.id} marked SHIPPED via startTransit on run ${runId}`);
+        }
+        if (line.orderId) {
+          affectedOrderIds.add(line.orderId);
+        }
+      }
+    }
+
+    // 3. For each affected order, check if all items are now in transit (or delivered)
+    for (const orderId of affectedOrderIds) {
+      await this.syncOrderStatusAfterTransit(orderId);
+    }
+
+    return this.getRun(runId);
+  }
+
+  private async syncOrderStatusAfterTransit(orderId: string): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['lines', 'buyer'],
+    });
+    if (!order) return;
+
+    const nonRejected = (order.lines || []).filter((l) => l.status !== OrderLineStatus.REJECTED);
+    if (nonRejected.length === 0) return;
+
+    const allShippedOrDelivered = nonRejected.every(
+      (l) => l.status === OrderLineStatus.SHIPPED || l.status === OrderLineStatus.DELIVERED,
+    );
+
+    if (allShippedOrDelivered && order.status !== OrderStatus.SHIPPED && order.status !== OrderStatus.DELIVERED) {
+      order.status = OrderStatus.SHIPPED;
+      await this.orderRepo.save(order);
+      this.logger.log(`Order ${order.id} automatically updated to SHIPPED because all items are in transit`);
+
+      // Send notifications to buyer
+      await this.notificationsService.send({
+        recipientIds: [order.buyerId],
+        title: 'Commande en cours de livraison',
+        body: `Votre commande #${order.id.slice(0, 8)} est désormais en transit et en route pour la livraison.`,
+        channels: [
+          NotificationChannel.DATABASE,
+          NotificationChannel.EMAIL,
+          NotificationChannel.SMS,
+          NotificationChannel.PUSH,
+        ],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          orderId: order.id,
+          actionUrl: `/buyer/orders/${order.id}`,
+          actionText: 'Suivre la commande',
+        },
+      }).catch((err) => {
+        this.logger.warn(`Failed to notify buyer for order ${order.id} transit: ${(err as Error).message}`);
+      });
+
+      this.notificationsGateway.emitOrderStatusChanged(order.buyerId, {
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        message: `Votre commande #${order.id.slice(0, 8)} est en cours de livraison`,
+      });
+    }
+  }
+
+  private async syncOrderStatusAfterDelivery(orderId: string): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['lines', 'buyer'],
+    });
+    if (!order) return;
+
+    const nonRejected = (order.lines || []).filter((l) => l.status !== OrderLineStatus.REJECTED);
+    if (nonRejected.length === 0) return;
+
+    const allDelivered = nonRejected.every((l) => l.status === OrderLineStatus.DELIVERED);
+
+    if (allDelivered && order.status !== OrderStatus.DELIVERED) {
+      order.status = OrderStatus.DELIVERED;
+      await this.orderRepo.save(order);
+      this.logger.log(`Order ${order.id} automatically updated to DELIVERED because all items are delivered`);
+
+      // Send notifications to buyer
+      await this.notificationsService.send({
+        recipientIds: [order.buyerId],
+        title: 'Commande livrée',
+        body: `Votre commande #${order.id.slice(0, 8)} a été entièrement livrée. Bon appétit !`,
+        channels: [
+          NotificationChannel.DATABASE,
+          NotificationChannel.EMAIL,
+          NotificationChannel.SMS,
+          NotificationChannel.PUSH,
+        ],
+        priority: NotificationPriority.HIGH,
+        metadata: {
+          orderId: order.id,
+          actionUrl: `/buyer/orders/${order.id}`,
+          actionText: 'Voir la commande',
+        },
+      }).catch((err) => {
+        this.logger.warn(`Failed to notify buyer for order ${order.id} delivery: ${(err as Error).message}`);
+      });
+
+      this.notificationsGateway.emitOrderStatusChanged(order.buyerId, {
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        message: `Votre commande #${order.id.slice(0, 8)} a été livrée`,
+      });
+    }
+  }
+
+  async completeRun(runId: string, driverId: string): Promise<DeliveryRunEntity> {
+    const run = await this.getRun(runId);
+    if (run.driverId !== driverId) {
+      throw new ForbiddenException('You are not the assigned driver for this run');
+    }
+    if (run.status === DeliveryRunStatus.COMPLETED) {
+      return run;
+    }
+    if (run.status === DeliveryRunStatus.CANCELLED) {
+      throw new BadRequestException('Cannot complete a cancelled run');
+    }
+
+    // Check that delivery stops are either completed or skipped
+    const deliveryStops = run.stops.filter((s) => s.type === DeliveryStopType.DELIVERY);
+    const incompleteDeliveries = deliveryStops.filter(
+      (s) => s.status !== DeliveryStopStatus.COMPLETED && s.status !== DeliveryStopStatus.SKIPPED,
+    );
+    if (incompleteDeliveries.length > 0) {
+      throw new BadRequestException(
+        `Impossible de terminer la tournée : ${incompleteDeliveries.length} livraison(s) non finalisée(s)`,
+      );
+    }
+
+    run.status = DeliveryRunStatus.COMPLETED;
+    run.completedAt = new Date();
+    await this.runRepo.save(run);
+    this.gateway.emitRunStatusUpdate(runId, DeliveryRunStatus.COMPLETED);
+    this.logger.log(`Delivery run ${runId} marked COMPLETED by driver ${driverId}`);
+
+    // Synchronize final order statuses for all orders in run
+    const affectedOrderIds = new Set<string>();
+    for (const stop of deliveryStops) {
+      if (stop.status === DeliveryStopStatus.COMPLETED && stop.orderLineId) {
+        await this.orderLineRepo.update(stop.orderLineId, {
+          status: OrderLineStatus.DELIVERED,
+        });
+        const line = await this.orderLineRepo.findOne({ where: { id: stop.orderLineId } });
+        if (line?.orderId) affectedOrderIds.add(line.orderId);
+      }
+    }
+
+    for (const orderId of affectedOrderIds) {
+      await this.syncOrderStatusAfterDelivery(orderId);
+    }
+
     return this.getRun(runId);
   }
 
@@ -560,6 +775,11 @@ export class LogisticsService {
         status: OrderLineStatus.DELIVERED,
       });
       this.logger.log(`OrderLine ${stop.orderLineId} marked DELIVERED by logistics stop ${stopId}`);
+
+      const line = await this.orderLineRepo.findOne({ where: { id: stop.orderLineId } });
+      if (line?.orderId) {
+        await this.syncOrderStatusAfterDelivery(line.orderId);
+      }
     }
 
     this.gateway.emitStopStatusUpdate(stopId, DeliveryStopStatus.COMPLETED, stop.completedAt);

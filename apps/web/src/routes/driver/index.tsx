@@ -231,15 +231,17 @@ function DriverDashboardPage() {
 }
 
 function ActiveMissionCard({ run }: { run: DeliveryRunDto }) {
-  const stops = run.stops || [];
-  const originStop = stops[0];
-  const destStop = stops[stops.length - 1];
+  const stops = [...(run.stops || [])].sort((a, b) => a.sequence - b.sequence);
+  const collectionStops = stops.filter((s) => s.type === 'COLLECTION');
+  const deliveryStops = stops.filter((s) => s.type === 'DELIVERY');
+
+  const originStop = collectionStops[0] || stops[0];
+  const destStop = deliveryStops[deliveryStops.length - 1] || stops[stops.length - 1];
 
   const originName = originStop?.address?.city || originStop?.address?.street || 'Point de collecte';
   const destName = destStop?.address?.city || destStop?.address?.street || 'Destination';
 
   // Aggregate products and total weight across all collection stops
-  const collectionStops = stops.filter((s) => s.type === 'COLLECTION');
   const totalWeightKg = collectionStops.reduce((sum, s) => {
     const qty = Number(s.orderLine?.quantity);
     if (!isNaN(qty) && qty > 0) return sum + qty;
@@ -300,10 +302,6 @@ function ActiveMissionCard({ run }: { run: DeliveryRunDto }) {
           <span className="text-xs font-bold text-gray-800">
             {productsSummary} ({displayWeight}kg)
           </span>
-          <span className="text-[10px] font-bold text-sky-800 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200 flex items-center gap-1">
-            <Icon name="ac_unit" className="text-xs text-sky-600" />
-            Réfrigéré
-          </span>
         </div>
 
         <Link
@@ -327,12 +325,17 @@ function PendingMissionCard({
   onStart: () => void;
   isStarting: boolean;
 }) {
-  const stops = run.stops || [];
-  const originName = stops[0]?.address?.city || 'Origine';
-  const destName = stops[stops.length - 1]?.address?.city || 'Destination';
+  const stops = [...(run.stops || [])].sort((a, b) => a.sequence - b.sequence);
+  const collectionStops = stops.filter((s) => s.type === 'COLLECTION');
+  const deliveryStops = stops.filter((s) => s.type === 'DELIVERY');
+
+  const originStop = collectionStops[0] || stops[0];
+  const destStop = deliveryStops[deliveryStops.length - 1] || stops[stops.length - 1];
+
+  const originName = originStop?.address?.city || originStop?.address?.street || 'Origine';
+  const destName = destStop?.address?.city || destStop?.address?.street || 'Destination';
 
   // Aggregate products and total weight across all collection stops
-  const collectionStops = stops.filter((s) => s.type === 'COLLECTION');
   const totalWeightKg = collectionStops.reduce((sum, s) => {
     const qty = Number(s.orderLine?.quantity);
     if (!isNaN(qty) && qty > 0) return sum + qty;

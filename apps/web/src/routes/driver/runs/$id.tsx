@@ -9,6 +9,8 @@ import {
   skipStopMutation,
   uploadStopProofMutation,
   pushLocationMutation,
+  startTransitMutation,
+  completeRunMutation,
 } from '@/features/tracking/api/tracking.queries';
 import { useDeliveryMap } from '@/features/shared/hooks/useDeliveryMap';
 import { DeliveryMap, MapStop } from '@/features/shared/components/DeliveryMap';
@@ -67,6 +69,30 @@ function DriverRunDetailPage() {
       void refetch();
     },
     onError: () => addToast('Erreur lors du téléversement de la photo', 'error'),
+  });
+
+  const startTransit = useMutation({
+    ...startTransitMutation(),
+    onSuccess: () => {
+      addToast('Transit démarré ! Les articles sont en route.', 'success');
+      void refetch();
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Erreur lors du démarrage du transit';
+      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+    },
+  });
+
+  const completeRun = useMutation({
+    ...completeRunMutation(),
+    onSuccess: () => {
+      addToast('Tournée terminée avec succès ! Félicitations.', 'success');
+      void refetch();
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Erreur lors de la clôture de la tournée';
+      addToast(Array.isArray(msg) ? msg[0] : msg, 'error');
+    },
   });
 
   const pushLocation = useMutation(pushLocationMutation());
@@ -149,6 +175,7 @@ function DriverRunDetailPage() {
 
   // Cargo metadata aggregated across all collection stops in run
   const allCollectionStops = sortedStops.filter((s) => s.type === DeliveryStopType.COLLECTION);
+  const allDeliveryStops = sortedStops.filter((s) => s.type === DeliveryStopType.DELIVERY);
   const totalCargoWeight = allCollectionStops.reduce((sum, s) => {
     const qty = Number(s.orderLine?.quantity);
     if (!isNaN(qty) && qty > 0) return sum + qty;
@@ -611,19 +638,47 @@ function DriverRunDetailPage() {
             <div className="relative pt-2">
               <span
                 className={`absolute -left-6 top-2.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  isInProgress ? 'bg-amber-500 text-white animate-pulse' : 'bg-gray-300 text-white'
+                  isInProgress ? 'bg-amber-500 text-white animate-pulse' : isCompleted ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-white'
                 }`}
               >
-                ●
+                {isCompleted ? '✓' : '●'}
               </span>
-              <div className="ml-2">
-                <h4 className="text-sm font-bold text-[#0b1c30]">En transit</h4>
-                <p className="text-xs text-gray-500">
-                  {allCollectionStops.length > 0 &&
-                  allCollectionStops.every((s) => s.status === DeliveryStopStatus.COMPLETED)
-                    ? 'Toutes les collectes sont effectuées. En route vers les destinataires.'
-                    : 'Collecte des articles en cours'}
-                </p>
+              <div className="ml-2 space-y-3">
+                <div>
+                  <h4 className="text-sm font-bold text-[#0b1c30]">En transit</h4>
+                  <p className="text-xs text-gray-500">
+                    {allCollectionStops.length > 0 &&
+                    allCollectionStops.every((s) => s.status === DeliveryStopStatus.COMPLETED)
+                      ? isInProgress
+                        ? 'Transit en cours. En route vers les clients destinataires.'
+                        : 'Toutes les collectes sont effectuées. Prêt à démarrer le transit.'
+                      : 'Collecte des articles chez les producteurs en cours'}
+                  </p>
+                </div>
+
+                {/* Prominent Start Transit Button */}
+                {!isCompleted &&
+                  allCollectionStops.length > 0 &&
+                  allCollectionStops.every((s) => s.status === DeliveryStopStatus.COMPLETED) && (
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                        <Icon name="local_shipping" className="text-base text-amber-600" />
+                        <span>Tous les produits ont été collectés avec succès !</span>
+                      </div>
+                      <p className="text-[11px] text-amber-700 leading-snug">
+                        Cliquez ci-dessous pour démarrer le transport. Cela passera tous les articles en transit et notifiera directement les acheteurs.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startTransit.mutate(id)}
+                        disabled={startTransit.isPending}
+                        className="w-full py-2.5 bg-[#004322] hover:bg-[#00331a] active:scale-98 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Icon name="play_arrow" className="text-base" />
+                        {startTransit.isPending ? 'Démarrage du transit...' : 'Démarrer le transit vers les clients'}
+                      </button>
+                    </div>
+                  )}
               </div>
               <span className="absolute -left-4 top-7 w-0.5 h-full bg-gray-200" />
             </div>
@@ -777,10 +832,59 @@ function DriverRunDetailPage() {
                       );
                     })}
                 </div>
+
+                {/* Complete Run Button in Step 4 when all deliveries done */}
+                {!isCompleted &&
+                  allDeliveryStops.length > 0 &&
+                  allDeliveryStops.every(
+                    (s) =>
+                      s.status === DeliveryStopStatus.COMPLETED ||
+                      s.status === DeliveryStopStatus.SKIPPED,
+                  ) && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
+                        <Icon name="verified" className="text-base text-emerald-600" />
+                        <span>Toutes les livraisons sont terminées !</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700 leading-snug">
+                        Vous pouvez maintenant clôturer cette tournée. Cela mettra à jour les commandes correspondantes et avertira les acheteurs.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => completeRun.mutate(id)}
+                        disabled={completeRun.isPending}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Icon name="check_circle" className="text-base" />
+                        {completeRun.isPending ? 'Clôture en cours...' : 'Terminer la tournée'}
+                      </button>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Action button: Terminer la tournée (sticky / bottom) when deliveries are done */}
+        {!isCompleted &&
+          allDeliveryStops.length > 0 &&
+          allDeliveryStops.every(
+            (s) =>
+              s.status === DeliveryStopStatus.COMPLETED ||
+              s.status === DeliveryStopStatus.SKIPPED,
+          ) && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => completeRun.mutate(id)}
+                disabled={completeRun.isPending}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-2xl font-extrabold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              >
+                <Icon name="task_alt" className="text-lg" />
+                <span>{completeRun.isPending ? 'Finalisation...' : 'Terminer la tournée'}</span>
+              </button>
+            </div>
+          )}
 
         {/* Issue Reporting Button */}
         <div className="pt-2">
