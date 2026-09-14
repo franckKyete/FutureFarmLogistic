@@ -39,4 +39,23 @@ export class RegisterDriverDto {
   @IsOptional()
   @IsString()
   licenseExpiresAt?: string;
+
+  // Vehicle details (assigned during registration)
+  @IsOptional()
+  @IsString()
+  vehicleBrand?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  vehicleCapacityKg?: number;
+
+  @IsOptional()
+  vehicleCapacityM3?: number;
 }

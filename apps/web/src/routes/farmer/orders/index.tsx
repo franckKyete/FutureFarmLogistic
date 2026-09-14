@@ -3,18 +3,18 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getSellerOrdersQuery } from '@/features/orders/api/orders.queries';
-import { OrderLineStatus } from '@futurefarm/types';
+import { OrderLineStatus, OrderStatus } from '@futurefarm/types';
 import { useFarmerLayout } from '@/features/farmer/store/farmer-layout.store';
 
 export const Route = createFileRoute('/farmer/orders/')({
   component: OrdersPage,
 });
 
-type OrderStatusFilter = 'Toutes' | 'En attente' | "En attente d'enlèvement" | 'En transit' | 'Livrée' | 'Rejetée';
+type OrderStatusFilter = 'Toutes' | 'En attente' | 'Prêt pour la collecte' | 'En transit' | 'Livrée' | 'Rejetée';
 
 const STATUS_MAP: Record<OrderLineStatus, string> = {
   [OrderLineStatus.PENDING]: 'En attente',
-  [OrderLineStatus.CONFIRMED]: "En attente d'enlèvement",
+  [OrderLineStatus.CONFIRMED]: 'Prêt pour la collecte',
   [OrderLineStatus.REJECTED]: 'Rejetée',
   [OrderLineStatus.SHIPPED]: 'En transit',
   [OrderLineStatus.DELIVERED]: 'Livrée',
@@ -57,13 +57,28 @@ function OrdersPage() {
       : null;
     const buyerDisplay = buyerName || `Client #${line.order?.buyerId?.slice(0, 4) || 'Anon'}`;
 
+    const isOrderConfirmed = line.order?.status === OrderStatus.CONFIRMED;
+    const isOrderShipped = line.order?.status === OrderStatus.SHIPPED;
+    const isOrderDelivered = line.order?.status === OrderStatus.DELIVERED;
+
+    const effectiveStatus: OrderLineStatus =
+      line.status === OrderLineStatus.REJECTED
+        ? OrderLineStatus.REJECTED
+        : isOrderDelivered || line.status === OrderLineStatus.DELIVERED
+          ? OrderLineStatus.DELIVERED
+          : isOrderShipped || line.status === OrderLineStatus.SHIPPED
+            ? OrderLineStatus.SHIPPED
+            : isOrderConfirmed || line.status === OrderLineStatus.CONFIRMED
+              ? OrderLineStatus.CONFIRMED
+              : line.status;
+
     return {
       id: line.id,
       orderId: line.orderId,
       productName: line.harvest?.product?.name || 'Produit inconnu',
       buyerLabel: buyerDisplay,
       location: locationStr,
-      status: line.status,
+      status: effectiveStatus,
       weight: `${line.quantity} ${line.harvest?.unit || 'kg'}`,
       price: `${Number(line.totalPrice).toLocaleString()} ${line.currency || line.order?.currency || 'CDF'}`,
       totalPrice: Number(line.totalPrice),
@@ -145,7 +160,7 @@ function OrdersPage() {
 
         {/* Filter Chips */}
         <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 py-1">
-          {(['Toutes', 'En attente', "En attente d'enlèvement", 'En transit', 'Livrée', 'Rejetée'] as const).map((filter) => {
+          {(['Toutes', 'En attente', 'Prêt pour la collecte', 'En transit', 'Livrée', 'Rejetée'] as const).map((filter) => {
             const isActive = activeFilter === filter;
             return (
               <button
@@ -175,7 +190,7 @@ function OrdersPage() {
                   : order.status === OrderLineStatus.DELIVERED
                     ? 'bg-[#aef2be]/30 text-[#0b522c] opacity-60'
                     : order.status === OrderLineStatus.CONFIRMED
-                      ? 'bg-blue-50 text-blue-700'
+                      ? 'bg-[#e6f4ea] text-[#004322] border border-[#aef2be]'
                       : 'bg-rose-50 text-rose-700';
 
             return (

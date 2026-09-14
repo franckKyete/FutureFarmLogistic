@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import {
@@ -192,41 +192,38 @@ describe('OrderTrackingPage (/orders/$id/tracking)', () => {
     expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
   });
 
-  it('renders estimated arrival card with remaining time, order number and batch quality', async () => {
+  it('renders estimated arrival card with order number and product summary', async () => {
     renderWithClient(<OrderTrackingPage />);
 
     expect(await screen.findByTestId('estimated-arrival-card')).toBeInTheDocument();
-    expect(screen.getByText('ESTIMATED ARRIVAL')).toBeInTheDocument();
-    expect(screen.getByText(/Arrives in 23 minutes/i)).toBeInTheDocument();
-    expect(screen.getByText('Order Number')).toBeInTheDocument();
-    expect(screen.getByText('#FF-ORDER-B')).toBeInTheDocument();
-    expect(screen.getByText('Batch Quality')).toBeInTheDocument();
-    expect(screen.getByText('Grade A')).toBeInTheDocument();
+    expect(screen.getByText('SUIVI DE LIVRAISON')).toBeInTheDocument();
+    expect(screen.getByText('N° Commande')).toBeInTheDocument();
+    expect(screen.getByText('#ORD-ORDER-99')).toBeInTheDocument();
+    expect(screen.getByText('Contenu')).toBeInTheDocument();
+    expect(screen.getByText(/Tomates Grappe/i)).toBeInTheDocument();
   });
 
-  it('renders driver info card with driver name, rating and phone call button', async () => {
+  it('renders driver info card with driver name and phone call button', async () => {
     renderWithClient(<OrderTrackingPage />);
 
-    expect(await screen.findByTestId('driver-info-card')).toBeInTheDocument();
-    expect(screen.getByText('Amadou K.')).toBeInTheDocument();
-    expect(screen.getByText('4.8 Rating')).toBeInTheDocument();
+    const driverCard = await screen.findByTestId('driver-info-card');
+    expect(driverCard).toBeInTheDocument();
+    expect(within(driverCard).getByText('Amadou K.')).toBeInTheDocument();
 
     const callBtn = screen.getByTestId('driver-phone-btn');
     expect(callBtn).toBeInTheDocument();
     expect(callBtn).toHaveAttribute('href', 'tel:+221 77 123 45 67');
   });
 
-  it('renders order progress vertical timeline stepper with 4 steps', async () => {
+  it('renders order progress vertical timeline stepper with real lifecycle steps', async () => {
     renderWithClient(<OrderTrackingPage />);
 
     expect(await screen.findByTestId('order-progress-card')).toBeInTheDocument();
-    expect(screen.getByText('Order Progress')).toBeInTheDocument();
-    expect(screen.getByText('Order Confirmed')).toBeInTheDocument();
-    expect(screen.getByText('Picked up')).toBeInTheDocument();
-    expect(screen.getByText('In Transit')).toBeInTheDocument();
-    expect(screen.getByText('Driver is 4km away')).toBeInTheDocument();
-    expect(screen.getByText('Arriving')).toBeInTheDocument();
-    expect(screen.getByText('Estimated 11:35 AM')).toBeInTheDocument();
+    expect(screen.getByText('Progression de la livraison')).toBeInTheDocument();
+    expect(screen.getByText('Commande validée')).toBeInTheDocument();
+    expect(screen.getByText('Collecte & Préparation')).toBeInTheDocument();
+    expect(screen.getByText('Acheminement')).toBeInTheDocument();
+    expect(screen.getByText('Livraison finale')).toBeInTheDocument();
   });
 
   it('renders contact driver and report issue action buttons', async () => {
@@ -245,13 +242,12 @@ describe('OrderTrackingPage (/orders/$id/tracking)', () => {
     );
   });
 
-  it('renders bottom navigation with 5 tabs', async () => {
+  it('does not render bottom navigation bar on buyer tracking view', async () => {
     renderWithClient(<OrderTrackingPage />);
 
-    expect(await screen.findByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Products')).toBeInTheDocument();
-    expect(screen.getByText('Auctions')).toBeInTheDocument();
-    expect(screen.getByText('Orders')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
+    await screen.findByTestId('estimated-arrival-card');
+    expect(screen.queryByText('Home')).toBeNull();
+    expect(screen.queryByText('Products')).toBeNull();
+    expect(screen.queryByText('Auctions')).toBeNull();
   });
 });

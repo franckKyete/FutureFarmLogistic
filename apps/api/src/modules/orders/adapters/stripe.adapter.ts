@@ -30,7 +30,7 @@ export class StripePaymentGateway implements PaymentGatewayPort {
   async initiatePayment(
     order: OrderEntity,
     amount: number,
-    _options?: PaymentOptions,
+    options?: PaymentOptions,
   ): Promise<PaymentInitResult> {
     const paymentCurrency = (order.currency || this.currency || 'USD').toLowerCase();
     this.logger.log(`Initiating Stripe payment of ${amount} ${paymentCurrency.toUpperCase()} for order ${order.id}`);
@@ -40,6 +40,14 @@ export class StripePaymentGateway implements PaymentGatewayPort {
       const zeroDecimalCurrencies = ['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof'];
       const isZeroDecimal = zeroDecimalCurrencies.includes(paymentCurrency);
       const unitAmount = isZeroDecimal ? Math.round(amount) : Math.round(amount * 100);
+
+      const baseSuccessUrl =
+        options?.returnUrl ||
+        (options?.clientOrigin ? `${options.clientOrigin}/orders` : this.successUrl);
+      const baseCancelUrl = options?.clientOrigin
+        ? `${options.clientOrigin}/checkout`
+        : this.cancelUrl;
+      const separator = baseSuccessUrl.includes('?') ? '&' : '?';
 
       const session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -57,8 +65,8 @@ export class StripePaymentGateway implements PaymentGatewayPort {
           },
         ],
         mode: 'payment',
-        success_url: `${this.successUrl}?session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`,
-        cancel_url: this.cancelUrl,
+        success_url: `${baseSuccessUrl}${separator}session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`,
+        cancel_url: baseCancelUrl,
         client_reference_id: order.id,
       });
 

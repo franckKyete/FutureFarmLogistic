@@ -27,16 +27,20 @@ import {
   AuthUser,
   CreateDeliveryRunDto,
   UpdateDeliveryRunDto,
-  SkipStopDto,
-  PushLocationDto,
   AssignDriverDto,
   AssignVehicleDto,
 } from '@futurefarm/types';
+import {
+  SubmitPickupReportDto,
+  PushLocationDto,
+  SkipStopDto,
+} from './dto/logistics-actions.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { LogisticsService } from './logistics.service';
+import { DispatchService } from './dispatch.service';
 
 interface UploadedFileDto {
   fieldname: string;
@@ -52,7 +56,10 @@ interface UploadedFileDto {
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class LogisticsController {
-  constructor(private readonly logisticsService: LogisticsService) {}
+  constructor(
+    private readonly logisticsService: LogisticsService,
+    private readonly dispatchService: DispatchService,
+  ) {}
 
   // -------------------------------------------------------------------------
   // Delivery Runs
@@ -60,9 +67,24 @@ export class LogisticsController {
 
   @Post('runs')
   @RequirePermissions(Permission.DELIVERY_RUN_CREATE)
-  @ApiOperation({ summary: 'Create a new delivery run with stops' })
+  @ApiOperation({ summary: 'Create and dispatch delivery run(s) using CVRP planner' })
   createRun(@Body() dto: CreateDeliveryRunDto) {
-    return this.logisticsService.createRun(dto);
+    return this.dispatchService.planAndDispatch(dto);
+  }
+
+  @Post('runs/:id/auto-dispatch')
+  @RequirePermissions(Permission.DELIVERY_RUN_UPDATE)
+  @ApiOperation({ summary: 'Auto-dispatch driver to run using round-robin fairness' })
+  autoDispatch(@Param('id') id: string) {
+    return this.dispatchService.autoDispatch(id);
+  }
+
+  @Post('runs/:id/reject-dispatch')
+  @RequirePermissions(Permission.DELIVERY_STOP_UPDATE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Driver rejects or times out on dispatch, triggering re-routing' })
+  rejectDispatch(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.dispatchService.rejectDispatch(id, user.id);
   }
 
   @Get('runs')
@@ -155,14 +177,14 @@ export class LogisticsController {
   @Post('runs/:id/stops/:stopId/pickup-report')
   @RequirePermissions(Permission.DELIVERY_STOP_UPDATE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Driver: link AI pickup inspection report to COLLECTION stop' })
-  linkPickupReport(
+  @ApiOperation({ summary: 'Driver: submit quality inspection report for COLLECTION stop' })
+  submitPickupReport(
     @Param('id')     runId:  string,
     @Param('stopId') stopId: string,
     @CurrentUser()   user:   AuthUser,
-    @Body('reportId') reportId: string,
+    @Body()          dto:    SubmitPickupReportDto,
   ) {
-    return this.logisticsService.createPickupReport(runId, stopId, user.id, reportId);
+    return this.logisticsService.submitPickupReport(runId, stopId, user.id, dto);
   }
 
 
@@ -238,5 +260,12 @@ export class LogisticsController {
   @ApiOperation({ summary: 'Get last known driver position for a run' })
   getLastLocation(@Param('id') runId: string) {
     return this.logisticsService.getLastLocation(runId);
+  }
+
+  @Get('drivers/locations')
+  @RequirePermissions(Permission.DRIVER_LOCATION_READ)
+  @ApiOperation({ summary: 'Admin: get latest known locations of all drivers' })
+  getLatestDriverLocations() {
+    return this.logisticsService.getLatestDriverLocations();
   }
 }

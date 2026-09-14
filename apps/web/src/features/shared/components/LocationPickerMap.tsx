@@ -10,8 +10,8 @@ import {
 import L from 'leaflet';
 
 export interface LocationPickerMapProps {
-  latitude?: number | '';
-  longitude?: number | '';
+  latitude?: number | '' | null | undefined;
+  longitude?: number | '' | null | undefined;
   onChange: (coords: { lat: number; lon: number }) => void;
   className?: string;
   defaultCenter?: [number, number];

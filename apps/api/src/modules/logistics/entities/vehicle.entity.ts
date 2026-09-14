@@ -27,6 +27,9 @@ export class VehicleEntity {
   @Column({ name: 'registration_plate', type: 'varchar', length: 50 })
   registrationPlate: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  brand: string | null;
+
   @Column({ type: 'enum', enum: VehicleType })
   type: VehicleType;
 

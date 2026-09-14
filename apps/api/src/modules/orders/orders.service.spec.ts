@@ -25,6 +25,7 @@ import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PAYMENT_GATEWAY_PORT } from './interfaces/payment-gateway.port';
 import { StripePaymentGateway } from './adapters/stripe.adapter';
+import { DispatchService } from '../logistics/dispatch.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -158,6 +159,13 @@ describe('OrdersService', () => {
         {
           provide: StripePaymentGateway,
           useValue: mockStripeGateway,
+        },
+        {
+          provide: DispatchService,
+          useValue: {
+            queueOrderDispatch: jest.fn().mockResolvedValue(undefined),
+            recalculateForRejectedLine: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

@@ -1,7 +1,9 @@
 import { Icon } from '@/features/shared/components/Icon';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { LocationPickerMap } from '@/features/shared/components/LocationPickerMap';
 import { requireAuth } from '@/features/auth/utils/auth-guard';
 import {
   getBasketQuery,
@@ -32,14 +34,6 @@ export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
 });
 
-type DeliverySlot = 'Matin (08:00 - 12:00)' | 'Après-midi' | 'Soir';
-
-function getTomorrowDate(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0] ?? '';
-}
-
 export function CheckoutPage() {
   const { data: basket, refetch: refetchBasket } = useQuery(getBasketQuery());
 
@@ -48,9 +42,53 @@ export function CheckoutPage() {
 
   // Form State
   const [selectedAddress, setSelectedAddress] = useState<AddressDto | null>(null);
-  const [deliveryDate, setDeliveryDate] = useState(getTomorrowDate());
-  const [selectedSlot, setSelectedSlot] = useState<DeliverySlot>('Matin (08:00 - 12:00)');
   const [specialInstructions, setSpecialInstructions] = useState('');
+
+  // Location Coordinate State for Address
+  const queryClient = useQueryClient();
+  const [pendingAddressCoords, setPendingAddressCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [isSavingAddressCoords, setIsSavingAddressCoords] = useState(false);
+
+  // Sync pending coords when selectedAddress changes
+  useEffect(() => {
+    if (selectedAddress?.latitude && selectedAddress?.longitude) {
+      setPendingAddressCoords({
+        lat: Number(selectedAddress.latitude),
+        lon: Number(selectedAddress.longitude),
+      });
+    } else {
+      setPendingAddressCoords(null);
+    }
+  }, [selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude]);
+
+  const handleSaveAddressCoordinates = async () => {
+    if (!selectedAddress || !pendingAddressCoords) return;
+    try {
+      setIsSavingAddressCoords(true);
+      await apiClient.patch(`/addresses/${selectedAddress.id}`, {
+        latitude: pendingAddressCoords.lat,
+        longitude: pendingAddressCoords.lon,
+      });
+      setSelectedAddress((prev) =>
+        prev
+          ? {
+              ...prev,
+              latitude: pendingAddressCoords.lat,
+              longitude: pendingAddressCoords.lon,
+            }
+          : prev,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      addToast('Position de livraison enregistrée avec succès !', 'success');
+    } catch (err: any) {
+      addToast(
+        err?.response?.data?.message || 'Erreur lors de la sauvegarde de la position',
+        'error',
+      );
+    } finally {
+      setIsSavingAddressCoords(false);
+    }
+  };
 
   // Payment Method Selection (Step 2)
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'mobile_money'>('stripe');
@@ -141,6 +179,13 @@ export function CheckoutPage() {
       addToast('Veuillez sélectionner ou ajouter une adresse de livraison', 'error');
       return;
     }
+    if (!selectedAddress.latitude || !selectedAddress.longitude) {
+      addToast(
+        'Veuillez définir et enregistrer l\'emplacement sur la carte pour continuer',
+        'error',
+      );
+      return;
+    }
     setCurrentStep(2);
   };
 
@@ -181,13 +226,15 @@ export function CheckoutPage() {
       deliveryAddressPayload.longitude = Number(selectedAddress.longitude);
     }
 
-    const combinedNotes = `Date: ${deliveryDate} | Créneau: ${selectedSlot}${specialInstructions.trim() ? ` | Instructions: ${specialInstructions.trim()}` : ''}`;
+    const combinedNotes = specialInstructions.trim() ? specialInstructions.trim() : undefined;
 
     checkout.mutate({
       deliveryAddress: deliveryAddressPayload,
       notes: combinedNotes,
       paymentMethod,
       currency: selectedCurrency,
+      clientOrigin: window.location.origin,
+      returnUrl: `${window.location.origin}/orders`,
     });
   };
 
@@ -318,43 +365,78 @@ export function CheckoutPage() {
                 showActions
               />
 
-              {/* Date de livraison */}
-              <div className="pt-2 border-t border-gray-100">
-                <label className="text-xs font-bold text-[#004322] block mb-1.5">
-                  Date de livraison
-                </label>
-                <input
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full h-12 px-4 bg-white border border-[#c0c9be] rounded-xl text-sm font-medium text-[#0b1c30] focus:outline-none focus:border-[#004322] focus:ring-1 focus:ring-[#004322] transition-all"
-                  required
-                />
-              </div>
+              {/* Interactive Location Picker on Checkout */}
+              {selectedAddress && (!selectedAddress.latitude || !selectedAddress.longitude) && (
+                <div className="p-4 bg-amber-50/90 border border-amber-300 rounded-xl space-y-3 animate-fade-in shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon name="location_searching" className="text-[18px]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-950">
+                        Précisez votre emplacement de livraison sur la carte
+                      </h4>
+                      <p className="text-[11px] text-amber-900 leading-tight mt-0.5">
+                        Cette adresse n&apos;a pas de coordonnées GPS enregistrées. Pointez votre repère pour optimiser la tournée de livraison.
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Créneau de livraison */}
-              <div>
-                <label className="text-xs font-bold text-[#004322] block mb-1.5">
-                  Créneau de livraison
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(['Matin (08:00 - 12:00)', 'Après-midi', 'Soir'] as DeliverySlot[]).map((slot) => {
-                    const isSelected = selectedSlot === slot;
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`py-2.5 px-4 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#004322] text-white shadow-sm'
-                            : 'bg-white border border-[#c0c9be] text-[#0b1c30] hover:border-[#004322]'
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    );
-                  })}
+                  <LocationPickerMap
+                    latitude={pendingAddressCoords?.lat}
+                    longitude={pendingAddressCoords?.lon}
+                    onChange={(coords) => setPendingAddressCoords(coords)}
+                    className="h-64 w-full rounded-lg overflow-hidden border border-amber-300 shadow-inner relative z-0"
+                    label="Position de livraison"
+                  />
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                    <span className="text-[11px] font-medium text-amber-950">
+                      {pendingAddressCoords
+                        ? `Repère : ${pendingAddressCoords.lat.toFixed(4)}, ${pendingAddressCoords.lon.toFixed(4)}`
+                        : 'Cliquez sur la carte ou recherchez votre repère'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!pendingAddressCoords || isSavingAddressCoords}
+                      onClick={handleSaveAddressCoordinates}
+                      className="px-4 py-2.5 bg-[#004322] text-white text-xs font-bold rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                    >
+                      <Icon name="check" className="text-sm" />
+                      {isSavingAddressCoords ? 'Enregistrement...' : 'Enregistrer la position'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedAddress && selectedAddress.latitude && selectedAddress.longitude && (
+                <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                  <div className="flex items-center gap-2">
+                    <Icon name="check_circle" className="text-emerald-700 text-[18px]" />
+                    <span>Emplacement GPS enregistré ({Number(selectedAddress.latitude).toFixed(4)}, {Number(selectedAddress.longitude).toFixed(4)})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedAddress({
+                        ...selectedAddress,
+                        latitude: null,
+                        longitude: null,
+                      })
+                    }
+                    className="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+                  >
+                    Modifier
+                  </button>
+                </div>
+              )}
+
+              {/* Information de disponibilité et planification dynamique */}
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                <Icon name="info" className="text-emerald-700 text-[18px] shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-900 leading-relaxed">
+                  <span className="font-bold block mb-0.5 text-emerald-950">Planification dynamique de livraison</span>
+                  Le délai de livraison dépend de la disponibilité des chauffeurs et de l&apos;heure de validation de votre paiement. Votre commande peut être livrée le jour même ou sous 1 à 3 jours ouvrés.
                 </div>
               </div>
 
@@ -374,11 +456,6 @@ export function CheckoutPage() {
 
               {/* Trust Indicators */}
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
-                <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
-                  <Icon name="schedule" className="text-[15px]" />
-                  <span>Livré sous 24h</span>
-                </span>
-                <span>•</span>
                 <span className="flex items-center gap-1 font-semibold text-[#004322]">
                   <Icon name="lock" className="text-[15px]" />
                   <span>Paiement sécurisé</span>
@@ -409,10 +486,15 @@ export function CheckoutPage() {
                   {selectedAddress?.streetAddress2 ? `, ${selectedAddress.streetAddress2}` : ''},{' '}
                   {selectedAddress?.city} ({selectedAddress?.phoneNumber})
                 </p>
-                <p>🕒 {deliveryDate} — {selectedSlot}</p>
                 {specialInstructions.trim() && (
                   <p className="text-[#707970] italic">Note : {specialInstructions}</p>
                 )}
+                <div className="mt-2 pt-2 border-t border-gray-100 flex items-start gap-1.5 text-[11px] text-emerald-800">
+                  <Icon name="info" className="text-[14px] text-emerald-700 shrink-0 mt-0.5" />
+                  <span>
+                    Livraison assignée automatiquement selon la disponibilité des chauffeurs dès validation du paiement.
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -521,11 +603,6 @@ export function CheckoutPage() {
 
               {/* Trust Indicators */}
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#707970] pt-1">
-                <span className="flex items-center gap-1 font-semibold text-[#9a3412]">
-                  <Icon name="schedule" className="text-[15px]" />
-                  <span>Livré sous 24h</span>
-                </span>
-                <span>•</span>
                 <span className="flex items-center gap-1 font-semibold text-[#004322]">
                   <Icon name="lock" className="text-[15px]" />
                   <span>
@@ -563,10 +640,7 @@ export function CheckoutPage() {
                   <span className="text-[#707970] font-semibold">Montant payé</span>
                   <span className="font-extrabold text-[#004322]">{formatPriceDirect(placedOrder.totalAmount, placedOrder.currency)}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                  <span className="text-[#707970] font-semibold">Date prévue</span>
-                  <span className="font-bold text-[#0b1c30]">{deliveryDate} ({selectedSlot})</span>
-                </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-[#707970] font-semibold">Livraison</span>
                   <span className="font-bold text-[#0b1c30] truncate max-w-[200px]">

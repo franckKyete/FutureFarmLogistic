@@ -111,3 +111,53 @@ export const updateDriverAvailabilityMutation = () => ({
     return data.data;
   },
 });
+
+export interface UpdateDriverSelfProfileParams {
+  userId: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  licenseNumber?: string;
+  licenseCategory?: string;
+  licenseExpiresAt?: string;
+  vehicleBrand?: string;
+  vehiclePlate?: string;
+}
+
+export const updateMyDriverProfileMutation = () => ({
+  mutationFn: async ({ userId, ...dto }: UpdateDriverSelfProfileParams) => {
+    const { data } = await apiClient.patch(`/users/${userId}`, dto);
+    return data.data;
+  },
+});
+
+export const submitPickupReportMutation = () => ({
+  mutationFn: async ({
+    runId,
+    stopId,
+    dto,
+  }: {
+    runId: string;
+    stopId: string;
+    dto: {
+      quantityVerified: boolean;
+      conditionOk: 'GOOD' | 'BAD';
+      packagingIntact: boolean;
+      weightActualKg: number;
+      notes?: string | undefined;
+    };
+  }) => {
+    const { data } = await apiClient.post(
+      `/logistics/runs/${runId}/stops/${stopId}/pickup-report`,
+      dto,
+    );
+    return data.data;
+  },
+});
+
+export const rejectDispatchMutation = () => ({
+  mutationFn: async (runId: string) => {
+    const { data } = await apiClient.post(`/logistics/runs/${runId}/reject-dispatch`);
+    return data.data;
+  },
+});

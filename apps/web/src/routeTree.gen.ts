@@ -39,7 +39,9 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthUnauthorizedRouteImport } from './routes/auth/unauthorized'
+import { Route as DriverIndexRouteImport } from './routes/driver/index'
 import { Route as DriverProfileRouteImport } from './routes/driver/profile'
+import { Route as DriverRoutesRouteImport } from './routes/driver/routes'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer/analytics'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer/dashboard'
 import { Route as FarmerOnboardingRouteImport } from './routes/farmer/onboarding'
@@ -231,9 +233,19 @@ const AuthUnauthorizedRoute = AuthUnauthorizedRouteImport.update({
   path: '/auth/unauthorized',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DriverIndexRoute = DriverIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DriverRoute,
+} as any)
 const DriverProfileRoute = DriverProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverRoutesRoute = DriverRoutesRouteImport.update({
+  id: '/routes',
+  path: '/routes',
   getParentRoute: () => DriverRoute,
 } as any)
 const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
@@ -471,6 +483,7 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
+  '/driver/routes': typeof DriverRoutesRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
@@ -487,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
+  '/driver/': typeof DriverIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
@@ -518,7 +532,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/notifications': typeof NotificationsRoute
@@ -542,6 +555,7 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
+  '/driver/routes': typeof DriverRoutesRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
@@ -558,6 +572,7 @@ export interface FileRoutesByTo {
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions': typeof AuctionsIndexRoute
+  '/driver': typeof DriverIndexRoute
   '/inspector': typeof InspectorIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
@@ -616,6 +631,7 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/unauthorized': typeof AuthUnauthorizedRoute
   '/driver/profile': typeof DriverProfileRoute
+  '/driver/routes': typeof DriverRoutesRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/onboarding': typeof FarmerOnboardingRoute
@@ -632,6 +648,7 @@ export interface FileRoutesById {
   '/inspector/validate': typeof InspectorValidateRoute
   '/orders/$id': typeof OrdersIdRouteWithChildren
   '/auctions/': typeof AuctionsIndexRoute
+  '/driver/': typeof DriverIndexRoute
   '/inspector/': typeof InspectorIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/admin/inspection-centers/new': typeof AdminInspectionCentersNewRoute
@@ -691,6 +708,7 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
+    | '/driver/routes'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
@@ -707,6 +725,7 @@ export interface FileRouteTypes {
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
+    | '/driver/'
     | '/inspector/'
     | '/orders/'
     | '/admin/inspection-centers/new'
@@ -738,7 +757,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/cart'
     | '/checkout'
-    | '/driver'
     | '/farmer'
     | '/marketplace'
     | '/notifications'
@@ -762,6 +780,7 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
+    | '/driver/routes'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
@@ -778,6 +797,7 @@ export interface FileRouteTypes {
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions'
+    | '/driver'
     | '/inspector'
     | '/orders'
     | '/admin/inspection-centers/new'
@@ -835,6 +855,7 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/unauthorized'
     | '/driver/profile'
+    | '/driver/routes'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/onboarding'
@@ -851,6 +872,7 @@ export interface FileRouteTypes {
     | '/inspector/validate'
     | '/orders/$id'
     | '/auctions/'
+    | '/driver/'
     | '/inspector/'
     | '/orders/'
     | '/admin/inspection-centers/new'
@@ -1114,11 +1136,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthUnauthorizedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/driver/': {
+      id: '/driver/'
+      path: '/'
+      fullPath: '/driver/'
+      preLoaderRoute: typeof DriverIndexRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/driver/profile': {
       id: '/driver/profile'
       path: '/profile'
       fullPath: '/driver/profile'
       preLoaderRoute: typeof DriverProfileRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/routes': {
+      id: '/driver/routes'
+      path: '/routes'
+      fullPath: '/driver/routes'
+      preLoaderRoute: typeof DriverRoutesRouteImport
       parentRoute: typeof DriverRoute
     }
     '/farmer/analytics': {
@@ -1446,12 +1482,16 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface DriverRouteChildren {
   DriverProfileRoute: typeof DriverProfileRoute
+  DriverRoutesRoute: typeof DriverRoutesRoute
+  DriverIndexRoute: typeof DriverIndexRoute
   DriverRunsIdRoute: typeof DriverRunsIdRoute
   DriverRunsIndexRoute: typeof DriverRunsIndexRoute
 }
 
 const DriverRouteChildren: DriverRouteChildren = {
   DriverProfileRoute: DriverProfileRoute,
+  DriverRoutesRoute: DriverRoutesRoute,
+  DriverIndexRoute: DriverIndexRoute,
   DriverRunsIdRoute: DriverRunsIdRoute,
   DriverRunsIndexRoute: DriverRunsIndexRoute,
 }

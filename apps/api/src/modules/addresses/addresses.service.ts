@@ -114,8 +114,8 @@ export class AddressesService {
     let stateOrProvince: string | null = null;
     let postalCode: string | null = null;
     let country = extra?.country || 'COD';
-    let latitude: number | null = null;
-    let longitude: number | null = null;
+    let latitude: number | null = extra?.latitude ?? null;
+    let longitude: number | null = extra?.longitude ?? null;
     let recipientName = extra?.recipientName || null;
     let phoneNumber = extra?.phoneNumber || null;
 

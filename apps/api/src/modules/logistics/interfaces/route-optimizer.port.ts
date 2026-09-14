@@ -32,6 +32,11 @@ export interface RouteOptimizerPort {
    * and metadata (distance, duration).
    */
   optimise(waypoints: LatLon[]): Promise<OptimisedRoute>;
+
+  /**
+   * Computes an NxN distance matrix (in km) across the provided waypoints.
+   */
+  table(waypoints: LatLon[]): Promise<number[][]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,11 +94,26 @@ export class OsrmRouteOptimizer implements RouteOptimizerPort {
       };
     }
 
-    const waypointOrder = body.waypoints
-      .sort((a, b) => a.waypoint_index - b.waypoint_index)
-      .map((wp) => wp.trips_index ?? wp.waypoint_index);
+    // body.waypoints in OSRM /trip response gives the stops along the trip in the order they appear.
+    // Each element in body.waypoints has:
+    // - waypoint_index: The index of the waypoint along the calculated trip (0, 1, 2, ...).
+    // - hint/location: Corresponds to the input coordinates in order of appearance in body.waypoints array.
+    // We sort by waypoint_index to get the sequence along the trip, and map to original index.
+    const waypointOrder: number[] = new Array(waypoints.length);
+    for (let originalIndex = 0; originalIndex < body.waypoints.length; originalIndex++) {
+      const wp = body.waypoints[originalIndex]!;
+      const tripIndex = wp.waypoint_index;
+      if (tripIndex >= 0 && tripIndex < waypoints.length) {
+        waypointOrder[tripIndex] = originalIndex;
+      }
+    }
 
-    const orderedWaypoints = waypointOrder.map((originalIndex) => {
+    // Fallback in case indices are missing or corrupt
+    const validOrder = waypointOrder.every((idx) => typeof idx === 'number')
+      ? waypointOrder
+      : waypoints.map((_, i) => i);
+
+    const orderedWaypoints = validOrder.map((originalIndex) => {
       const wp = waypoints[originalIndex]!;
       const result: LatLon & { originalIndex: number } = {
         lat: wp.lat,
@@ -128,6 +148,55 @@ export class OsrmRouteOptimizer implements RouteOptimizerPort {
       totalDurationSec: Math.round(trip.duration),
       durationOffsetPerStop,
     };
+  }
+
+  async table(waypoints: LatLon[]): Promise<number[][]> {
+    const n = waypoints.length;
+    if (n === 0) return [];
+    if (n === 1) return [[0]];
+
+    const coords = waypoints.map((wp) => `${wp.lon},${wp.lat}`).join(';');
+    const url = `${this.baseUrl}/table/v1/driving/${coords}?annotations=distance`;
+
+    try {
+      this.logger.debug(`OSRM table request: ${url}`);
+      const raw = await this.get(url);
+      const body = JSON.parse(raw) as { code: string; distances?: number[][] };
+
+      if (body.code === 'Ok' && body.distances && body.distances.length === n) {
+        // Convert meters to kilometers
+        return body.distances.map((row) => row.map((d) => +(d / 1000).toFixed(2)));
+      }
+    } catch (err) {
+      this.logger.warn(`OSRM table failed, falling back to Haversine: ${(err as Error).message}`);
+    }
+
+    // Fallback: Haversine distance matrix in km
+    const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          matrix[i]![j] = 0;
+        } else {
+          matrix[i]![j] = +this.haversineDistanceKm(waypoints[i]!, waypoints[j]!).toFixed(2);
+        }
+      }
+    }
+    return matrix;
+  }
+
+  private haversineDistanceKm(p1: LatLon, p2: LatLon): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
+    const dLon = ((p2.lon - p1.lon) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((p1.lat * Math.PI) / 180) *
+        Math.cos((p2.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 
   private get(url: string): Promise<string> {

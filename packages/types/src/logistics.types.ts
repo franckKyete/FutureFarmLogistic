@@ -53,18 +53,20 @@ export interface StopAddress {
 // ---------------------------------------------------------------------------
 
 export class CreateVehicleDto {
+  brand?:            string;
   registrationPlate!: string;
-  type!: VehicleType;
-  capacityKg!: number;
-  capacityM3!: number;
+  type!:             VehicleType;
+  capacityKg!:       number;
+  capacityM3!:       number;
 }
 
 export class UpdateVehicleDto {
+  brand?:             string;
   registrationPlate?: string;
-  type?: VehicleType;
-  capacityKg?: number;
-  capacityM3?: number;
-  isActive?: boolean;
+  type?:              VehicleType;
+  capacityKg?:        number;
+  capacityM3?:        number;
+  isActive?:          boolean;
 }
 
 export class AssignDriverDto {
@@ -97,7 +99,7 @@ export class SkipStopDto {
 }
 
 export class PushLocationDto {
-  runId!:     string;
+  runId?:     string;
   lat!:       number;
   lon!:       number;
   heading?:  number;
@@ -106,4 +108,36 @@ export class PushLocationDto {
 
 export class AssignVehicleDto {
   vehicleId!: string;
+}
+
+/** Quality condition of goods inspected at pickup */
+export enum PickupCondition {
+  GOOD = 'GOOD',
+  BAD  = 'BAD',
+}
+
+/** Status of driver pickup inspection report */
+export enum PickupReportStatus {
+  PENDING   = 'PENDING',
+  SUBMITTED = 'SUBMITTED',
+}
+
+/** DTO for driver submitting pickup report */
+export class SubmitPickupReportDto {
+  quantityVerified!: boolean;
+  conditionOk!:      PickupCondition;
+  packagingIntact!:  boolean;
+  weightActualKg!:   number;
+  notes?:            string | undefined;
+}
+
+/** WebSocket payload sent when run is assigned to driver */
+export interface RunAssignedPayload {
+  runId:             string;
+  scheduledAt:       string; // ISO-8601
+  originCity:        string;
+  destinationCity:   string;
+  stopsCount:        number;
+  totalDistanceKm?:  number | undefined;
+  estimatedCargoKg?: number | undefined;
 }

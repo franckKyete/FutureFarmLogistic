@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MinLength,
@@ -43,4 +44,12 @@ export class RegisterFarmerDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @IsNotEmpty({ message: 'La localisation GPS (latitude) est obligatoire' })
+  @IsNumber({}, { message: 'La latitude doit être un nombre valide' })
+  latitude: number;
+
+  @IsNotEmpty({ message: 'La localisation GPS (longitude) est obligatoire' })
+  @IsNumber({}, { message: 'La longitude doit être un nombre valide' })
+  longitude: number;
 }

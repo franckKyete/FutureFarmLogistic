@@ -35,6 +35,7 @@ export class VehiclesService {
     }
 
     const vehicle = this.vehicleRepo.create({
+      brand:             dto.brand ?? null,
       registrationPlate: dto.registrationPlate,
       type:              dto.type as VehicleType,
       capacityKg:        dto.capacityKg,
@@ -49,6 +50,19 @@ export class VehiclesService {
     return this.vehicleRepo.find({
       order: { createdAt: 'DESC' },
       relations: ['currentDriver'],
+    });
+  }
+
+  async listAvailable(): Promise<VehicleEntity[]> {
+    return this.vehicleRepo.find({
+      where: { isActive: true },
+      relations: ['currentDriver'],
+    });
+  }
+
+  async findByDriverId(driverId: string): Promise<VehicleEntity | null> {
+    return this.vehicleRepo.findOne({
+      where: { currentDriverId: driverId, isActive: true },
     });
   }
 
@@ -78,6 +92,7 @@ export class VehiclesService {
       vehicle.registrationPlate = dto.registrationPlate;
     }
 
+    if (dto.brand !== undefined)      vehicle.brand      = dto.brand ?? null;
     if (dto.type !== undefined)       vehicle.type       = dto.type as VehicleType;
     if (dto.capacityKg !== undefined) vehicle.capacityKg = dto.capacityKg;
     if (dto.capacityM3 !== undefined) vehicle.capacityM3 = dto.capacityM3;

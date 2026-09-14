@@ -233,7 +233,7 @@ describe('OrderDetailPage Redesign', () => {
     expect(await screen.findByText('SUIVI DE COMMANDE')).toBeInTheDocument();
     expect(screen.getByText('Commande passée')).toBeInTheDocument();
     expect(screen.getByText('Paiement confirmé')).toBeInTheDocument();
-    expect(screen.getByText('Préparation en cours')).toBeInTheDocument();
+    expect(screen.getAllByText('Prêt pour la collecte').length).toBeGreaterThan(0);
     expect(screen.getByText('Expédition')).toBeInTheDocument();
     
     // Tracking button is rendered when driver is assigned

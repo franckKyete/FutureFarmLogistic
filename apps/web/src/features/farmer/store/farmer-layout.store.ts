@@ -1,5 +1,4 @@
 import { Store } from '@tanstack/store';
-import { useStore } from '@tanstack/react-store';
 import { useEffect, type ReactNode } from 'react';
 
 export interface FarmerLayoutOptions {
@@ -25,7 +24,21 @@ export function resetFarmerLayout() {
 export function useFarmerLayout(options?: FarmerLayoutOptions) {
   useEffect(() => {
     if (!options) return;
-    farmerLayoutStore.setState((prev) => ({ ...prev, ...options }));
+    farmerLayoutStore.setState((prev) => {
+      // Avoid state updates if primitive options haven't changed
+      if (
+        prev.hideTopBar === options.hideTopBar &&
+        prev.hideBottomNav === options.hideBottomNav &&
+        prev.title === options.title &&
+        prev.subtitle === options.subtitle &&
+        prev.showBack === options.showBack &&
+        prev.backTo === options.backTo &&
+        prev.rightAction === options.rightAction
+      ) {
+        return prev;
+      }
+      return { ...prev, ...options };
+    });
     return () => {
       farmerLayoutStore.setState(() => ({}));
     };
@@ -38,6 +51,4 @@ export function useFarmerLayout(options?: FarmerLayoutOptions) {
     options?.backTo,
     options?.rightAction,
   ]);
-
-  return useStore(farmerLayoutStore);
 }

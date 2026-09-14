@@ -9,26 +9,20 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { DeliveryRunStatus, DeliveryStopStatus, PushLocationDto } from '@futurefarm/types';
+import {
+  DeliveryRunStatus,
+  DeliveryStopStatus,
+  PushLocationDto,
+  RunAssignedPayload,
+} from '@futurefarm/types';
 
 /**
  * Real-time logistics gateway on the /logistics Socket.IO namespace.
  *
- * Rooms follow the pattern `run:<runId>`.
- *
- * ## Client → Server events
- * | Event                  | Payload                                       |
- * |------------------------|-----------------------------------------------|
- * | `join_run`             | `{ runId: string }`                           |
- * | `leave_run`            | `{ runId: string }`                           |
- * | `driver:location:push` | `PushLocationDto` (runId, lat, lon, …)        |
- *
- * ## Server → Client events
- * | Event                    | Payload                                              |
- * |--------------------------|------------------------------------------------------|
- * | `driver:location:update` | `{ driverId, lat, lon, heading }`                    |
- * | `stop:status:update`     | `{ stopId, status, completedAt }`                    |
- * | `run:status:update`      | `{ runId, status }`                                  |
+ * Rooms follow the pattern:
+ * - `run:<runId>` for run participants and admin high-fidelity tracking
+ * - `driver:<driverId>` for driver personal notifications (e.g. dispatch assignment)
+ * - `run:order:<orderId>` for security-focused buyer tracking with obfuscated coordinates
  */
 @WebSocketGateway({
   namespace: 'logistics',
@@ -76,15 +70,58 @@ export class LogisticsGateway implements OnGatewayConnection, OnGatewayDisconnec
     return { status: 'left', room };
   }
 
+  @SubscribeMessage('join_driver')
+  handleJoinDriver(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!data?.driverId) return { status: 'error', message: 'Missing driverId' };
+    const room = `driver:${data.driverId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined ${room}`);
+    return { status: 'joined', room };
+  }
+
+  @SubscribeMessage('leave_driver')
+  handleLeaveDriver(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!data?.driverId) return { status: 'error', message: 'Missing driverId' };
+    const room = `driver:${data.driverId}`;
+    void client.leave(room);
+    this.logger.log(`Client ${client.id} left ${room}`);
+    return { status: 'left', room };
+  }
+
+  @SubscribeMessage('join_order_tracking')
+  handleJoinOrderTracking(
+    @MessageBody() data: { orderId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!data?.orderId) return { status: 'error', message: 'Missing orderId' };
+    const room = `run:order:${data.orderId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined ${room}`);
+    return { status: 'joined', room };
+  }
+
+  @SubscribeMessage('leave_order_tracking')
+  handleLeaveOrderTracking(
+    @MessageBody() data: { orderId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!data?.orderId) return { status: 'error', message: 'Missing orderId' };
+    const room = `run:order:${data.orderId}`;
+    void client.leave(room);
+    this.logger.log(`Client ${client.id} left ${room}`);
+    return { status: 'left', room };
+  }
+
   // -------------------------------------------------------------------------
   // Driver location push (WebSocket path)
   // -------------------------------------------------------------------------
 
-  /**
-   * Drivers can push GPS pings directly via WebSocket.
-   * The service layer is invoked externally for persistence; this handler
-   * is a lightweight relay that emits the update immediately.
-   */
   @SubscribeMessage('driver:location:push')
   handleLocationPush(
     @MessageBody() dto: PushLocationDto,
@@ -106,15 +143,50 @@ export class LogisticsGateway implements OnGatewayConnection, OnGatewayDisconnec
   // Server-side emission helpers (called by LogisticsService)
   // -------------------------------------------------------------------------
 
+  /**
+   * Emits real-time location update with dual-precision:
+   * 1. Exact coordinates broadcast to `run:<runId>` (for admin high-fidelity view)
+   * 2. Intentionally fuzzy/obfuscated coordinates (~1km grid snap) broadcast to `run:order:<orderId>` (for buyer privacy)
+   */
   emitLocationUpdate(
     driverId: string,
     lat:      number,
     lon:      number,
     heading:  number | null,
+    runId?:   string | null,
+    orderIds?: string[] | null,
   ) {
-    // Broadcast to all rooms containing this driver's runs
-    // In practice the service knows the runId and could scope this further
-    this.server.emit('driver:location:update', { driverId, lat, lon, heading });
+    // 1. High-fidelity broadcast (exact lat/lon) to run room and global
+    if (runId) {
+      this.server.to(`run:${runId}`).emit('driver:location:update', {
+        driverId,
+        lat,
+        lon,
+        heading,
+      });
+    } else {
+      this.server.emit('driver:location:update', { driverId, lat, lon, heading });
+    }
+
+    // 2. Low-fidelity / Obfuscated broadcast to buyer order rooms
+    if (orderIds && orderIds.length > 0) {
+      // Obfuscate to 2 decimal places (~1.1 km resolution) and omit heading for privacy
+      const fuzzyLat = Math.round(lat * 100) / 100;
+      const fuzzyLon = Math.round(lon * 100) / 100;
+
+      for (const orderId of orderIds) {
+        this.server.to(`run:order:${orderId}`).emit('driver:location:update', {
+          driverId,
+          lat: fuzzyLat,
+          lon: fuzzyLon,
+          heading: null,
+        });
+      }
+    }
+  }
+
+  emitRunAssigned(driverId: string, payload: RunAssignedPayload) {
+    this.server.to(`driver:${driverId}`).emit('run:assigned', payload);
   }
 
   emitStopStatusUpdate(

@@ -13,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Permission, AuthUser } from '@futurefarm/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ClientOrigin } from '../../common/decorators/client-origin.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
@@ -70,7 +71,14 @@ export class BasketController {
   @RequirePermissions(Permission.ORDER_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Checkout active basket and generate a new order' })
-  checkout(@CurrentUser() user: AuthUser, @Body() dto: CheckoutDto) {
+  checkout(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CheckoutDto,
+    @ClientOrigin() clientOrigin?: string,
+  ) {
+    if (!dto.clientOrigin && clientOrigin) {
+      dto.clientOrigin = clientOrigin;
+    }
     return this.ordersService.checkout(user.id, dto);
   }
 }

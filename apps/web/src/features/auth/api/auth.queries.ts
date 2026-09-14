@@ -39,6 +39,8 @@ export interface RegisterFarmerPayload {
   address: string;
   regionName: string;
   bio?: string | undefined;
+  latitude: number;
+  longitude: number;
 }
 
 export interface RegisterBuyerPayload {

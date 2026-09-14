@@ -37,6 +37,8 @@ import { InspectorProfileEntity } from '../inspections/entities/inspector-profil
 import { InspectionCenterEntity } from '../inspections/entities/inspection-center.entity';
 import { InspectorCenterAssignmentEntity } from '../inspections/entities/inspector-center-assignment.entity';
 import { DriverProfileEntity } from '../logistics/entities/driver-profile.entity';
+import { VehicleEntity } from '../logistics/entities/vehicle.entity';
+import { VehicleType } from '@futurefarm/types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AddressesService } from '../addresses/addresses.service';
 import { AddressableType, AddressType } from '@futurefarm/types';
@@ -66,6 +68,8 @@ export class UsersService implements OnModuleInit {
     private readonly assignmentRepository: Repository<InspectorCenterAssignmentEntity>,
     @InjectRepository(DriverProfileEntity)
     private readonly driverProfileRepository: Repository<DriverProfileEntity>,
+    @InjectRepository(VehicleEntity)
+    private readonly vehicleRepository: Repository<VehicleEntity>,
     private readonly notificationsService: NotificationsService,
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly addressesService: AddressesService,
@@ -451,6 +455,8 @@ export class UsersService implements OnModuleInit {
           recipientName: `${savedUser.firstName} ${savedUser.lastName}`,
           phoneNumber: savedUser.phoneNumber || undefined,
           label: dto.companyName || 'Exploitation',
+          latitude: dto.latitude,
+          longitude: dto.longitude,
         },
       );
     }
@@ -1045,8 +1051,31 @@ export class UsersService implements OnModuleInit {
       if (driverProfile) {
         if (dto.licenseNumber !== undefined) driverProfile.licenseNumber = dto.licenseNumber;
         if (dto.licenseCategory !== undefined) driverProfile.licenseCategory = dto.licenseCategory;
+        if (dto.licenseExpiresAt !== undefined) driverProfile.licenseExpiresAt = dto.licenseExpiresAt || null;
         if (dto.isAvailable !== undefined) driverProfile.isAvailable = dto.isAvailable;
         await this.driverProfileRepository.save(driverProfile);
+      }
+
+      if (dto.vehicleBrand !== undefined || dto.vehiclePlate !== undefined) {
+        let vehicle = await this.vehicleRepository.findOne({
+          where: { currentDriverId: id, isActive: true },
+        });
+        if (!vehicle && dto.vehiclePlate) {
+          vehicle = this.vehicleRepository.create({
+            currentDriverId: id,
+            brand: dto.vehicleBrand || null,
+            registrationPlate: dto.vehiclePlate,
+            type: VehicleType.VAN,
+            capacityKg: 1500,
+            capacityM3: 6,
+            isActive: true,
+          });
+          await this.vehicleRepository.save(vehicle);
+        } else if (vehicle) {
+          if (dto.vehicleBrand !== undefined) vehicle.brand = dto.vehicleBrand || null;
+          if (dto.vehiclePlate !== undefined) vehicle.registrationPlate = dto.vehiclePlate;
+          await this.vehicleRepository.save(vehicle);
+        }
       }
     } else if (roleNames.includes('Farmer')) {
       const farmerProfile = await this.farmerProfileRepository.findOneBy({ userId: id });
@@ -1282,6 +1311,29 @@ export class UsersService implements OnModuleInit {
 
     await this.driverProfileRepository.save(profile);
 
+    // If vehicle details were provided, register and assign the vehicle to the driver
+    if (dto.vehiclePlate) {
+      const existingVehicle = await this.vehicleRepository.findOne({
+        where: { registrationPlate: dto.vehiclePlate },
+      });
+      if (existingVehicle) {
+        throw new ConflictException(
+          `Vehicle with plate "${dto.vehiclePlate}" already exists`,
+        );
+      }
+
+      const vehicle = this.vehicleRepository.create({
+        brand: dto.vehicleBrand || null,
+        registrationPlate: dto.vehiclePlate,
+        type: (dto.vehicleType as VehicleType) || VehicleType.VAN,
+        capacityKg: dto.vehicleCapacityKg ? Number(dto.vehicleCapacityKg) : 1000,
+        capacityM3: dto.vehicleCapacityM3 ? Number(dto.vehicleCapacityM3) : 5,
+        isActive: true,
+        currentDriverId: savedUser.id,
+      });
+      await this.vehicleRepository.save(vehicle);
+    }
+
     // Send email notification with login credentials (non-blocking)
     try {
       await this.notificationsService.send({
@@ -1443,7 +1495,11 @@ export class UsersService implements OnModuleInit {
 
   async createSetupSession(
     userId: string,
-    options?: { returnUrl?: string; auctionId?: string },
+    options?: {
+      returnUrl?: string | undefined;
+      auctionId?: string | undefined;
+      clientOrigin?: string | undefined;
+    },
   ) {
     const user = await this.usersRepository.findOneBy({ id: userId });
     if (!user) {
@@ -1460,6 +1516,7 @@ export class UsersService implements OnModuleInit {
     }
 
     const defaultOrigin =
+      options?.clientOrigin ||
       this.configService.get<string>('CORS_ORIGINS', 'http://localhost:3001').split(',')[0] ||
       'http://localhost:3001';
 

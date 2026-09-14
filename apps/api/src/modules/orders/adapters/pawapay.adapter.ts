@@ -166,10 +166,14 @@ export class PawaPayPaymentGateway implements PaymentGatewayPort {
     const formattedAmount = integerAmount.toString();
 
     // PawaPay strictly requires HTTPS for returnUrl
-    const baseReturnUrl = this.returnUrl.startsWith('http://')
-      ? this.returnUrl.replace('http://', 'https://')
-      : this.returnUrl;
-    const returnUrl = `${baseReturnUrl}?provider=pawapay&checkoutId=${checkoutId}&orderId=${order.id}`;
+    const rawReturnUrl =
+      options?.returnUrl ||
+      (options?.clientOrigin ? `${options.clientOrigin}/orders` : this.returnUrl);
+    const baseReturnUrl = rawReturnUrl.startsWith('http://')
+      ? rawReturnUrl.replace('http://', 'https://')
+      : rawReturnUrl;
+    const separator = baseReturnUrl.includes('?') ? '&' : '?';
+    const returnUrl = `${baseReturnUrl}${separator}provider=pawapay&checkoutId=${checkoutId}&orderId=${order.id}`;
 
     try {
       const payload: Record<string, any> = {

@@ -81,10 +81,14 @@ export const createSetupSessionMutation = () => ({
   mutationFn: async (payload?: {
     returnUrl?: string;
     auctionId?: string;
+    clientOrigin?: string;
   }): Promise<{ sessionId: string; sessionUrl: string }> => {
     const { data } = await apiClient.post<{
       data: { sessionId: string; sessionUrl: string };
-    }>('/users/me/payment-method/setup-session', payload || {});
+    }>('/users/me/payment-method/setup-session', {
+      clientOrigin: window.location.origin,
+      ...(payload || {}),
+    });
     return data.data;
   },
 });

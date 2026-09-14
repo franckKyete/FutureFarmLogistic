@@ -312,14 +312,8 @@ export function OrderDetailPage() {
   const producerId = farmerProfile?.id || activeLine?.farmerProfileId;
 
   // Driver / Delivery details
-  // Business rule: Normally a driver cannot be assigned to an order that has not been confirmed yet
-  const isOrderConfirmed =
-    order.status === OrderStatus.CONFIRMED ||
-    order.status === OrderStatus.SHIPPED ||
-    order.status === OrderStatus.DELIVERED;
-
-  const driverName = isOrderConfirmed ? order.delivery?.driverName : null;
-  const driverPhone = isOrderConfirmed ? order.delivery?.driverPhone : null;
+  const driverName = order.delivery?.driverName || null;
+  const driverPhone = order.delivery?.driverPhone || null;
   const deliveryMode = order.delivery?.mode || 'Transporteur propre';
 
   const isPreparing =
@@ -399,6 +393,26 @@ export function OrderDetailPage() {
           </div>
         )}
 
+        {/* ── READY FOR PICKUP NOTICE CARD (When order is confirmed by farmer) ── */}
+        {order.status === OrderStatus.CONFIRMED && (
+          <div
+            data-testid="order-ready-banner"
+            className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-4 flex items-start gap-3 shadow-xs"
+          >
+            <div className="w-9 h-9 rounded-full bg-[#dcfce7] text-[#004322] flex items-center justify-center shrink-0 mt-0.5">
+              <Icon name="check_circle" className="text-[20px]" />
+            </div>
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-bold text-[#004322]">
+                Articles prêts pour la collecte
+              </h3>
+              <p className="text-[11px] text-[#404941] leading-relaxed">
+                Le producteur a validé la commande. Vos récoltes sont préparées et prêtes pour la collecte par le transporteur.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── 1. PRODUCT / HARVEST CARD (Unified Single Hero Image) ── */}
         <div
           data-testid="order-product-card"
@@ -462,10 +476,15 @@ export function OrderDetailPage() {
               const product = harvest?.product;
               const isSelected = idx === activeLineIdx && order.lines.length > 1;
               const isReady =
+                order.status === OrderStatus.CONFIRMED ||
+                order.status === OrderStatus.SHIPPED ||
+                order.status === OrderStatus.DELIVERED ||
                 line.status === OrderLineStatus.CONFIRMED ||
                 line.status === OrderLineStatus.SHIPPED ||
                 line.status === OrderLineStatus.DELIVERED;
-              const isRejected = line.status === OrderLineStatus.REJECTED;
+              const isRejected =
+                line.status === OrderLineStatus.REJECTED ||
+                (order.status === OrderStatus.CANCELLED && !isReady);
 
               return (
                 <div
@@ -496,7 +515,7 @@ export function OrderDetailPage() {
                         {isReady ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300 shadow-3xs">
                             <Icon name="check_circle" className="text-[13px] text-emerald-700 font-black" />
-                            <span>Prêt / Confirmé</span>
+                            <span>Prêt pour la collecte</span>
                           </span>
                         ) : isRejected ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-full border border-rose-300 shadow-3xs">
@@ -883,14 +902,16 @@ export function OrderDetailPage() {
                     isPreparing || isShipped ? 'text-[#0b1c30]' : 'text-[#707970]'
                   }`}
                 >
-                  Préparation en cours
+                  {order.status === OrderStatus.CONFIRMED ? 'Prêt pour la collecte' : 'Préparation en cours'}
                 </p>
                 <p className="text-[11px] text-[#707970]">
                   {isShipped
                     ? 'Récoltes vérifiées et prêtes'
-                    : isPreparing
-                      ? 'Le producteur prépare vos récoltes...'
-                      : 'À venir'}
+                    : order.status === OrderStatus.CONFIRMED
+                      ? 'Articles prêts pour la collecte par le transporteur'
+                      : isPreparing
+                        ? 'Le producteur prépare vos récoltes...'
+                        : 'À venir'}
                 </p>
               </div>
             </div>
