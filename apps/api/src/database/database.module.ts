@@ -14,7 +14,9 @@ import { SeedService } from './seed.service';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL') || '',
         autoLoadEntities: true,
-        synchronize: config.get<string>('app.nodeEnv') === 'development',
+        synchronize:
+          config.get<string>('app.nodeEnv') === 'development' ||
+          config.get<boolean>('DB_SYNCHRONIZE') === true,
         logging: false,
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         migrationsRun: false,

@@ -15,6 +15,8 @@ All environment variables are defined in `.env.example` at the monorepo root.
 |---|---|---|
 | `NODE_ENV` | `development` | `development`, `production`, or `test` |
 | `API_PORT` | `3000` | Port the NestJS API listens on |
+| `PORT` | Render-provided | Runtime port provided by Render; takes precedence over `API_PORT` |
+| `DB_SYNCHRONIZE` | `false` | Temporarily set to `true` for the first production schema initialization; disable afterward |
 | `POSTGRES_HOST` | `localhost` | DB host (overridden by `DATABASE_URL`) |
 | `POSTGRES_PORT` | `5432` | DB port |
 | `POSTGRES_DB` | `futurefarm` | Database name |
@@ -35,6 +37,18 @@ All environment variables are defined in `.env.example` at the monorepo root.
 | Variable | Default | Description |
 |---|---|---|
 | `REDIS_URL` | `redis://localhost:6379` | Redis connection URL for Bull queues |
+
+## Object Storage Variables
+
+| Variable | Description |
+|---|---|
+| `S3_BUCKET` | Bucket name |
+| `S3_REGION` | Storage region (`auto` for Cloudflare R2) |
+| `S3_ENDPOINT` | S3-compatible endpoint, such as the Cloudflare R2 endpoint |
+| `S3_PUBLIC_ENDPOINT` | Optional public/custom endpoint used in generated signed URLs |
+| `S3_ACCESS_KEY_ID` | S3/R2 access key |
+| `S3_SECRET_ACCESS_KEY` | S3/R2 secret key |
+| `S3_SIGNED_URL_EXPIRES_IN` | Signed URL lifetime in seconds |
 | `SMTP_HOST` | | SMTP server hostname for Email |
 | `SMTP_PORT` | `587` | SMTP server port |
 | `SMTP_SECURE` | `false` | Enable TLS for SMTP |

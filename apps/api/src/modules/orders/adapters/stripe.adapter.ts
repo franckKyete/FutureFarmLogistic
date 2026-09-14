@@ -18,7 +18,9 @@ export class StripePaymentGateway implements PaymentGatewayPort {
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY is not defined. Stripe operations will fail.');
     }
-    this.stripe = new Stripe(secretKey || '');
+    // Stripe is optional in local development. Keep the provider constructible
+    // when PAYMENT_PROVIDER=mock; real Stripe calls still require a real key.
+    this.stripe = new Stripe(secretKey || 'sk_test_local_placeholder');
     this.currency = this.configService.get<string>('STRIPE_CURRENCY', 'usd');
     
     // Default success/cancel URLs pointing to local web app if not configured

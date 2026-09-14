@@ -7,6 +7,8 @@ export function validateEnv(config: Record<string, unknown>) {
       .empty('')
       .default('development'),
     API_PORT: Joi.number().empty('').default(3000),
+    PORT: Joi.number().empty('').optional(),
+    DB_SYNCHRONIZE: Joi.boolean().empty('').default(false),
     DATABASE_URL: Joi.string().uri().required(),
     JWT_SECRET: Joi.string().min(32).required(),
     JWT_ACCESS_TOKEN_EXPIRY: Joi.string().empty('').default('15m'),
