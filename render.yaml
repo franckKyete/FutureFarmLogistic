@@ -9,6 +9,24 @@ services:
     name: futurefarm-redis
     plan: free
 
+  # Keras product classification inference service.
+  - type: web
+    name: futurefarm-product-model
+    plan: 1c-2g
+    runtime: docker
+    dockerfilePath: services/product-model/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: HF_MODEL_REPO
+        value: winXT/futurefarm-product-model
+      - key: HF_MODEL_FILENAME
+        value: product_model_mvp_final.keras
+      - key: HF_TOKEN
+        sync: false
+      - key: MODEL_API_TOKEN
+        sync: false
+
   - type: web
     name: futurefarm-api
     plan: free
