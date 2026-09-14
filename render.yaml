@@ -29,6 +29,24 @@ services:
       - key: MODEL_API_TOKEN
         sync: false
 
+  # Keras quality classification inference service.
+  - type: web
+    name: futurefarm-quality-model
+    plan: 1c-2g
+    runtime: docker
+    dockerfilePath: services/quality-model/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: HF_MODEL_REPO
+        value: winXT/futurefarm-quality-model
+      - key: HF_MODEL_FILENAME
+        value: quality_model.keras
+      - key: HF_TOKEN
+        sync: false
+      - key: MODEL_API_TOKEN
+        sync: false
+
   - type: web
     name: futurefarm-api
     plan: free
