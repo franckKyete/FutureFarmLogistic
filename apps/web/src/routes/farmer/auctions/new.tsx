@@ -248,12 +248,6 @@ function DutchAuctionNewPage() {
     return score <= 10 ? Math.round(score * 10) : Math.round(score);
   }, [selectedHarvest]);
 
-  // AI Suggested Price
-  const aiSuggestedPrice = useMemo(() => {
-    if (!selectedHarvest) return 3200;
-    const base = Number(selectedHarvest.pricePerUnit);
-    return !isNaN(base) && base > 0 ? Math.round(base * 0.95) : 3200;
-  }, [selectedHarvest]);
 
   // Projected price in 30 minutes
   const projected30MinPrice = useMemo(() => {
@@ -516,15 +510,6 @@ function DutchAuctionNewPage() {
                   required
                   className="w-full bg-white border border-[#c0c9be] focus:border-[#004322] focus:ring-1 focus:ring-[#004322] rounded-xl p-3 text-3xl font-extrabold text-[#004322] outline-none transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={() => setStartPrice(String(aiSuggestedPrice))}
-                  className="text-xs font-semibold text-[#004322] flex items-center gap-1 hover:underline cursor-pointer pt-0.5"
-                >
-                  <Icon name="sparkles" size={14} className="text-[#004322]" />
-                  Prix suggéré par l'IA : {aiSuggestedPrice.toLocaleString('fr-FR')} {currencySymbol}/
-                  {unit}
-                </button>
               </div>
 
               <div className="space-y-1.5">

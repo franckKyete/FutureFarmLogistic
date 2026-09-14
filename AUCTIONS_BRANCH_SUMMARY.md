@@ -22,9 +22,8 @@ Modernize the farmer-facing auction creation interface (`/farmer/auctions/new`) 
   - Input with unit suffix (`kg`, `ton`, `piece`).
   - Dynamic stock safety warning banner calculating remaining stock in real time:
     $$\text{Remaining Stock} = \text{Effective Stock} - \text{Quantity On Offer}$$
-- **Section 3: TARIFICATION (Pricing & AI Recommendation)**:
+- **Section 3: TARIFICATION (Pricing & Reserve Price)**:
   - Prominent starting price input styled with primary branding.
-  - Clickable AI price suggestion pill referencing `harvest.pricePerUnit`.
   - Reserve price (minimum floor) input with backend-consistent validation ($\text{startingPrice} > \text{reservePrice}$).
 - **Section 4: PARAMÈTRES DE BAISSE (Interval & Step Amounts)**:
   - Decrement amount with currency symbol suffix.
@@ -41,7 +40,9 @@ Modernize the farmer-facing auction creation interface (`/farmer/auctions/new`) 
   - **Lancer l'enchère**: Dispatches `POST /v1/auctions` (`CreateAuctionDto`) with atomic stock locking.
 
 ### Modified Files:
-- [`apps/web/src/routes/farmer/auctions/new.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/routes/farmer/auctions/new.tsx)
+- [`apps/web/src/routes/farmer/auctions/new.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/routes/farmer/auctions/new.tsx) (Removed AI suggested price line, keeping clean starting and reserve price inputs)
+- [`apps/web/src/routes/farmer/auctions/$id.bidders.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/routes/farmer/auctions/$id.bidders.tsx) (Replaced mock data with real backend data, live WebSockets, staircase Dutch price decay curve with actual bids plotted on the plateaus without label collision, real buyer outcome cards, real event timeline, farmer cancellation modal, and elevated bottom action buttons above `FarmerBottomNav`)
+- [`apps/web/src/routes/farmer/stock.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/routes/farmer/stock.tsx) (Removed low-stock alert banner and stats cards grid)
 - [`apps/web/src/features/farmer/components/FarmerHeader.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/features/farmer/components/FarmerHeader.tsx) (Set title to *"Créer une enchère"*, back button, profile avatar)
 - [`apps/web/src/features/farmer/components/FarmerBottomNav.tsx`](file:///home/kyete/kitchen/FutureFarmLogistic/apps/web/src/features/farmer/components/FarmerBottomNav.tsx) (Added *Profil* tab, active rounded pill styling matching design)
 
