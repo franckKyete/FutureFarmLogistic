@@ -472,6 +472,13 @@ function InspectionReportFormPage() {
   // Action 1: Approve & Certify
   const handleSubmitApprove = () => {
     if (!activeReportId) return;
+    if (Number(finalQualityScore) < 5.0) {
+      addToast(
+        "Impossible d'approuver une récolte avec un score de qualité inférieur à 5/10.",
+        'error',
+      );
+      return;
+    }
     if (!allChecklistPassed) {
       addToast(
         'Impossible d\'approuver : tous les critères de conformité qualité doivent être validés (verts).',
@@ -785,19 +792,6 @@ function InspectionReportFormPage() {
                         )
                       }
                       placeholder="Ex: 2500"
-                      className="w-full p-2.5 border border-amber-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block font-bold text-gray-700 mb-1">
-                      Méthodes de culture constatées
-                    </label>
-                    <input
-                      type="text"
-                      value={editFarmingMethods}
-                      onChange={(e) => setEditFarmingMethods(e.target.value)}
-                      placeholder="Ex: Culture sous abri, paillage organique..."
                       className="w-full p-2.5 border border-amber-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
@@ -1171,10 +1165,17 @@ function InspectionReportFormPage() {
               <button
                 type="button"
                 onClick={() => setShowApproveModal(true)}
-                disabled={submitReport.isPending || !activeReportId || !allChecklistPassed}
+                disabled={
+                  submitReport.isPending ||
+                  !activeReportId ||
+                  !allChecklistPassed ||
+                  Number(finalQualityScore) < 5.0
+                }
                 title={
                   !allChecklistPassed
                     ? 'Tous les critères de conformité doivent être validés (verts) pour approuver le rapport'
+                    : Number(finalQualityScore) < 5.0
+                    ? 'Score de qualité insuffisant (< 5/10) pour approuver ce lot'
                     : 'Valider et certifier ce lot'
                 }
                 className="flex-2 py-3 px-3 bg-[#1a5c35] text-white font-bold text-xs rounded-xl hover:bg-[#144a2a] active:scale-98 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1218,7 +1219,11 @@ function InspectionReportFormPage() {
                   setShowApproveModal(false);
                   handleSubmitApprove();
                 }}
-                disabled={submitReport.isPending || !allChecklistPassed}
+                disabled={
+                  submitReport.isPending ||
+                  !allChecklistPassed ||
+                  Number(finalQualityScore) < 5.0
+                }
                 className="flex-1 py-2.5 bg-[#1a5c35] text-white rounded-xl text-xs font-bold hover:bg-[#144a2a] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitReport.isPending ? 'Envoi...' : 'Confirmer'}

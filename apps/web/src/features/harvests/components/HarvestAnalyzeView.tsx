@@ -179,10 +179,7 @@ export function HarvestAnalyzeView({
   const handleContinue = () => {
     if (!classifiedData) return;
 
-    // Map and round quality score (0.0 - 10.0 range mapped to 0-100 percentage)
-    const qualityPercent = classifiedData.aiQualityScore
-      ? Math.round(classifiedData.aiQualityScore * 10)
-      : 90;
+    const scoreVal = classifiedData.aiQualityScore != null ? classifiedData.aiQualityScore : 8.5;
 
     onProceedToForm({
       isIdentified: classifiedData.isIdentified ? 'true' : 'false',
@@ -194,7 +191,7 @@ export function HarvestAnalyzeView({
       photoUrl: images[activeImageIndex] || '',
       photoUrls: images.length > 0 ? JSON.stringify(images) : undefined,
       featuredPhotoIndex: String(activeImageIndex || 0),
-      qualityScore: String(qualityPercent),
+      qualityScore: String(scoreVal),
       farmerUserId,
       farmerName,
     });
@@ -328,10 +325,29 @@ export function HarvestAnalyzeView({
                 )}
                 <div className="flex justify-between">
                   <span className="text-[#707970] font-semibold">Qualité IA estimée :</span>
-                  <span className="font-bold text-[#1a5c35]">
-                    {classifiedData.aiQualityScore ? Math.round(classifiedData.aiQualityScore * 10) : 90}%
+                  <span
+                    className={`font-bold ${
+                      classifiedData.aiQualityScore != null && classifiedData.aiQualityScore < 5.0
+                        ? 'text-amber-700'
+                        : 'text-[#1a5c35]'
+                    }`}
+                  >
+                    {classifiedData.aiQualityScore ? Math.round(classifiedData.aiQualityScore * 10) : 90}% ({classifiedData.aiQualityScore ?? 8.5}/10)
                   </span>
                 </div>
+
+                {classifiedData.aiQualityScore != null && classifiedData.aiQualityScore < 5.0 && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-left space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-900 font-bold text-[11px]">
+                      <Icon name="warning" className="text-sm text-amber-600 shrink-0" />
+                      <span>Score de qualité estimé faible (&lt; 50%)</span>
+                    </div>
+                    <p className="text-[10px] text-amber-800 leading-relaxed">
+                      Vous pouvez tout de même enregistrer ce lot pour révision. Cependant, les exigences d'inspection sur le terrain seront renforcées et un score d'au moins 5/10 sera nécessaire pour que l'inspecteur puisse l'approuver.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <span className="text-[#707970] font-semibold">Quantité estimée :</span>
                   <span className="font-bold text-[#0b1c30]">

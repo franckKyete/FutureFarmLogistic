@@ -7,6 +7,7 @@ export interface HarvestPhotoPickerProps {
   onChangePhotos: (photos: string[]) => void;
   featuredIndex: number;
   onSelectFeaturedIndex: (index: number) => void;
+  showGuidanceBanner?: boolean;
 }
 
 export function HarvestPhotoPicker({
@@ -14,6 +15,7 @@ export function HarvestPhotoPicker({
   onChangePhotos,
   featuredIndex,
   onSelectFeaturedIndex,
+  showGuidanceBanner = false,
 }: HarvestPhotoPickerProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +74,9 @@ export function HarvestPhotoPicker({
 
   return (
     <div className="space-y-3 bg-[#f8f9ff] border border-[#c0c9be] p-4 rounded-xl">
-      <PhotoGuidanceBanner photoCount={photos.length} minRequired={10} variant="light" />
+      {showGuidanceBanner && (
+        <PhotoGuidanceBanner photoCount={photos.length} minRequired={10} variant="light" />
+      )}
 
       <div className="flex justify-between items-center">
         <div>

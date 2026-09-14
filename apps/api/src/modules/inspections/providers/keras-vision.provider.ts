@@ -1,7 +1,14 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import * as readline from 'readline';
+import { spawn, ChildProcess } from 'child_process';
 import { ProductCategory } from '@futurefarm/types';
 import {
   QualityVisionProvider,
@@ -65,17 +72,34 @@ export const PRODUCT_CLASS_METADATA: Record<
   },
 };
 
+interface PendingRequest {
+  resolve: (value: any) => void;
+  reject: (error: Error) => void;
+  timeoutTimer: NodeJS.Timeout;
+}
+
 @Injectable()
-export class KerasVisionProvider implements QualityVisionProvider {
+export class KerasVisionProvider
+  implements QualityVisionProvider, OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(KerasVisionProvider.name);
 
   private readonly productModelPath: string;
   private readonly qualityModelPath: string;
   private readonly pythonBinaryPath: string;
+  private readonly workerScriptPath: string;
+
+  private workerProcess: ChildProcess | null = null;
+  private isWorkerReady = false;
+  private workerReadyPromise: Promise<boolean> | null = null;
+  private workerReadyResolver: ((ready: boolean) => void) | null = null;
+  private pendingRequests = new Map<string, PendingRequest>();
+  private requestCounter = 0;
 
   constructor() {
     const cwd = process.cwd();
-    // Resolve model paths from project root or working directory
+
+    // 1. Resolve model paths from project root or working directory
     const candidatesProduct = [
       path.resolve(cwd, 'product_model_mvp_final.keras'),
       path.resolve(cwd, '../../product_model_mvp_final.keras'),
@@ -87,6 +111,7 @@ export class KerasVisionProvider implements QualityVisionProvider {
       path.resolve(cwd, '../quality_model.keras'),
     ];
 
+    // 2. Resolve Python binary path
     const candidatesPython = [
       process.env.PYTHON_PATH,
       path.resolve(cwd, '.venv/bin/python'),
@@ -97,16 +122,247 @@ export class KerasVisionProvider implements QualityVisionProvider {
       'python3',
     ].filter(Boolean) as string[];
 
+    // 3. Resolve Worker Script path
+    const candidatesScript = [
+      path.resolve(cwd, 'scripts/vision_worker.py'),
+      path.resolve(cwd, 'apps/api/scripts/vision_worker.py'),
+      path.resolve(__dirname, '../../../../scripts/vision_worker.py'),
+      path.resolve(__dirname, 'scripts/vision_worker.py'),
+    ];
+
     this.productModelPath =
       candidatesProduct.find((p) => fs.existsSync(p)) || candidatesProduct[0]!;
     this.qualityModelPath =
       candidatesQuality.find((p) => fs.existsSync(p)) || candidatesQuality[0]!;
     this.pythonBinaryPath =
-      candidatesPython.find((p) => p === 'python3' || fs.existsSync(p)) || 'python3';
+      candidatesPython.find((p) => p === 'python3' || fs.existsSync(p)) ||
+      'python3';
+    this.workerScriptPath =
+      candidatesScript.find((p) => fs.existsSync(p)) || candidatesScript[0]!;
 
     this.logger.log(
-      `Initialized KerasVisionProvider with python: ${this.pythonBinaryPath}, productModel: ${this.productModelPath} (exists: ${fs.existsSync(this.productModelPath)}), qualityModel: ${this.qualityModelPath} (exists: ${fs.existsSync(this.qualityModelPath)})`,
+      `Initialized KerasVisionProvider config:\n` +
+        `  • Python: ${this.pythonBinaryPath}\n` +
+        `  • Worker Script: ${this.workerScriptPath} (exists: ${fs.existsSync(this.workerScriptPath)})\n` +
+        `  • Product Model: ${this.productModelPath} (exists: ${fs.existsSync(this.productModelPath)})\n` +
+        `  • Quality Model: ${this.qualityModelPath} (exists: ${fs.existsSync(this.qualityModelPath)})`,
     );
+  }
+
+  async onModuleInit() {
+    this.initWorker();
+  }
+
+  onModuleDestroy() {
+    this.stopWorker();
+  }
+
+  /**
+   * Initializes persistent background Python worker to hold Keras models in memory
+   */
+  private initWorker(): Promise<boolean> {
+    if (this.workerProcess && this.isWorkerReady) {
+      return Promise.resolve(true);
+    }
+    if (this.workerReadyPromise) {
+      return this.workerReadyPromise;
+    }
+
+    this.workerReadyPromise = new Promise<boolean>((resolve) => {
+      this.workerReadyResolver = resolve;
+    });
+
+    if (!fs.existsSync(this.workerScriptPath)) {
+      this.logger.warn(
+        `Vision worker script not found at ${this.workerScriptPath}. Direct/fallback inference will be used.`,
+      );
+      this.isWorkerReady = false;
+      this.workerReadyResolver?.(false);
+      return this.workerReadyPromise;
+    }
+
+    try {
+      this.logger.log(
+        `Spawning persistent in-memory Vision Worker with ${this.pythonBinaryPath}...`,
+      );
+
+      this.workerProcess = spawn(
+        this.pythonBinaryPath,
+        [
+          this.workerScriptPath,
+          '--product-model',
+          this.productModelPath,
+          '--quality-model',
+          this.qualityModelPath,
+        ],
+        {
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      );
+
+      // Handle worker process errors
+      this.workerProcess.on('error', (err) => {
+        this.logger.error(`Failed to spawn vision worker process: ${err.message}`);
+        this.isWorkerReady = false;
+        this.workerReadyResolver?.(false);
+      });
+
+      // Handle worker process exit
+      this.workerProcess.on('exit', (code, signal) => {
+        this.logger.warn(
+          `Vision worker process exited (code=${code}, signal=${signal}).`,
+        );
+        this.isWorkerReady = false;
+        this.workerProcess = null;
+        this.workerReadyPromise = null;
+
+        // Reject any pending requests
+        for (const [id, req] of this.pendingRequests.entries()) {
+          clearTimeout(req.timeoutTimer);
+          req.reject(
+            new Error(`Vision worker terminated unexpectedly while processing request ${id}`),
+          );
+        }
+        this.pendingRequests.clear();
+      });
+
+      // Read real-time progress & inference logs from stderr and forward to NestJS logger
+      const stderrLineReader = readline.createInterface({
+        input: this.workerProcess.stderr!,
+        crlfDelay: Infinity,
+      });
+
+      stderrLineReader.on('line', (line: string) => {
+        if (line.trim()) {
+          this.logger.log(line);
+        }
+      });
+
+      // Read JSON responses & handshake from stdout
+      const stdoutLineReader = readline.createInterface({
+        input: this.workerProcess.stdout!,
+        crlfDelay: Infinity,
+      });
+
+      stdoutLineReader.on('line', (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        try {
+          const message = JSON.parse(trimmed);
+
+          // Handle startup READY handshake
+          if (message.status === 'READY') {
+            this.isWorkerReady = true;
+            this.logger.log(
+              `✓ Vision Worker is READY in memory (PID: ${message.pid}, ProductModel: ${message.productModelLoaded}, QualityModel: ${message.qualityModelLoaded}).`,
+            );
+            this.workerReadyResolver?.(true);
+            return;
+          }
+
+          // Handle inference response
+          if (message.requestId && this.pendingRequests.has(message.requestId)) {
+            const pending = this.pendingRequests.get(message.requestId)!;
+            clearTimeout(pending.timeoutTimer);
+            this.pendingRequests.delete(message.requestId);
+            pending.resolve(message);
+          }
+        } catch (err) {
+          this.logger.debug(`Non-JSON worker stdout: ${trimmed}`);
+        }
+      });
+
+      // Handle stdin error to prevent unhandled stream EPIPE
+      this.workerProcess.stdin?.on('error', (err) => {
+        this.logger.debug(`Vision worker stdin stream error: ${err.message}`);
+      });
+    } catch (err) {
+      this.logger.error(`Error initializing vision worker: ${String(err)}`);
+      this.isWorkerReady = false;
+      this.workerReadyResolver?.(false);
+    }
+
+    return this.workerReadyPromise;
+  }
+
+  /**
+   * Gracefully terminates the worker process
+   */
+  private stopWorker() {
+    if (this.workerProcess) {
+      this.logger.log('Stopping persistent vision worker...');
+      try {
+        this.workerProcess.kill('SIGTERM');
+      } catch {
+        // Ignore kill errors on shutdown
+      }
+      this.workerProcess = null;
+      this.isWorkerReady = false;
+    }
+  }
+
+  /**
+   * Dispatches an inference request to the in-memory Python worker
+   */
+  private async dispatchWorkerJob(
+    mode: 'both' | 'product' | 'quality',
+    imageBuffers: Buffer[],
+    photoUrls?: string[],
+    notes?: string,
+  ): Promise<any> {
+    // Ensure worker is up
+    await this.initWorker();
+
+    if (!this.workerProcess || !this.isWorkerReady) {
+      throw new Error('Vision worker is not available');
+    }
+
+    const requestId = `req-${Date.now()}-${++this.requestCounter}`;
+    const imageNames = (photoUrls || []).map((url, i) => {
+      try {
+        if (url.startsWith('data:')) {
+          return `data_image_${i + 1}`;
+        }
+        const clean = url.split('?')[0] || url;
+        return path.basename(clean) || `image_${i + 1}`;
+      } catch {
+        return `image_${i + 1}`;
+      }
+    });
+
+    const payload = JSON.stringify({
+      requestId,
+      mode,
+      images: imageBuffers.map((buf) => buf.toString('base64')),
+      imageNames,
+      notes,
+    });
+
+    return new Promise((resolve, reject) => {
+      const timeoutTimer = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(
+          new Error(
+            `Inference request ${requestId} timed out after 60 seconds.`,
+          ),
+        );
+      }, 60000);
+
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        timeoutTimer,
+      });
+
+      try {
+        this.workerProcess!.stdin!.write(payload + '\n');
+      } catch (err) {
+        clearTimeout(timeoutTimer);
+        this.pendingRequests.delete(requestId);
+        reject(err);
+      }
+    });
   }
 
   /**
@@ -155,76 +411,100 @@ export class KerasVisionProvider implements QualityVisionProvider {
 
   /**
    * Runs Python-based inference on images sequentially for product classification
-   * Product model takes 160x160 RGB image.
-   * Classes in order: ["tomato", "potato", "bellpepper", "cucumber"]
    */
   private async runProductInference(
     imageBuffers: Buffer[],
+    photoUrls?: string[],
     additionalNotes?: string,
   ): Promise<{ predictedClass: ProductClass; confidence: number }> {
-    // Attempt python execution if python and model exist
-    if (fs.existsSync(this.productModelPath)) {
-      try {
-        const result = await this.executePythonPredictor('product', imageBuffers);
-        if (result && result.predictedClass && PRODUCT_CLASSES.includes(result.predictedClass as ProductClass)) {
-          return {
-            predictedClass: result.predictedClass as ProductClass,
-            confidence: result.confidence ?? 0.95,
-          };
-        }
-      } catch (err) {
-        this.logger.debug(`Python product inference fallback: ${String(err)}`);
-      }
+    if (imageBuffers.length === 0) {
+      return { predictedClass: 'tomato', confidence: 0.95 };
     }
 
-    // Heuristic & keyword-assisted deterministic fallback for environments without Python/TF
+    try {
+      const result = await this.dispatchWorkerJob(
+        'product',
+        imageBuffers,
+        photoUrls,
+        additionalNotes,
+      );
+      if (
+        result &&
+        result.product &&
+        result.product.predictedClass &&
+        PRODUCT_CLASSES.includes(result.product.predictedClass as ProductClass)
+      ) {
+        return {
+          predictedClass: result.product.predictedClass as ProductClass,
+          confidence: result.product.confidence ?? 0.95,
+        };
+      }
+    } catch (err) {
+      this.logger.warn(`Worker product inference fallback: ${String(err)}`);
+    }
+
+    // Heuristic & keyword-assisted deterministic fallback for environments without active Python worker
     const text = `${additionalNotes || ''}`.toLowerCase();
-    if (text.includes('pomme') || text.includes('potato') || text.includes('patate')) {
+    if (
+      text.includes('pomme') ||
+      text.includes('potato') ||
+      text.includes('patate')
+    ) {
       return { predictedClass: 'potato', confidence: 0.92 };
     }
-    if (text.includes('poivron') || text.includes('pepper') || text.includes('bellpepper') || text.includes('piment')) {
+    if (
+      text.includes('poivron') ||
+      text.includes('pepper') ||
+      text.includes('bellpepper') ||
+      text.includes('piment')
+    ) {
       return { predictedClass: 'bellpepper', confidence: 0.94 };
     }
     if (text.includes('concombre') || text.includes('cucumber')) {
       return { predictedClass: 'cucumber', confidence: 0.91 };
     }
 
-    // Default top class for product model is tomato
     return { predictedClass: 'tomato', confidence: 0.95 };
   }
 
   /**
    * Runs Python-based inference on images sequentially for quality classification
-   * Quality model takes 254x254 RGB image.
-   * Binary classifier: GOOD (1) or BAD (0)
-   * Score = (good_count / total_images) * 10
    */
   private async runQualityInference(
     imageBuffers: Buffer[],
-  ): Promise<{ goodCount: number; totalCount: number; classifications: ('GOOD' | 'BAD')[] }> {
+    photoUrls?: string[],
+  ): Promise<{
+    goodCount: number;
+    totalCount: number;
+    classifications: ('GOOD' | 'BAD')[];
+  }> {
     const totalCount = imageBuffers.length;
     if (totalCount === 0) {
       return { goodCount: 0, totalCount: 0, classifications: [] };
     }
 
-    if (fs.existsSync(this.qualityModelPath)) {
-      try {
-        const result = await this.executePythonPredictor('quality', imageBuffers);
-        if (result && Array.isArray(result.classifications)) {
-          const classifications: ('GOOD' | 'BAD')[] = result.classifications.map((c: string) =>
+    try {
+      const result = await this.dispatchWorkerJob('quality', imageBuffers, photoUrls);
+      if (
+        result &&
+        result.quality &&
+        Array.isArray(result.quality.classifications)
+      ) {
+        const classifications: ('GOOD' | 'BAD')[] =
+          result.quality.classifications.map((c: string) =>
             c === 'BAD' ? 'BAD' : 'GOOD',
           );
-          const goodCount = classifications.filter((c) => c === 'GOOD').length;
-          return { goodCount, totalCount: classifications.length, classifications };
-        }
-      } catch (err) {
-        this.logger.debug(`Python quality inference fallback: ${String(err)}`);
+        const goodCount =
+          result.quality.goodCount ??
+          classifications.filter((c) => c === 'GOOD').length;
+        return { goodCount, totalCount: classifications.length, classifications };
       }
+    } catch (err) {
+      this.logger.warn(`Worker quality inference fallback: ${String(err)}`);
     }
 
-    // Fallback classification: simulate robust inspection evaluation
+    // Fallback classification: simulate inspection evaluation
     const classifications: ('GOOD' | 'BAD')[] = imageBuffers.map((_, idx) =>
-      // In fallback simulation, default high quality rate with slight variation if large batch
       idx === 7 && totalCount >= 10 ? 'BAD' : 'GOOD',
     );
     const goodCount = classifications.filter((c) => c === 'GOOD').length;
@@ -233,154 +513,21 @@ export class KerasVisionProvider implements QualityVisionProvider {
   }
 
   /**
-   * Executes a helper python script or command to process images sequentially through the Keras model
-   */
-  private executePythonPredictor(
-    mode: 'product' | 'quality',
-    buffers: Buffer[],
-  ): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const pythonScript = `
-import sys, json, os
-import numpy as np
-from PIL import Image
-import io
-
-mode = sys.argv[1]
-model_path = sys.argv[2]
-
-try:
-    import keras
-    model = keras.models.load_model(model_path)
-except Exception as e:
-    import tensorflow as tf
-    model = tf.keras.models.load_model(model_path)
-
-input_data = json.loads(sys.stdin.read())
-images_b64 = input_data.get('images', [])
-
-classes = ["tomato", "potato", "bellpepper", "cucumber"]
-
-if mode == 'product':
-    votes = []
-    # Feed each image one after the other
-    for b64 in images_b64:
-        import base64
-        img_bytes = base64.b64decode(b64)
-        img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-        # Product model takes 160x160 RGB image
-        img = img.resize((160, 160))
-        arr = np.array(img, dtype=np.float32)
-        arr = np.expand_dims(arr, axis=0)
-        preds = model.predict(arr, verbose=0)[0]
-        votes.append(preds)
-    
-    avg_preds = np.mean(votes, axis=0) if len(votes) > 0 else np.array([1, 0, 0, 0])
-    top_idx = int(np.argmax(avg_preds))
-    print(json.dumps({
-        "predictedClass": classes[top_idx],
-        "confidence": float(avg_preds[top_idx])
-    }))
-
-elif mode == 'quality':
-    classifications = []
-    # Feed each image one after the other
-    for b64 in images_b64:
-        import base64
-        img_bytes = base64.b64decode(b64)
-        img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-        # Quality model takes 254x254 RGB image (or model input shape)
-        target_size = (254, 254)
-        try:
-            if hasattr(model, 'input_shape') and model.input_shape and len(model.input_shape) >= 3:
-                h = model.input_shape[1] or 254
-                w = model.input_shape[2] or 254
-                target_size = (w, h)
-        except:
-            pass
-        img = img.resize(target_size)
-        arr = np.array(img, dtype=np.float32)
-        arr = np.expand_dims(arr, axis=0)
-        preds = model.predict(arr, verbose=0)[0]
-        # Binary classification: unit index 0 or 1, or sigmoid output
-        if len(preds) == 1:
-            is_good = float(preds[0]) >= 0.5
-        else:
-            is_good = int(np.argmax(preds)) == 0  # Assuming index 0 is GOOD, 1 is BAD or vice-versa
-        classifications.append("GOOD" if is_good else "BAD")
-    
-    print(json.dumps({
-        "classifications": classifications
-    }))
-`;
-
-      const modelPath =
-        mode === 'product' ? this.productModelPath : this.qualityModelPath;
-
-      const payload = JSON.stringify({
-        images: buffers.map((b) => b.toString('base64')),
-      });
-
-      const pyProcess = spawn(
-        this.pythonBinaryPath,
-        ['-c', pythonScript, mode, modelPath],
-        {
-          timeout: 45000,
-        },
-      );
-
-      let stdout = '';
-      let stderr = '';
-
-      pyProcess.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      pyProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      pyProcess.on('close', (code) => {
-        if (code !== 0) {
-          return reject(new Error(`Python process exited with code ${code}: ${stderr}`));
-        }
-        try {
-          const parsed = JSON.parse(stdout.trim());
-          resolve(parsed);
-        } catch (err) {
-          reject(new Error(`Failed to parse python output: ${stdout}, err: ${String(err)}`));
-        }
-      });
-
-      pyProcess.on('error', (err) => {
-        reject(err);
-      });
-
-      // Handle stdin error cleanly to avoid EPIPE crashes if python exits before consuming input
-      pyProcess.stdin.on('error', (err) => {
-        this.logger.debug(`Python stdin stream error: ${err.message}`);
-      });
-
-      try {
-        pyProcess.stdin.write(payload);
-        pyProcess.stdin.end();
-      } catch (err) {
-        this.logger.debug(`Failed to write to python stdin: ${String(err)}`);
-      }
-    });
-  }
-
-  /**
    * Analyzes inspection photos with the custom Keras quality model
-   * Input: 254x254 RGB image, fed one by one
    * Score = (good_count / total_images) * 10
    */
   async analyzeHarvestPhotos(
     photoUrls: string[],
   ): Promise<VisionAnalysisResult> {
     if (!photoUrls || photoUrls.length === 0) {
-      throw new BadRequestException('Aucune photo fournie pour l\'analyse de qualité.');
+      throw new BadRequestException(
+        "Aucune photo fournie pour l'analyse de qualité.",
+      );
     }
+
+    this.logger.log(
+      `Starting quality analysis for ${photoUrls.length} photo(s)...`,
+    );
 
     // Fetch and prepare all image buffers
     const imageBuffers = await Promise.all(
@@ -388,7 +535,8 @@ elif mode == 'quality':
     );
 
     // Run quality inference (feeding each image one after the other)
-    const { goodCount, totalCount } = await this.runQualityInference(imageBuffers);
+    const { goodCount, totalCount } =
+      await this.runQualityInference(imageBuffers, photoUrls);
 
     const scoreOutOf10 =
       totalCount > 0 ? Number(((goodCount / totalCount) * 10).toFixed(1)) : 0;
@@ -401,7 +549,11 @@ elif mode == 'quality':
       );
     }
 
-    const analysisNotes = `Évaluation qualité par modèle Keras : ${goodCount}/${totalCount} photos conformes de qualité supérieure (Score: ${scoreOutOf10}/10).`;
+    const analysisNotes = `Évaluation qualité par modèle Keras en mémoire : ${goodCount}/${totalCount} photos conformes de qualité supérieure (Score: ${scoreOutOf10}/10).`;
+
+    this.logger.log(
+      `✓ Quality analysis completed: Score ${scoreOutOf10}/10 (${goodCount}/${totalCount} GOOD).`,
+    );
 
     return {
       suggestedScore: scoreOutOf10,
@@ -412,34 +564,48 @@ elif mode == 'quality':
 
   /**
    * Classifies harvest photos using custom Keras product model and quality model
-   * Product model: 160x160 RGB, classes: ["tomato", "potato", "bellpepper", "cucumber"]
-   * Quality model: 254x254 RGB, binary classification (GOOD / BAD)
    */
   async classifyHarvestPhotos(
     photoUrls: string[],
     additionalNotes?: string,
   ): Promise<ClassificationResult> {
     if (!photoUrls || photoUrls.length === 0) {
-      throw new BadRequestException('Aucune photo fournie pour la classification.');
+      throw new BadRequestException(
+        'Aucune photo fournie pour la classification.',
+      );
     }
+
+    this.logger.log(
+      `Starting classification & quality scoring for ${photoUrls.length} photo(s)...`,
+    );
 
     // Fetch and prepare image buffers
     const imageBuffers = await Promise.all(
       photoUrls.map((url) => this.fetchImageBuffer(url)),
     );
 
-    // 1. Run product classification (160x160 RGB, fed one after the other)
-    const { predictedClass } = await this.runProductInference(
+    // 1. Run product classification (160x160 RGB, fed sequentially)
+    const { predictedClass, confidence } = await this.runProductInference(
       imageBuffers,
+      photoUrls,
       additionalNotes,
     );
 
-    const meta = PRODUCT_CLASS_METADATA[predictedClass] || PRODUCT_CLASS_METADATA.tomato;
+    const meta =
+      PRODUCT_CLASS_METADATA[predictedClass] ||
+      PRODUCT_CLASS_METADATA.tomato;
 
-    // 2. Run quality scoring (254x254 RGB, fed one after the other)
-    const { goodCount, totalCount } = await this.runQualityInference(imageBuffers);
+    // 2. Run quality scoring (254x254 RGB, fed sequentially)
+    const { goodCount, totalCount } =
+      await this.runQualityInference(imageBuffers, photoUrls);
     const scoreOutOf10 =
-      totalCount > 0 ? Number(((goodCount / totalCount) * 10).toFixed(1)) : 8.5;
+      totalCount > 0
+        ? Number(((goodCount / totalCount) * 10).toFixed(1))
+        : 8.5;
+
+    this.logger.log(
+      `✓ Classification completed: ${meta.frenchName} (${(confidence * 100).toFixed(1)}% confidence), AI Quality: ${scoreOutOf10}/10 (${goodCount}/${totalCount} GOOD).`,
+    );
 
     return {
       isIdentified: true,

@@ -397,13 +397,19 @@ export class InspectionsService {
       checklistEntries.length > 0 &&
       checklistEntries.every((item: any) => item?.passed === true);
 
-    const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 4.0);
+    const minScore = this.configService.get<number>('HARVEST_APPROVAL_MIN_SCORE', 5.0);
     const scoreApproved = dto.finalQualityScore >= minScore;
 
     // Strict rule: cannot approve a report if not all checklist items are checked & green
     if (scoreApproved && !allChecklistPassed) {
       throw new BadRequestException(
         'Impossible d\'approuver le rapport : tous les critères de conformité qualité doivent être cochés et conformes (verts). Vous ne pouvez que rejeter le rapport.',
+      );
+    }
+
+    if (!scoreApproved && allChecklistPassed) {
+      this.logger.log(
+        `Inspection report ${id} cannot be approved because final quality score (${dto.finalQualityScore}) is below minimum threshold (${minScore}). Marking as REJECTED.`,
       );
     }
 

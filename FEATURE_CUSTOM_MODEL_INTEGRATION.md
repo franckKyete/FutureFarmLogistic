@@ -29,9 +29,25 @@ Two Keras `.keras` models are located at the project root:
 
 ---
 
-## 3. Python Environment & Inference Execution
+## 3. Python Environment & Persistent In-Memory Worker
 
-The backend dynamically executes Python inference scripts via Node child process spawn.
+To achieve fast inference without re-importing TensorFlow/Keras or reloading model weights on every request, the backend uses a persistent background daemon architecture.
+
+### Persistent Inference Worker (`apps/api/scripts/vision_worker.py`)
+- **Lifecycle**:
+  - `KerasVisionProvider` implements NestJS `OnModuleInit` and `OnModuleDestroy`.
+  - On startup (`onModuleInit`), it spawns a persistent Python worker (`apps/api/scripts/vision_worker.py`).
+  - The worker loads both `product_model_mvp_final.keras` and `quality_model.keras` into RAM **once** at startup and signals `READY`.
+  - It listens on `stdin` for JSON-line inference jobs and returns single-line JSON responses on `stdout`.
+  - Automatically cleans up or restarts if the process terminates.
+
+### Real-Time Image-by-Image Processing Logs
+- As each photo is processed sequentially, the Python worker emits live formatted logs directly to `stderr`:
+  - `[Req:...] [Image 1/10] [PRODUCT 160x160] -> Output: 'tomato' (98.4%) [tomato=98.4%, potato=1.2%, bellpepper=0.3%, cucumber=0.1%]`
+  - `[Req:...] [Image 1/10] [QUALITY 254x254] -> Output: GOOD (good_prob: 96.7%)`
+  - `[Req:...] [SUMMARY] Product Classification: 'tomato' (Overall Confidence: 98.4%)`
+  - `[Req:...] [SUMMARY] Quality Evaluation: 9/10 GOOD (Score: 9.0/10)`
+- `KerasVisionProvider` streams worker `stderr` directly into NestJS `this.logger.log(...)` in real-time, making all image feeding steps and outputs instantly visible in the application console.
 
 ### Interpreter Resolution
 [`KerasVisionProvider`](apps/api/src/modules/inspections/providers/keras-vision.provider.ts) looks for the Python interpreter in the following order:
@@ -77,9 +93,26 @@ Farmers and inspectors are required to provide at least 10 photos for harvest cr
   10. Vue d'ensemble du contenant / caisse
 - **Integration Points**:
   - [`apps/web/src/features/harvests/components/HarvestAnalyzeView.tsx`](apps/web/src/features/harvests/components/HarvestAnalyzeView.tsx): Banner integrated; analyze buttons disabled until $\ge 10$ photos exist.
-  - [`apps/web/src/features/harvests/components/HarvestFormView.tsx`](apps/web/src/features/harvests/components/HarvestFormView.tsx): Banner integrated; submit blocked with validation message if $< 10$ photos.
-  - [`apps/web/src/features/harvests/components/HarvestPhotoPicker.tsx`](apps/web/src/features/harvests/components/HarvestPhotoPicker.tsx): Visual counter badge and progress feedback.
-  - [`apps/web/src/routes/inspector/reports/$id.tsx`](apps/web/src/routes/inspector/reports/$id.tsx): Banner and photo validation in inspector report creation and pre-screening modal.
+  - [`apps/web/src/features/harvests/components/HarvestFormView.tsx`](apps/web/src/features/harvests/components/HarvestFormView.tsx): Harvest creation form requires at least 1 photo to submit (allowing farmers to remove unwanted photos after AI analysis).
+  - [`apps/web/src/routes/inspector/reports/$id.tsx`](apps/web/src/routes/inspector/reports/$id.tsx): Banner and 10-photo constraint in inspector report creation and pre-screening modal.
+
+---
+
+## 5. Stock Margin & Quality Score Approval Rules
+
+### A. Automatic 10% Stock Safety Margin
+- The manual `stockMarge` input field has been removed from [`HarvestFormView.tsx`](apps/web/src/features/harvests/components/HarvestFormView.tsx).
+- Both frontend and backend automatically compute and assign a 10% stock safety margin on all created harvests:
+  $$\text{stockMarge} = \text{quantityInStock} \times 0.10$$
+
+### B. AI Quality Score Persistence & Inspector Report Pre-Fill
+- When a farmer analyses photos on [`HarvestAnalyzeView.tsx`](apps/web/src/features/harvests/components/HarvestAnalyzeView.tsx), the AI score is forwarded to [`HarvestFormView.tsx`](apps/web/src/features/harvests/components/HarvestFormView.tsx) and saved to `HarvestEntity.qualityScore`.
+- When an inspector opens the inspection report for that harvest, the score automatically populates `InspectionReportEntity.aiPreScreenScore` and `finalQualityScore`.
+
+### C. Minimum Quality Score $\ge 5.0$ for Approval
+- Inspectors cannot approve any harvest with a quality score $< 5.0/10$:
+  - Backend validation in `verifyHarvest()` and `submitReport()` throws a `BadRequestException` if approval is attempted on a harvest with a score below 5.0.
+  - Frontend in [`inspector/reports/$id.tsx`](apps/web/src/routes/inspector/reports/$id.tsx) disables the certification button with clear warnings if score $< 5.0$.
 
 ---
 

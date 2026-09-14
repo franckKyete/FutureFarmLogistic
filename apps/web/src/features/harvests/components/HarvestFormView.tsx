@@ -74,7 +74,6 @@ export function HarvestFormView({
   const [unit, setUnit] = useState<HarvestUnit>(HarvestUnit.KG);
   const [harvestDate, setHarvestDate] = useState('');
   const [shelfLifeDays, setShelfLifeDays] = useState(searchParams.shelfLifeDays || '30');
-  const [stockMarge, setStockMarge] = useState('50');
   const [farmingMethods, setFarmingMethods] = useState(searchParams.farmingMethods || '');
 
   // Parse initial photos from searchParams (supports multiple server URLs from analyze step)
@@ -145,7 +144,6 @@ export function HarvestFormView({
               setHarvestDate(draft.manualForm.harvestDate.substring(0, 10));
             }
             if (draft.manualForm.shelfLifeDays) setShelfLifeDays(draft.manualForm.shelfLifeDays);
-            if (draft.manualForm.stockMarge) setStockMarge(String(draft.manualForm.stockMarge));
             if (draft.manualForm.farmingMethods) setFarmingMethods(draft.manualForm.farmingMethods);
           }
         }
@@ -204,11 +202,8 @@ export function HarvestFormView({
       return;
     }
 
-    if (photos.length < 10) {
-      addToast(
-        `Veuillez fournir au moins 10 photos du lot sous différents angles (${photos.length}/10 fournies).`,
-        'error',
-      );
+    if (photos.length === 0) {
+      addToast('Veuillez ajouter au moins une photo pour le lot de récolte.', 'error');
       return;
     }
 
@@ -255,7 +250,7 @@ export function HarvestFormView({
           pricePerUnit: Number(pricePerUnit),
           harvestDate: new Date(harvestDate).toISOString(),
           shelfLifeDays,
-          stockMarge: Number(stockMarge) || 0,
+          stockMarge: Number((Number(quantity) * 0.1).toFixed(2)),
           farmingMethods,
           farmerUserId: isProxy ? effectiveFarmerUserId : undefined,
           farmerName: isProxy ? effectiveFarmerName : undefined,
@@ -311,15 +306,14 @@ export function HarvestFormView({
         finalPhotoUrls = await Promise.all(uploadPromises);
       }
 
-      // Reorder designated cover photo to index 0 if another photo was selected as cover
-      if (featuredPhotoIndex > 0 && finalPhotoUrls[featuredPhotoIndex]) {
-        const cover = finalPhotoUrls[featuredPhotoIndex];
-        if (cover) {
-          finalPhotoUrls.splice(featuredPhotoIndex, 1);
-          finalPhotoUrls.unshift(cover);
-        }
+      // Reorder photos so the selected featured photo is at index 0
+      if (featuredPhotoIndex > 0 && featuredPhotoIndex < finalPhotoUrls.length) {
+        const featured = finalPhotoUrls[featuredPhotoIndex]!;
+        finalPhotoUrls.splice(featuredPhotoIndex, 1);
+        finalPhotoUrls.unshift(featured);
       }
 
+      // Create product if custom crop
       let finalProductId = productId;
       if (isCustomCrop) {
         const newProduct = await createProduct.mutateAsync({
@@ -328,8 +322,14 @@ export function HarvestFormView({
           description: newCropDescription.trim() || newCropName.trim(),
         });
         finalProductId = newProduct.id;
-        await queryClient.invalidateQueries({ queryKey: ['products'] });
       }
+
+      const autoStockMarge = Number((Number(quantity) * 0.1).toFixed(2));
+      const score = searchParams.qualityScore
+        ? Number(searchParams.qualityScore)
+        : reviewedDraft?.aiResult?.aiQualityScore != null
+        ? Number(reviewedDraft.aiResult.aiQualityScore)
+        : undefined;
 
       const harvestPayload: {
         productId: string;
@@ -341,6 +341,7 @@ export function HarvestFormView({
         stockMarge: number;
         farmingMethods: string;
         photoUrls: string[];
+        qualityScore?: number;
       } = {
         productId: finalProductId,
         quantityInStock: Number(quantity),
@@ -348,9 +349,10 @@ export function HarvestFormView({
         pricePerUnit: Number(pricePerUnit),
         harvestDate: new Date(harvestDate).toISOString(),
         expirationDate: expDate,
-        stockMarge: Number(stockMarge) || 0,
+        stockMarge: autoStockMarge,
         farmingMethods: farmingMethods || 'Culture traditionnelle locale',
         photoUrls: finalPhotoUrls,
+        ...(score !== undefined ? { qualityScore: score } : {}),
       };
 
       if (isProxy && effectiveFarmerUserId) {
@@ -495,6 +497,31 @@ export function HarvestFormView({
         </div>
       )}
 
+      {/* Low quality score warning (< 5.0 / 50%) */}
+      {(() => {
+        const currentScore = searchParams.qualityScore
+          ? Number(searchParams.qualityScore)
+          : reviewedDraft?.aiResult?.aiQualityScore != null
+          ? Number(reviewedDraft.aiResult.aiQualityScore)
+          : null;
+        if (currentScore != null && currentScore < 5.0) {
+          return (
+            <div className="mb-4 bg-amber-50 border border-amber-300 rounded-2xl p-3.5 flex items-start gap-3 shadow-xs">
+              <Icon name="warning" className="text-amber-600 text-lg shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="text-xs font-bold text-amber-900">
+                  Score de qualité estimé inférieur à 50% ({currentScore.toFixed(1)}/10)
+                </div>
+                <div className="text-[11px] text-amber-800 leading-relaxed">
+                  Vous pouvez soumettre ce lot pour révision. Veuillez noter que les critères d'inspection seront renforcés et qu'un score d'au moins 5/10 sera exigé par l'inspecteur pour certifier et publier le lot.
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {/* Main Harvest Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Interactive Photo Picker */}
@@ -628,30 +655,17 @@ export function HarvestFormView({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-[#404941] block">Prix unitaire (CDF/{unit}) *</label>
-              <input
-                type="number"
-                min="1"
-                value={pricePerUnit}
-                onChange={(e) => setPricePerUnit(e.target.value)}
-                className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
-                placeholder="Ex: 1200"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-[#404941] block">Marge de sécurité ({unit})</label>
-              <input
-                type="number"
-                min="0"
-                value={stockMarge}
-                onChange={(e) => setStockMarge(e.target.value)}
-                className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
-                placeholder="Ex: 50"
-              />
-            </div>
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-[#404941] block">Prix unitaire (CDF/{unit}) *</label>
+            <input
+              type="number"
+              min="1"
+              value={pricePerUnit}
+              onChange={(e) => setPricePerUnit(e.target.value)}
+              className="w-full bg-white border border-[#c0c9be] rounded-lg p-2.5 text-[13px] outline-none focus:border-[#004322]"
+              placeholder="Ex: 1200"
+              required
+            />
           </div>
         </section>
 
